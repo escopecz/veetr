@@ -1,0 +1,269 @@
+/* Luna Sailing Dashboard Styles */
+
+:root {
+  /* Light theme (default) */
+  --primary-color: #0a4a7c;
+  --secondary-color: #2a8dd4;
+  --accent-color: #ffa500;
+  --background-color: #f5f5f5;
+  --card-background: #ffffff;
+  --text-color: #333333;
+  --border-color: #dddddd;
+  --success-color: #28a745;
+  --warning-color: #ffc107;
+  --danger-color: #dc3545;
+}
+
+/* Dark theme */
+.dark-theme {
+  --primary-color: #0d6efd;
+  --secondary-color: #3a99e0;
+  --accent-color: #ffb733;
+  --background-color: #121212;
+  --card-background: #1e1e1e;
+  --text-color: #e0e0e0;
+  --border-color: #444444;
+  --success-color: #198754;
+  --warning-color: #ffc107;
+  --danger-color: #dc3545;
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  margin: 0;
+}
+
+/* Header styles */
+header {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+header h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+#connection-status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+#connection-status.connected {
+  background-color: var(--success-color);
+}
+
+#connection-status.disconnected {
+  background-color: var(--danger-color);
+}
+
+#settings-toggle {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+/* Main content styles */
+main {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+/* Data cards */
+#primary-data {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.data-card {
+  background-color: var(--card-background);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.data-card h2 {
+  margin-bottom: 1rem;
+  color: var(--primary-color);
+}
+
+.gauge-container, .compass-container, .tilt-indicator {
+  width: 100%;
+  height: 150px;
+  margin-bottom: 1rem;
+}
+
+.data-value {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: baseline;
+}
+
+.unit {
+  font-size: 1rem;
+  margin-left: 0.25rem;
+  opacity: 0.7;
+}
+
+.data-minmax {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+/* Chart styles */
+#history-data {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.chart-container {
+  background-color: var(--card-background);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  height: 200px;
+}
+
+/* Settings panel */
+#settings-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--card-background);
+  width: 300px;
+  padding: 1.5rem;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+
+#settings-panel.hidden {
+  transform: translateX(100%);
+}
+
+#settings-panel h2 {
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+}
+
+.setting-group {
+  margin-bottom: 1.5rem;
+}
+
+.setting-group h3 {
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.25rem;
+}
+
+.setting {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.setting label {
+  margin-right: 1rem;
+}
+
+select, input {
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+#settings-close {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+#install-button {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+#install-button.hidden {
+  display: none;
+}
+
+/* Responsive adjustments */
+@media (min-width: 768px) {
+  #history-data {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  header h1 {
+    font-size: 1.2rem;
+  }
+  
+  .data-value {
+    font-size: 1.5rem;
+  }
+  
+  #settings-panel {
+    width: 100%;
+  }
+}

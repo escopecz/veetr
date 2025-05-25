@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a4a7c">
+    <meta name="description" content="Luna Sailing Dashboard - Monitor your sailing vessel's data in real-time">
+    <title>Luna Sailing Dashboard</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="icon" href="/images/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
+</head>
+<body>
+    <header>
+        <h1>Luna Sailing Dashboard</h1>
+        <div id="connection-status" class="connected">Connected</div>
+        <button id="settings-toggle" aria-label="Settings">⚙️</button>
+    </header>
+
+    <main>
+        <section id="primary-data">
+            <div class="data-card" id="speed-card">
+                <h2>Speed</h2>
+                <div class="gauge-container" id="speed-gauge"></div>
+                <div class="data-value">
+                    <span id="speed-value">0.0</span>
+                    <span class="unit">knots</span>
+                </div>
+                <div class="data-minmax">
+                    <span>Max: <span id="speed-max">0.0</span></span>
+                    <span>Avg: <span id="speed-avg">0.0</span></span>
+                </div>
+            </div>
+
+            <div class="data-card" id="wind-card">
+                <h2>Wind</h2>
+                <div class="compass-container" id="wind-direction"></div>
+                <div class="data-value">
+                    <span id="wind-speed-value">0.0</span>
+                    <span class="unit">knots</span>
+                </div>
+                <div class="data-value">
+                    <span id="wind-dir-value">0</span>
+                    <span class="unit">°</span>
+                </div>
+            </div>
+
+            <div class="data-card" id="tilt-card">
+                <h2>Heel Angle</h2>
+                <div class="tilt-indicator" id="tilt-gauge"></div>
+                <div class="data-value">
+                    <span id="tilt-value">0.0</span>
+                    <span class="unit">°</span>
+                </div>
+                <div class="data-minmax">
+                    <span>Port Max: <span id="tilt-port-max">0.0</span></span>
+                    <span>Starboard Max: <span id="tilt-starboard-max">0.0</span></span>
+                </div>
+            </div>
+        </section>
+
+        <section id="history-data">
+            <div class="chart-container">
+                <canvas id="speed-chart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="wind-chart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="tilt-chart"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <div id="settings-panel" class="hidden">
+        <h2>Settings</h2>
+        <div class="setting-group">
+            <h3>Display</h3>
+            <div class="setting">
+                <label for="theme-select">Theme:</label>
+                <select id="theme-select">
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                    <option value="auto">Auto (System)</option>
+                </select>
+            </div>
+            <div class="setting">
+                <label for="view-select">View Mode:</label>
+                <select id="view-select">
+                    <option value="basic">Basic</option>
+                    <option value="detailed">Detailed</option>
+                    <option value="graphical">Graphical</option>
+                </select>
+            </div>
+        </div>
+        <div class="setting-group">
+            <h3>Updates</h3>
+            <div class="setting">
+                <label for="refresh-rate">Refresh Rate (seconds):</label>
+                <input type="range" id="refresh-rate" min="0.5" max="5" step="0.5" value="1">
+                <span id="refresh-rate-value">1</span>
+            </div>
+        </div>
+        <div class="setting-group">
+            <h3>About</h3>
+            <p>Luna Sailing Dashboard v1.0</p>
+            <p>© 2023 Luna Sailing</p>
+            <button id="install-button" class="hidden">Install App</button>
+        </div>
+        <button id="settings-close">Close</button>
+    </div>
+
+    <script src="/js/chart.min.js"></script>
+    <script src="/js/gauges.js"></script>
+    <script src="/js/charts.js"></script>
+    <script src="/js/websocket.js"></script>
+    <script src="/js/main.js"></script>
+    <script src="/js/pwa-install.js"></script>
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered:', reg))
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>
