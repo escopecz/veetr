@@ -8,6 +8,15 @@ const maxReconnectAttempts = 5;
 const reconnectInterval = 3000; // 3 seconds
 const connectionStatus = document.getElementById('connection-status');
 
+// Expose WebSocket state globally for other scripts
+window.getWebSocketState = function() {
+    return {
+        socket: socket,
+        isConnected: isConnected,
+        readyState: socket ? socket.readyState : WebSocket.CLOSED
+    };
+};
+
 // Initialize WebSocket connection
 function initWebSocket() {
     // Get the host from the current URL
@@ -69,7 +78,15 @@ function onSocketError(error) {
 function onSocketMessage(event) {
     try {
         const data = JSON.parse(event.data);
-        updateDashboard(data);
+        
+        // Handle WiFi restart notification
+        if (data.action === 'wifiRestart') {
+            handleWiFiRestart(data);
+        } else if (data.action === 'factoryReset') {
+            handleFactoryReset(data);
+        } else {
+            updateDashboard(data);
+        }
     } catch (error) {
         console.error('Error parsing WebSocket message:', error);
     }
@@ -89,6 +106,105 @@ function updateRefreshRate() {
             refreshRate: getRefreshRate()
         }));
     }
+}
+
+// Update WiFi settings
+function updateWiFiSettings(ssid, password) {
+    if (isConnected) {
+        socket.send(JSON.stringify({
+            action: 'updateWiFi',
+            ssid: ssid,
+            password: password
+        }));
+        console.log('WiFi settings sent to ESP32');
+    } else {
+        console.error('Cannot update WiFi settings - not connected to WebSocket');
+        alert('Cannot update WiFi settings - not connected to device');
+    }
+}
+
+// Handle WiFi restart notification
+function handleWiFiRestart(data) {
+    console.log('WiFi is restarting with new settings:', data);
+    
+    // Show user notification
+    const newSSID = data.ssid;
+    const security = data.security;
+    
+    // Create notification message
+    let message = `WiFi settings applied successfully!\n\n`;
+    message += `New Network: ${newSSID}\n`;
+    message += `Security: ${security}\n\n`;
+    
+    if (newSSID !== getCurrentSSID()) {
+        message += `⚠️ Network name has changed!\n\n`;
+        message += `To continue using the dashboard:\n`;
+        message += `1. Disconnect from current WiFi\n`;
+        message += `2. Connect to "${newSSID}"\n`;
+        message += `3. Reload this page\n\n`;
+        message += `The page will close in 5 seconds.`;
+        
+        alert(message);
+        
+        // Close the page after 5 seconds
+        setTimeout(() => {
+            window.close();
+        }, 5000);
+    } else {
+        message += `You may be temporarily disconnected while WiFi restarts.`;
+        alert(message);
+    }
+    
+    // Update connection status
+    connectionStatus.textContent = 'WiFi Restarting';
+    connectionStatus.className = 'connecting';
+    
+    // Stop trying to reconnect for a while to let WiFi restart
+    reconnectAttempts = maxReconnectAttempts;
+    
+    // Reset reconnection after 10 seconds
+    setTimeout(() => {
+        reconnectAttempts = 0;
+        if (!isConnected) {
+            initWebSocket();
+        }
+    }, 10000);
+}
+
+// Handle factory reset notification
+function handleFactoryReset(data) {
+    console.log('Factory reset performed');
+    
+    // Show user notification
+    let message = `🔄 Factory Reset Complete!\n\n`;
+    message += `All settings have been restored to defaults:\n`;
+    message += `• Network: Luna_Sailing (open network)\n`;
+    message += `• All sensor data cleared\n`;
+    message += `• WiFi password removed\n\n`;
+    message += `⚠️ Security Warning:\n`;
+    message += `The network is now open (no password).\n`;
+    message += `Configure a secure password through Settings.\n\n`;
+    message += `The page will reload automatically.`;
+    
+    alert(message);
+    
+    // Clear any stored WiFi settings
+    localStorage.removeItem('wifiSSID');
+    localStorage.removeItem('wifiPassword');
+    
+    // Update connection status
+    connectionStatus.textContent = 'Factory Reset - Reloading';
+    connectionStatus.className = 'connecting';
+    
+    // Reload the page after a short delay
+    setTimeout(() => {
+        window.location.reload();
+    }, 3000);
+}
+
+// Get current SSID from localStorage
+function getCurrentSSID() {
+    return localStorage.getItem('wifiSSID') || 'Luna_Sailing';
 }
 
 // Update the dashboard with received data

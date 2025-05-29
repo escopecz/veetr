@@ -6,9 +6,21 @@
 #include <LittleFS.h>
 #include <vector>
 
+// Factory Reset Button Configuration
+#define FACTORY_RESET_BUTTON 0    // GPIO 0 (BOOT button)
+#define FACTORY_RESET_HOLD_TIME 5000  // 5 seconds hold time
+#define STATUS_LED 2              // GPIO 2 (built-in LED on most ESP32 boards)
+#define FACTORY_RESET_DEBOUNCE 50 // 50ms debounce time
+
+// Factory reset button state
+unsigned long buttonPressStart = 0;
+unsigned long lastButtonCheck = 0;
+bool buttonPressed = false;
+bool factoryResetInProgress = false;
+
 // Define your WiFi credentials for Access Point mode
-const char* ssid = "Luna_Sailing";
-const char* password = ""; // Empty for open network, or set a password
+char ssid[33] = "Luna_Sailing";  // SSID can be up to 32 characters + null terminator
+char password[64] = "";          // Password can be up to 63 characters + null terminator
 
 // Web server & WebSocket server
 AsyncWebServer server(80);
@@ -42,11 +54,15 @@ unsigned long nextUpdate = 0;
 // Function prototypes
 void setupWiFi();
 void setupWebServer();
+void setupFactoryReset();
+void checkFactoryReset();
+void performFactoryReset();
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len);
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
 void notifyClients();
 void readSensors();
 void updateHistory();
+void updateWiFiSettings(const char* newSSID, const char* newPassword);
 String getSensorDataJson();
 String getHistoryJson();
 String getFullDataJson();
@@ -68,6 +84,9 @@ void setup() {
   
   // Setup web server and WebSocket
   setupWebServer();
+  
+  // Setup factory reset functionality
+  setupFactoryReset();
   
   // Initialize sensor data and history
   currentData.speedMax = 0;
@@ -101,6 +120,9 @@ void loop() {
     // Set next update time
     nextUpdate = millis() + refreshRate;
   }
+  
+  // Check factory reset button state
+  checkFactoryReset();
 }
 
 // Set up WiFi Access Point
@@ -166,6 +188,15 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       else if (action == "updateSettings" && doc.containsKey("refreshRate")) {
         refreshRate = doc["refreshRate"].as<float>() * 1000; // Convert to milliseconds
         Serial.printf("Refresh rate updated: %d ms\n", refreshRate);
+      }
+      
+      // Handle WiFi settings update
+      else if (action == "updateWiFi") {
+        if (doc.containsKey("ssid")) {
+          String newSSID = doc["ssid"].as<String>();
+          String newPassword = doc.containsKey("password") ? doc["password"].as<String>() : "";
+          updateWiFiSettings(newSSID.c_str(), newPassword.c_str());
+        }
       }
     }
   }
@@ -321,4 +352,205 @@ String getFullDataJson() {
   String output;
   serializeJson(doc, output);
   return output;
+}
+
+// Update WiFi Access Point settings
+void updateWiFiSettings(const char* newSSID, const char* newPassword) {
+  Serial.println("Updating WiFi settings...");
+  
+  // Validate SSID
+  if (strlen(newSSID) == 0 || strlen(newSSID) > 32) {
+    Serial.println("Invalid SSID length");
+    return;
+  }
+  
+  // Validate password
+  if (strlen(newPassword) > 0 && (strlen(newPassword) < 8 || strlen(newPassword) > 63)) {
+    Serial.println("Invalid password length");
+    return;
+  }
+  
+  // Copy new credentials
+  strncpy(ssid, newSSID, sizeof(ssid) - 1);
+  ssid[sizeof(ssid) - 1] = '\0'; // Ensure null termination
+  
+  strncpy(password, newPassword, sizeof(password) - 1);
+  password[sizeof(password) - 1] = '\0'; // Ensure null termination
+  
+  // Log the change (don't log password for security)
+  Serial.printf("New SSID: %s\n", ssid);
+  Serial.printf("Security: %s\n", strlen(password) > 0 ? "WPA2" : "Open");
+  
+  // Notify clients that WiFi is restarting
+  if (ws.count() > 0) {
+    DynamicJsonDocument response(256);
+    response["action"] = "wifiRestart";
+    response["ssid"] = ssid;
+    response["security"] = strlen(password) > 0 ? "WPA2" : "Open";
+    
+    String responseStr;
+    serializeJson(response, responseStr);
+    ws.textAll(responseStr);
+  }
+  
+  // Small delay to ensure message is sent
+  delay(100);
+  
+  // Restart WiFi with new settings
+  WiFi.softAPdisconnect(true);
+  delay(1000);
+  
+  // Setup WiFi with new credentials
+  setupWiFi();
+}
+
+// Set up factory reset functionality
+void setupFactoryReset() {
+  pinMode(FACTORY_RESET_BUTTON, INPUT_PULLUP);
+  pinMode(STATUS_LED, OUTPUT);
+  digitalWrite(STATUS_LED, HIGH); // Turn off LED (assuming active low)
+  
+  Serial.println("========================================");
+  Serial.println("FACTORY RESET CONFIGURATION");
+  Serial.println("========================================");
+  Serial.println("Factory reset button: GPIO 0 (BOOT button)");
+  Serial.println("Hold for 5 seconds DURING NORMAL OPERATION to perform factory reset");
+  Serial.println("NOTE: This does NOT interfere with firmware flashing:");
+  Serial.println("  - Flashing: BOOT held during power-on/reset (before firmware runs)");
+  Serial.println("  - Factory Reset: BOOT held during normal operation (after firmware running)");
+  Serial.println("========================================");
+}
+
+// Check factory reset button state
+void checkFactoryReset() {
+  // Only check button at most every FACTORY_RESET_DEBOUNCE ms
+  if (millis() - lastButtonCheck < FACTORY_RESET_DEBOUNCE) {
+    return;
+  }
+  lastButtonCheck = millis();
+  
+  // Read the state of the factory reset button
+  bool buttonState = digitalRead(FACTORY_RESET_BUTTON) == LOW;
+  
+  if (buttonState && !buttonPressed) {
+    // Button was just pressed
+    buttonPressStart = millis();
+    buttonPressed = true;
+    Serial.println("Factory reset button pressed - hold for 5 seconds");
+    Serial.println("(This only works during normal operation, not during flashing)");
+    
+    // Start LED blinking to indicate button press
+    digitalWrite(STATUS_LED, LOW); // Turn on LED
+  } else if (buttonState && buttonPressed) {
+    // Button is still being held
+    unsigned long holdTime = millis() - buttonPressStart;
+    
+    // Blink LED faster as we approach the reset time
+    if (holdTime < FACTORY_RESET_HOLD_TIME) {
+      // Blink LED to show progress
+      int blinkInterval = map(holdTime, 0, FACTORY_RESET_HOLD_TIME, 500, 100);
+      if ((millis() / blinkInterval) % 2 == 0) {
+        digitalWrite(STATUS_LED, LOW);  // LED on
+      } else {
+        digitalWrite(STATUS_LED, HIGH); // LED off
+      }
+      
+      // Print progress every second
+      if (holdTime > 0 && (holdTime / 1000) != ((holdTime - FACTORY_RESET_DEBOUNCE) / 1000)) {
+        Serial.printf("Factory reset in %d seconds...\n", 
+                      (FACTORY_RESET_HOLD_TIME - holdTime) / 1000 + 1);
+      }
+    }
+  } else if (!buttonState && buttonPressed) {
+    // Button was just released
+    buttonPressed = false;
+    digitalWrite(STATUS_LED, HIGH); // Turn off LED
+    
+    // Check if it was held long enough for a factory reset
+    unsigned long holdTime = millis() - buttonPressStart;
+    if (holdTime >= FACTORY_RESET_HOLD_TIME) {
+      Serial.printf("Factory reset triggered (held for %lu ms)\n", holdTime);
+      performFactoryReset();
+    } else {
+      Serial.printf("Factory reset cancelled (held for %lu ms, needed %d ms)\n", 
+                    holdTime, FACTORY_RESET_HOLD_TIME);
+    }
+  }
+}
+
+// Perform factory reset
+void performFactoryReset() {
+  factoryResetInProgress = true;
+  
+  Serial.println("========================================");
+  Serial.println("PERFORMING FACTORY RESET");
+  Serial.println("========================================");
+  
+  // Flash LED rapidly to indicate factory reset in progress
+  for (int i = 0; i < 10; i++) {
+    digitalWrite(STATUS_LED, LOW);  // LED on
+    delay(100);
+    digitalWrite(STATUS_LED, HIGH); // LED off
+    delay(100);
+  }
+  
+  // Notify clients before reset
+  if (ws.count() > 0) {
+    DynamicJsonDocument response(256);
+    response["action"] = "factoryReset";
+    response["message"] = "Factory reset in progress...";
+    
+    String responseStr;
+    serializeJson(response, responseStr);
+    ws.textAll(responseStr);
+    
+    // Give time for message to be sent
+    delay(500);
+  }
+  
+  // Reset WiFi settings
+  Serial.println("Resetting WiFi settings...");
+  WiFi.softAPdisconnect(true);
+  delay(1000);
+  
+  // Reinitialize WiFi with default credentials
+  strcpy(ssid, "Luna_Sailing");
+  strcpy(password, "");
+  Serial.printf("SSID reset to: %s\n", ssid);
+  Serial.println("Password reset to: [OPEN NETWORK]");
+  
+  setupWiFi();
+  
+  // Reset sensor data and history
+  Serial.println("Resetting sensor data...");
+  currentData = {0};
+  dataHistory.clear();
+  
+  // Pre-populate history with zero values
+  for (int i = 0; i < HISTORY_LENGTH; i++) {
+    dataHistory.push_back(currentData);
+  }
+  
+  factoryResetInProgress = false;
+  digitalWrite(STATUS_LED, HIGH); // Turn off LED
+  
+  Serial.println("Factory reset complete!");
+  Serial.println("Default settings restored:");
+  Serial.println("  SSID: Luna_Sailing");
+  Serial.println("  Password: None (open network)");
+  Serial.println("  IP Address: 192.168.4.1");
+  Serial.println("========================================");
+  
+  // Final notification to clients
+  if (ws.count() > 0) {
+    DynamicJsonDocument response(256);
+    response["action"] = "factoryReset";
+    response["message"] = "Factory reset complete";
+    response["ssid"] = ssid;
+    response["security"] = "Open";
+    
+    String responseStr;
+    serializeJson(response, responseStr);
+    ws.textAll(responseStr);
+  }
 }

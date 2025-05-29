@@ -83,6 +83,17 @@ header h1 {
   background-color: var(--danger-color);
 }
 
+#connection-status.connecting {
+  background-color: var(--warning-color);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
 #settings-toggle {
   background: none;
   border: none;
@@ -210,12 +221,49 @@ main {
   margin-right: 1rem;
 }
 
+.setting input[type="text"], 
+.setting input[type="password"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.setting {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.setting label {
+  margin-bottom: 0.25rem;
+  margin-right: 0;
+}
+
 select, input {
   padding: 0.5rem;
   border-radius: 4px;
   border: 1px solid var(--border-color);
   background-color: var(--background-color);
   color: var(--text-color);
+}
+
+.apply-button {
+  padding: 0.5rem 1rem;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+.apply-button:hover {
+  opacity: 0.9;
+}
+
+.warning {
+  color: var(--danger-color);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  display: block;
 }
 
 #settings-close {
@@ -245,6 +293,36 @@ select, input {
 
 #install-button.hidden {
   display: none;
+}
+
+/* Factory Reset styles */
+.factory-reset-info {
+  background-color: var(--warning-color);
+  background-color: rgba(255, 193, 7, 0.1);
+  border: 1px solid var(--warning-color);
+  border-radius: 4px;
+  padding: 1rem;
+  font-size: 0.9rem;
+}
+
+.factory-reset-info strong {
+  color: var(--danger-color);
+}
+
+.factory-reset-info ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.factory-reset-info ul li {
+  margin-bottom: 0.25rem;
+}
+
+.factory-reset-info small {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--danger-color);
+  font-weight: bold;
 }
 
 /* Responsive adjustments */

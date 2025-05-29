@@ -13,6 +13,8 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
   - Works offline (interface only)
   - Responsive design for all screen sizes
 - WiFi Access Point for direct connection
+  - Configurable network name and password through dashboard settings
+  - Secure WPA2 encryption
 - Real-time data updates via WebSockets
 - Data visualization with gauges and charts
 
@@ -111,40 +113,32 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
      pio pkg install --library "mikalhart/TinyGPSPlus"
      ```
 
-4. **Configure WiFi Settings (Optional)**
-   - Open `src/main.cpp`
-   - Modify the following lines to change the default WiFi settings:
-     ```cpp
-     const char* ssid = "Luna_Sailing";     // Change to your desired WiFi name
-     const char* password = "lunapassword";  // Change to your desired password
-     ```
-
-5. **Build the firmware**
+4. **Build the firmware**
    - In VS Code, click on the PlatformIO icon in the sidebar
    - Select "Project Tasks" > "Build" or use the VS Code task
    - Wait for the build to complete
    - Check the terminal output for any errors
 
-6. **Connect ESP32 to your computer**
+5. **Connect ESP32 to your computer**
    - Use a micro-USB cable to connect the ESP32 to your computer
    - Check that the board is recognized:
      - Windows: Check Device Manager under "Ports (COM & LPT)"
      - macOS: Run `ls /dev/cu.*` in Terminal
      - Linux: Run `ls /dev/ttyUSB*` in Terminal
 
-7. **Upload the firmware to ESP32**
+6. **Upload the firmware to ESP32**
    - In VS Code, select "Project Tasks" > "Upload" or use the VS Code task
    - If you encounter upload issues:
      - Press and hold the BOOT button on the ESP32 while initiating the upload
      - Release the BOOT button after the upload begins
    - Wait for the upload to complete (you should see "Success" in the terminal)
 
-8. **Upload the web application files to ESP32**
+7. **Upload the web application files to ESP32**
    - In VS Code, select "Project Tasks" > "Upload Filesystem Image" or use the VS Code task
    - This will upload all files in the `/data/www` directory to the ESP32's SPIFFS filesystem
    - Wait for the upload to complete
 
-9. **Restart the ESP32**
+8. **Restart the ESP32**
    - Press the RST (Reset) button on the ESP32 or
    - Disconnect and reconnect the USB cable
 
@@ -162,11 +156,13 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
 
 3. **Connect to the "Luna_Sailing" WiFi network**
    
+   **Important Security Note**: The default network is **open (no password)** for initial setup convenience. You should configure a password through the dashboard settings as soon as possible.
+   
    **On iPhone/iPad:**
    - Go to Settings > Wi-Fi
    - Wait for "Luna_Sailing" to appear in the list of available networks
    - Tap on "Luna_Sailing" to connect
-   - Enter the password (default: "lunapassword")
+   - No password required (default: open network)
    - If a "No Internet Connection" warning appears, tap "Use Without Internet"
    - If the network doesn't appear, pull down on the screen to refresh the network list
    
@@ -174,7 +170,7 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
    - Go to Settings > Connections > Wi-Fi (or Settings > Wi-Fi, depending on your device)
    - Wait for "Luna_Sailing" to appear in the list of available networks
    - Tap on "Luna_Sailing" to connect
-   - Enter the password (default: "lunapassword")
+   - No password required (default: open network)
    - If a "This Wi-Fi network has no internet access" message appears, tap "Yes" or "Connect anyway"
    - Some Android devices may automatically switch back to mobile data; if this happens, you may need to disable mobile data temporarily
    
@@ -182,14 +178,14 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
    - Click on the Wi-Fi icon in the taskbar
    - Select "Luna_Sailing" from the list of available networks
    - Click "Connect"
-   - Enter the password (default: "lunapassword")
+   - No password required (default: open network)
    - If prompted that "There's no internet access", select "Yes" to connect anyway
    - Windows may show a "No internet access" message in the Wi-Fi icon - this is normal
    
    **On macOS:**
    - Click on the Wi-Fi icon in the menu bar
    - Select "Luna_Sailing" from the dropdown list
-   - Enter the password (default: "lunapassword")
+   - No password required (default: open network)
    - If a warning about no internet access appears, click "Join" or "Continue"
    - macOS may automatically reconnect to other known networks; if this happens, click the Wi-Fi icon and manually select "Luna_Sailing" again
 
@@ -207,6 +203,15 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
    - Check that the data is updating (approximately once per second)
    - If using simulated data, you'll see the values changing randomly
    - If using real sensors, check that the values respond to actual changes in movement, wind, etc.
+
+6. **Configure WiFi Settings (Recommended)**
+   - For security, you should configure a WiFi password as soon as possible
+   - Navigate to the Settings panel by clicking the gear icon in the top-right corner
+   - Find the "WiFi Access Point" section
+   - Enter your desired network name (SSID) and a secure password
+   - Click "Apply WiFi Settings" to save and restart with new credentials
+   - The ESP32 will restart and create a new WiFi network with your settings
+   - Reconnect to the new network using your configured credentials
 
 #### Troubleshooting Connection Issues
 
@@ -290,6 +295,157 @@ The Luna Sailing Dashboard is designed as a Progressive Web App (PWA), which mea
 - **App showing offline mode**:
   - This is normal if you're not connected to the ESP32's WiFi
   - Connect to the "Luna_Sailing" network and reload the app
+
+### Configuring WiFi Settings
+
+The Luna Sailing Dashboard allows you to change the WiFi Access Point settings directly through the web interface, making it easy to customize your network name and password without modifying code.
+
+#### Accessing WiFi Settings
+
+1. **Connect to the dashboard** using the WiFi network (default: "Luna_Sailing" with no password - open network)
+2. **Navigate to Settings** by clicking the gear icon in the top-right corner of the dashboard
+3. **Scroll to the WiFi Access Point section** in the settings panel
+
+#### Changing WiFi Credentials
+
+1. **Network Name (SSID)**:
+   - Enter your desired network name (1-32 characters)
+   - Avoid special characters that might cause compatibility issues
+   - Consider using a name that identifies your vessel or purpose
+
+2. **Password**:
+   - Enter a secure password (8-63 characters for WPA2 security)
+   - Use a mix of letters, numbers, and symbols for better security
+   - Avoid dictionary words or easily guessable passwords
+
+3. **Apply Settings**:
+   - Click the "Apply WiFi Settings" button
+   - Review the security warning dialog that appears
+   - Confirm your changes by clicking "Confirm"
+
+#### What Happens During WiFi Update
+
+1. **Validation**: The system validates your input for proper length and format
+2. **Confirmation**: A dialog explains what will happen and asks for confirmation
+3. **Settings Storage**: New credentials are saved to the ESP32's flash memory
+4. **Network Restart**: The ESP32 restarts its WiFi Access Point with new settings
+5. **Client Notification**: Connected devices receive a notification about the restart
+6. **Automatic Disconnection**: All devices will be disconnected from the old network
+
+#### Reconnecting After WiFi Changes
+
+After applying new WiFi settings:
+
+1. **Wait for restart**: Allow 10-15 seconds for the ESP32 to restart with new settings
+2. **Disconnect from old network**: Your device will automatically disconnect from the old network
+3. **Connect to new network**: 
+   - Look for the new network name in your WiFi settings
+   - Connect using the new password you configured
+4. **Navigate to dashboard**: Open your browser and go to `http://192.168.4.1`
+5. **Verify connection**: Ensure the dashboard loads and data is updating
+
+#### Security Considerations
+
+- **Default Security**: The system starts with an **open WiFi network (no password)** for initial setup convenience
+- **Immediate Configuration Recommended**: Change to a secure password as soon as possible after initial setup
+- **Password Strength**: Use strong passwords to prevent unauthorized access to your sailing data
+- **Network Visibility**: WiFi networks are visible to anyone in range - choose appropriate names
+- **Regular Updates**: Consider changing passwords periodically, especially if multiple people have access
+- **Guest Access**: You can create simpler passwords for temporary guests and change them later
+
+#### Troubleshooting WiFi Settings
+
+**Settings not applying**:
+- Ensure both SSID and password meet the length requirements
+- Check that you confirmed the changes in the dialog
+- Try refreshing the page and attempting again
+
+**Can't reconnect after changing settings**:
+- Wait a full 30 seconds for the ESP32 to fully restart
+- Check your device's WiFi settings to ensure you're connecting to the correct network
+- Verify you're using the new password, not the old one
+- Try "forgetting" the old network on your device if it keeps trying to connect with old credentials
+
+**Lost access to settings**:
+- If you can't remember the new credentials, you can:
+  1. **Use Factory Reset**: Hold the BOOT button on the ESP32 for 5 seconds to reset to defaults
+  2. **View via Serial Monitor**: Connect the ESP32 to your computer via USB and use the serial monitor to view the current credentials at startup
+  3. **Reflash Firmware**: Upload fresh firmware to reset to default credentials
+
+**Settings reverting to defaults**:
+- This may indicate a problem with flash memory storage
+- Try power cycling the ESP32 completely (disconnect power for 10 seconds)
+- If the problem persists, consider reflashing the firmware
+
+#### Default Credentials
+
+If you need to reset to factory defaults:
+- **Default SSID**: `Luna_Sailing`
+- **Default Password**: None (open network)
+
+These defaults are restored when:
+- Fresh firmware is uploaded without previous settings
+- Flash memory is cleared or corrupted
+- Factory reset is performed using the BOOT button (hold for 5 seconds)
+
+**Note**: Factory reset functionality is now implemented using the ESP32's BOOT button. Hold the BOOT button for 5 seconds to reset all settings to defaults.
+
+### Factory Reset
+
+The Luna Sailing Dashboard includes a hardware-based factory reset feature that can restore all settings to their default values without requiring firmware reflashing or computer connection.
+
+#### How to Perform Factory Reset
+
+1. **Locate the BOOT Button**
+   - Find the BOOT button on your ESP32 development board
+   - This is usually labeled "BOOT" and is typically the smaller button (not the RESET button)
+   - On most ESP32 DEVKIT boards, it's located near the USB connector
+
+2. **Perform the Reset**
+   - **Press and hold** the BOOT button
+   - **Keep holding** for exactly **5 seconds**
+   - The built-in LED will start blinking to indicate the button press is detected
+   - The LED will blink faster as you approach the 5-second mark
+   - **Release** the button after 5 seconds
+
+3. **Visual Feedback**
+   - **Initial press**: LED turns on solid
+   - **During hold**: LED blinks progressively faster
+   - **Factory reset triggered**: LED flashes rapidly 10 times
+   - **Reset complete**: LED turns off
+
+4. **What Gets Reset**
+   - **WiFi Settings**: Network name returns to "Luna_Sailing", password removed (open network)
+   - **Network Security**: Returns to open network (no password required)
+   - **Sensor Data**: All historical data and maximum values cleared
+   - **Dashboard Settings**: All customizations reset to defaults
+
+#### After Factory Reset
+
+1. **Automatic WiFi Restart**: The ESP32 will automatically restart its WiFi with default settings
+2. **Reconnection Required**: 
+   - Disconnect from the current WiFi network
+   - Look for "Luna_Sailing" network (open, no password)
+   - Connect to the new network
+   - Navigate to `http://192.168.4.1`
+3. **Security Setup**: Immediately configure a secure password through the dashboard settings
+4. **Data Collection**: Sensor data collection will resume with fresh/cleared history
+
+#### When to Use Factory Reset
+
+- **Lost WiFi Password**: Can't remember the WiFi credentials you set
+- **Network Issues**: WiFi settings got corrupted or causing connection problems
+- **Starting Fresh**: Want to clear all data and start with default settings
+- **Device Handover**: Preparing the device for someone else to use
+- **Troubleshooting**: Eliminating custom settings as a source of problems
+
+#### Troubleshooting Factory Reset
+
+- **Button not responding**: Make sure you're pressing the BOOT button, not the RESET button
+- **LED not blinking**: Check that the ESP32 is powered on and the firmware is running
+- **Reset not completing**: Ensure you hold the button for the full 5 seconds
+- **Still can't connect**: Try power cycling the ESP32 after the reset
+- **Settings not cleared**: If problems persist, consider reflashing the firmware
 
 ## Development
 
@@ -375,9 +531,10 @@ The Luna Sailing Dashboard is designed as a Progressive Web App (PWA), which mea
 ### Project Structure
 
 - `/src`: Main C++ code for ESP32
+  - Contains WiFi management and settings handling
 - `/data/www`: Web dashboard files
-  - `/css`: Stylesheets
-  - `/js`: JavaScript files
+  - `/css`: Stylesheets (including settings panel styling)
+  - `/js`: JavaScript files (including WiFi configuration logic)
   - `/images`: Icons and graphics
 - `/include`: Header files
 - `/lib`: Libraries
@@ -456,23 +613,6 @@ The Luna Sailing Dashboard is designed to operate efficiently on battery power, 
   - Typical consumption: ~250-350mA @ 5V (1.25-1.75W)
   - This means a 10Ah power bank can power the system for approximately 20-30 hours
 
-### Power Optimization Settings
-
-The firmware includes several power-saving features that can be enabled in the `config.h` file:
-
-```cpp
-// Power saving configuration
-#define ENABLE_DEEP_SLEEP true       // Enable deep sleep during inactivity
-#define SLEEP_AFTER_MINUTES 30       // Minutes of inactivity before sleep
-#define ENABLE_LOW_POWER_MODE false  // Reduces functionality for power saving
-```
-
-When `ENABLE_DEEP_SLEEP` is set to `true`, the ESP32 will enter deep sleep mode after the specified period of inactivity (no WebSocket connections). It can be woken up by:
-
-1. Pressing the reset button
-2. Using an external wake trigger connected to GPIO 33
-3. Setting a time-based wake-up (configured in the firmware)
-
 ### Battery Connection Options
 
 1. **Direct USB Power Bank**:
@@ -492,25 +632,6 @@ When `ENABLE_DEEP_SLEEP` is set to `true`, the ESP32 will enter deep sleep mode 
    - 3.7V LiPo battery (2000mAh or larger)
    - LiPo to 5V boost converter
    - This setup can provide continuous operation in sunny conditions
-
-### Battery Level Monitoring
-
-The system can monitor power supply voltage if configured:
-
-1. Enable battery monitoring in `config.h`:
-   ```cpp
-   #define MONITOR_BATTERY true
-   #define BATTERY_PIN 34  // ADC pin connected to battery through voltage divider
-   ```
-
-2. Set up a voltage divider circuit:
-   - For a LiPo battery (max 4.2V): 10kΩ and 20kΩ resistors
-   - For a 12V system: 10kΩ and 100kΩ resistors
-   - Connect the middle point of the divider to the ADC pin (GPIO 34 by default)
-
-3. The battery level will be displayed on the dashboard
-   - Low battery warnings will appear when voltage drops below configured thresholds
-   - Critical battery level can trigger automatic shutdown to prevent damage
 
 ### Power-Saving Tips
 

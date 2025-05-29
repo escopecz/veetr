@@ -199,6 +199,7 @@ When generating code for this project, consider:
 - Environmental challenges of marine applications
 - Interference mitigation for reliable sensor readings
 - Prefer running VS Code commands to build the project over CLI
+- With the changes also consider updating the readme as a documentation so it is always up to date with the code.
 
 ## Other Information
 This is an embedded systems project that requires careful consideration of hardware limitations and real-time constraints. The system is designed to be reliable in marine environments, with consideration for power efficiency, waterproofing, and robustness.

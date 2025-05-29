@@ -95,6 +95,22 @@
             </div>
         </div>
         <div class="setting-group">
+            <h3>WiFi Access Point</h3>
+            <div class="setting">
+                <label for="wifi-ssid">Network Name (SSID):</label>
+                <input type="text" id="wifi-ssid" value="Luna_Sailing" maxlength="32">
+            </div>
+            <div class="setting">
+                <label for="wifi-password">Password:</label>
+                <input type="password" id="wifi-password" placeholder="Leave empty for open network" maxlength="63">
+                <small>8-63 characters for WPA2 security, or leave empty for open network</small>
+            </div>
+            <div class="setting">
+                <button id="wifi-apply" class="apply-button">Apply WiFi Settings</button>
+                <small class="warning">⚠️ Applying will restart WiFi and disconnect all clients</small>
+            </div>
+        </div>
+        <div class="setting-group">
             <h3>Updates</h3>
             <div class="setting">
                 <label for="refresh-rate">Refresh Rate (seconds):</label>
@@ -105,8 +121,21 @@
         <div class="setting-group">
             <h3>About</h3>
             <p>Luna Sailing Dashboard v1.0</p>
-            <p>© 2023 Luna Sailing</p>
+            <p id="copyright">© <span id="copyright-year">2023</span> Luna Sailing</p>
             <button id="install-button" class="hidden">Install App</button>
+        </div>
+        <div class="setting-group">
+            <h3>Factory Reset</h3>
+            <div class="factory-reset-info">
+                <p><strong>Hardware Factory Reset:</strong></p>
+                <p>Hold the <strong>BOOT button</strong> on the ESP32 for <strong>5 seconds</strong> to reset all settings to defaults.</p>
+                <ul>
+                    <li>WiFi returns to "Luna_Sailing" (open network)</li>
+                    <li>All sensor data and history cleared</li>
+                    <li>Dashboard settings reset</li>
+                </ul>
+                <p><small>⚠️ Use only when you've lost access to WiFi settings</small></p>
+            </div>
         </div>
         <button id="settings-close">Close</button>
     </div>
