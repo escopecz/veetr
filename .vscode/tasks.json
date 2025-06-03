@@ -25,11 +25,15 @@
         {
             "label": "Upload Filesystem",
             "type": "shell",
-            "command": "${command:platformio-ide.uploadfs}",
+            "command": "~/.platformio/penv/bin/platformio",
+            "args": ["run", "--target", "uploadfs"],
             "group": "build",
             "problemMatcher": [
                 "$platformio"
-            ]
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
         },
         {
             "label": "Monitor",
