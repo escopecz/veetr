@@ -107,6 +107,9 @@ main {
   flex: 1;
   padding: 1rem;
   overflow-y: auto;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 /* Data cards */
@@ -115,6 +118,10 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1rem;
   margin-bottom: 1.5rem;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  justify-items: center;
 }
 
 .data-card {
@@ -125,6 +132,8 @@ main {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  max-width: 350px;
 }
 
 .data-card h2 {
@@ -136,6 +145,22 @@ main {
   width: 100%;
   height: 150px;
   margin-bottom: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 150px;
+}
+
+/* Ensure gauge canvas elements are centered and properly sized */
+.gauge-container canvas,
+.compass-container canvas,
+.tilt-indicator canvas {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
 }
 
 .data-value {
@@ -165,6 +190,9 @@ main {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
 }
 
 .chart-container {
@@ -173,6 +201,16 @@ main {
   padding: 1rem;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.chart-container canvas {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 /* Settings panel */
@@ -329,6 +367,21 @@ select, input {
 @media (min-width: 768px) {
   #history-data {
     grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+  
+  .chart-container {
+    height: 250px;
+  }
+}
+
+@media (min-width: 1024px) {
+  #history-data {
+    gap: 2rem;
+  }
+  
+  .chart-container {
+    height: 300px;
   }
 }
 
