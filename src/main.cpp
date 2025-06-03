@@ -9,7 +9,6 @@
 // Factory Reset Button Configuration
 #define FACTORY_RESET_BUTTON 0    // GPIO 0 (BOOT button)
 #define FACTORY_RESET_HOLD_TIME 5000  // 5 seconds hold time
-#define STATUS_LED 2              // GPIO 2 (built-in LED on most ESP32 boards)
 #define FACTORY_RESET_DEBOUNCE 50 // 50ms debounce time
 
 // Factory reset button state
@@ -132,9 +131,16 @@ void setupWiFi() {
   WiFi.mode(WIFI_AP);
   WiFi.softAP(ssid, password);
   
+  // Wait a moment for AP to fully initialize
+  delay(100);
+  
   IPAddress IP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(IP);
+  
+  // Also print SSID and security info
+  Serial.printf("SSID: %s\n", ssid);
+  Serial.printf("Security: %s\n", strlen(password) > 0 ? "WPA2" : "Open");
 }
 
 // WebSocket event handler
@@ -208,8 +214,10 @@ void setupWebServer() {
   ws.onEvent(onEvent);
   server.addHandler(&ws);
   
-  // Serve static files from LittleFS
-  server.serveStatic("/", LittleFS, "/www/").setDefaultFile("index.html");
+  // Serve static files from LittleFS with cache control
+  server.serveStatic("/", LittleFS, "/www/")
+    .setDefaultFile("index.html")
+    .setCacheControl("no-cache, no-store, must-revalidate");
   
   // Handle unknown requests
   server.onNotFound([](AsyncWebServerRequest *request) {
@@ -407,17 +415,12 @@ void updateWiFiSettings(const char* newSSID, const char* newPassword) {
 // Set up factory reset functionality
 void setupFactoryReset() {
   pinMode(FACTORY_RESET_BUTTON, INPUT_PULLUP);
-  pinMode(STATUS_LED, OUTPUT);
-  digitalWrite(STATUS_LED, HIGH); // Turn off LED (assuming active low)
   
   Serial.println("========================================");
-  Serial.println("FACTORY RESET CONFIGURATION");
+  Serial.println("FACTORY RESET SETUP");
   Serial.println("========================================");
-  Serial.println("Factory reset button: GPIO 0 (BOOT button)");
-  Serial.println("Hold for 5 seconds DURING NORMAL OPERATION to perform factory reset");
-  Serial.println("NOTE: This does NOT interfere with firmware flashing:");
-  Serial.println("  - Flashing: BOOT held during power-on/reset (before firmware runs)");
-  Serial.println("  - Factory Reset: BOOT held during normal operation (after firmware running)");
+  Serial.println("Factory reset button configured on GPIO 0 (BOOT button)");
+  Serial.println("Hold for 5 seconds to trigger factory reset");
   Serial.println("========================================");
 }
 
@@ -438,23 +441,12 @@ void checkFactoryReset() {
     buttonPressed = true;
     Serial.println("Factory reset button pressed - hold for 5 seconds");
     Serial.println("(This only works during normal operation, not during flashing)");
-    
-    // Start LED blinking to indicate button press
-    digitalWrite(STATUS_LED, LOW); // Turn on LED
   } else if (buttonState && buttonPressed) {
     // Button is still being held
     unsigned long holdTime = millis() - buttonPressStart;
     
     // Blink LED faster as we approach the reset time
     if (holdTime < FACTORY_RESET_HOLD_TIME) {
-      // Blink LED to show progress
-      int blinkInterval = map(holdTime, 0, FACTORY_RESET_HOLD_TIME, 500, 100);
-      if ((millis() / blinkInterval) % 2 == 0) {
-        digitalWrite(STATUS_LED, LOW);  // LED on
-      } else {
-        digitalWrite(STATUS_LED, HIGH); // LED off
-      }
-      
       // Print progress every second
       if (holdTime > 0 && (holdTime / 1000) != ((holdTime - FACTORY_RESET_DEBOUNCE) / 1000)) {
         Serial.printf("Factory reset in %d seconds...\n", 
@@ -464,7 +456,6 @@ void checkFactoryReset() {
   } else if (!buttonState && buttonPressed) {
     // Button was just released
     buttonPressed = false;
-    digitalWrite(STATUS_LED, HIGH); // Turn off LED
     
     // Check if it was held long enough for a factory reset
     unsigned long holdTime = millis() - buttonPressStart;
@@ -485,14 +476,6 @@ void performFactoryReset() {
   Serial.println("========================================");
   Serial.println("PERFORMING FACTORY RESET");
   Serial.println("========================================");
-  
-  // Flash LED rapidly to indicate factory reset in progress
-  for (int i = 0; i < 10; i++) {
-    digitalWrite(STATUS_LED, LOW);  // LED on
-    delay(100);
-    digitalWrite(STATUS_LED, HIGH); // LED off
-    delay(100);
-  }
   
   // Notify clients before reset
   if (ws.count() > 0) {
@@ -532,7 +515,6 @@ void performFactoryReset() {
   }
   
   factoryResetInProgress = false;
-  digitalWrite(STATUS_LED, HIGH); // Turn off LED
   
   Serial.println("Factory reset complete!");
   Serial.println("Default settings restored:");
