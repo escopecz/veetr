@@ -129,7 +129,15 @@ void setupWiFi() {
   Serial.println("Setting up WiFi Access Point...");
   
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(ssid, password);
+  
+  // Configure WiFi settings for better file transfer performance
+  WiFi.setTxPower(WIFI_POWER_19_5dBm);  // High power for better range/speed
+  
+  // Configure AP with optimized settings
+  WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
+  
+  // Create AP with optimized settings for performance
+  WiFi.softAP(ssid, password, 6, false, 4);  // Channel 6, not hidden, max 4 clients
   
   // Wait a moment for AP to fully initialize
   delay(100);
@@ -141,6 +149,7 @@ void setupWiFi() {
   // Also print SSID and security info
   Serial.printf("SSID: %s\n", ssid);
   Serial.printf("Security: %s\n", strlen(password) > 0 ? "WPA2" : "Open");
+  Serial.printf("WiFi Channel: 6, Max Clients: 4\n");
 }
 
 // WebSocket event handler
