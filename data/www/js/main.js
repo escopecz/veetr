@@ -19,10 +19,6 @@ function initDashboard() {
     // Set up event listeners
     setupEventListeners();
     
-    // Initialize visualizations
-    initGauges();
-    initCharts();
-    
     // Debug: Check if WebSocket functions are available
     console.log('WebSocket functions available:', {
         updateWiFiSettings: typeof updateWiFiSettings,
