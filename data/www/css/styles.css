@@ -136,6 +136,14 @@ main {
   max-width: 350px;
 }
 
+/* Remove padding for cards with chart containers so charts extend to edges */
+.data-card:has(.speed-chart-container),
+.data-card:has(.wind-chart-container),
+#speed-card,
+#wind-card {
+  padding: 0;
+}
+
 .data-card h2 {
   margin-bottom: 1rem;
   color: var(--primary-color);
@@ -161,6 +169,410 @@ main {
   max-height: 100%;
   width: auto;
   height: auto;
+}
+
+.data-value {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: baseline;
+}
+
+.unit {
+  font-size: 1rem;
+  margin-left: 0.25rem;
+  opacity: 0.7;
+}
+
+.data-minmax {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+/* Chart styles */
+#history-data {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.chart-container {
+  background-color: var(--card-background);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.chart-container canvas {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Settings panel */
+#settings-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--card-background);
+  width: 300px;
+  padding: 1.5rem;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+
+#settings-panel.hidden {
+  transform: translateX(100%);
+}
+
+#settings-panel h2 {
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+}
+
+.setting-group {
+  margin-bottom: 1.5rem;
+}
+
+.setting-group h3 {
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.25rem;
+}
+
+.setting {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.setting label {
+  margin-right: 1rem;
+}
+
+.setting input[type="text"], 
+.setting input[type="password"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.setting {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.setting label {
+  margin-bottom: 0.25rem;
+  margin-right: 0;
+}
+
+select, input {
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+.apply-button {
+  padding: 0.5rem 1rem;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+.apply-button:hover {
+  opacity: 0.9;
+}
+
+.warning {
+  color: var(--danger-color);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+#settings-close {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+#install-button {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+#install-button.hidden {
+  display: none;
+}
+
+/* Factory Reset styles */
+.factory-reset-info {
+  background-color: var(--warning-color);
+  background-color: rgba(255, 193, 7, 0.1);
+  border: 1px solid var(--warning-color);
+  border-radius: 4px;
+  padding: 1rem;
+  font-size: 0.9rem;
+}
+
+.factory-reset-info strong {
+  color: var(--danger-color);
+}
+
+.factory-reset-info ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.factory-reset-info ul li {
+  margin-bottom: 0.25rem;
+}
+
+.factory-reset-info small {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--danger-color);
+  font-weight: bold;
+}
+
+/* Wind Chart Background Styles */
+.wind-chart-container {
+  position: relative;
+  min-height: 200px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0;
+  margin: 0;
+}
+
+.wind-chart {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 0;
+  z-index: 1;
+  padding: 0;
+  margin: 0;
+}
+
+.wind-chart-bar {
+  background-color: var(--accent-color);
+  opacity: 0.15;
+  min-height: 2px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.wind-chart-container h2,
+.wind-chart-container .data-value,
+.wind-chart-container .data-minmax,
+.wind-chart-container .compass-container {
+  position: relative;
+  z-index: 2;
+  padding: 0.5rem 1rem;
+  margin: 0;
+}
+
+/* Wind data layout */
+.wind-data-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  position: relative;
+  z-index: 2;
+  padding: 0 1rem;
+}
+
+.wind-section {
+  flex: 1;
+  text-align: center;
+}
+
+.wind-section h3 {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.wind-section .data-value {
+  margin: 0.5rem 0;
+}
+
+.wind-section .compass-container {
+  padding: 0.25rem;
+  margin: 0.25rem 0;
+}
+
+.wind-chart-container h2 {
+  text-align: center;
+}
+
+.wind-chart-container .data-value {
+  text-align: center;
+  margin: auto;
+}
+
+.wind-chart-container .data-minmax {
+  text-align: center;
+}
+
+.wind-chart-container .compass-container {
+  text-align: center;
+}
+
+/* Speed Chart Background Styles */
+.speed-chart-container {
+  position: relative;
+  min-height: 200px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0;
+  margin: 0;
+}
+
+.speed-chart {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 0;
+  z-index: 1;
+  padding: 0;
+  margin: 0;
+}
+
+.speed-chart-bar {
+  background-color: var(--primary-color);
+  opacity: 0.15;
+  min-height: 2px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.speed-chart-container h2,
+.speed-chart-container .data-value,
+.speed-chart-container .data-minmax {
+  position: relative;
+  z-index: 2;
+  padding: 0.5rem 1rem;
+  margin: 0;
+}
+
+.speed-chart-container h2 {
+  text-align: center;
+}
+
+.speed-chart-container .data-value {
+  text-align: center;
+  margin: auto;
+}
+
+.speed-chart-container .data-minmax {
+  text-align: center;
+}
+
+/* Big number display styles */
+.big-number {
+  font-size: 6rem !important;
+  font-weight: bold !important;
+  line-height: 1 !important;
+  display: block !important;
+  text-align: center !important;
+  margin-bottom: 0.5rem;
+}
+
+.medium-number {
+  font-size: 1.5rem !important;
+  font-weight: bold !important;
+}
+
+.big-number.speed-good { color: #6bcf7f; }
+.big-number.speed-medium { color: #ffd93d; }
+.big-number.speed-fast { color: #ff6b6b; }
+
+.big-number.wind { color: #4ecdc4; }
+
+.big-number.tilt-good { color: #6bcf7f; }
+.big-number.tilt-medium { color: #ffd93d; }
+.big-number.tilt-danger { color: #ff6b6b; }
+
+.side-indicator {
+  font-size: 2rem;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.compass-direction {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #4ecdc4;
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+/* Hide gauge containers since we're not using them */
+.gauge-container {
+  display: none !important;
 }
 
 .data-value {
@@ -396,5 +808,57 @@ select, input {
   
   #settings-panel {
     width: 100%;
+  }
+  
+  .wind-data-container {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .wind-section {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .wind-section:last-child {
+    border-bottom: none;
+  }
+  
+  .big-number {
+    font-size: 3rem;
+  }
+  
+  .medium-number {
+    font-size: 1.2rem;
+  }
+}
+
+/* Responsive adjustments for speed chart */
+@media (max-width: 768px) {
+  .speed-chart {
+    grid-auto-columns: 2px;
+    gap: 0;
+    padding: 0;
+  }
+  
+  .speed-chart-container {
+    min-height: 100px;
+  }
+}
+
+/* Responsive adjustments for wind chart */
+@media (max-width: 768px) {
+  .wind-chart {
+    grid-auto-columns: 2px;
+    gap: 0;
+    padding: 0;
+  }
+  
+  .wind-chart-container {
+    min-height: 100px;
+  }
+  
+  .data-grid {
+    grid-template-columns: 1fr;
   }
 }

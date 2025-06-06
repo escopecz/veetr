@@ -30,12 +30,51 @@ struct SensorData {
   float speed;          // Vessel speed in knots
   float speedMax;       // Maximum recorded speed
   float speedAvg;       // Average speed
-  float windSpeed;      // Wind speed in knots
-  int windDirection;    // Wind direction in degrees (0-359)
+  float windSpeed;      // Apparent wind speed in knots
+  float windSpeedMax;   // Maximum recorded apparent wind speed
+  float windSpeedAvg;   // Average apparent wind speed
+  int windDirection;    // Apparent wind direction in degrees (0-359)
+  float trueWindSpeed;  // True wind speed in knots
+  float trueWindDirection; // True wind direction in degrees (0-359)
   float tilt;           // Vessel heel/tilt angle in degrees
   float tiltPortMax;    // Maximum port tilt
   float tiltStarboardMax; // Maximum starboard tilt
 };
+
+// Function to calculate true wind from apparent wind
+// Assumes vessel heading is 0 degrees (north) for simplification
+// In a real implementation, you would need compass/GPS heading data
+void calculateTrueWind(float vesselSpeed, float apparentWindSpeed, float apparentWindDirection, 
+                       float &trueWindSpeed, float &trueWindDirection) {
+  
+  // Convert degrees to radians
+  float appWindDirRad = apparentWindDirection * PI / 180.0;
+  
+  // Convert apparent wind to components (relative to vessel)
+  float appWindX = apparentWindSpeed * sin(appWindDirRad);  // Cross-track component
+  float appWindY = apparentWindSpeed * cos(appWindDirRad);  // Along-track component
+  
+  // Calculate true wind components
+  // True wind = apparent wind - vessel velocity
+  float trueWindX = appWindX;  // Cross-track unchanged
+  float trueWindY = appWindY - vesselSpeed;  // Subtract vessel speed from along-track
+  
+  // Calculate true wind speed and direction
+  trueWindSpeed = sqrt(trueWindX * trueWindX + trueWindY * trueWindY);
+  
+  // Calculate true wind direction (in degrees)
+  trueWindDirection = atan2(trueWindX, trueWindY) * 180.0 / PI;
+  
+  // Normalize to 0-359 degrees
+  if (trueWindDirection < 0) {
+    trueWindDirection += 360.0;
+  }
+  
+  // Ensure we don't have negative wind speeds
+  if (trueWindSpeed < 0) {
+    trueWindSpeed = 0;
+  }
+}
 
 // Current sensor data
 SensorData currentData = {0};
@@ -90,6 +129,8 @@ void setup() {
   // Initialize sensor data and history
   currentData.speedMax = 0;
   currentData.speedAvg = 0;
+  currentData.windSpeedMax = 0;
+  currentData.windSpeedAvg = 0;
   currentData.tiltPortMax = 0;
   currentData.tiltStarboardMax = 0;
   
@@ -274,12 +315,27 @@ void readSensors() {
   baseWindSpeed = constrain(baseWindSpeed, 0, 25);
   currentData.windSpeed = baseWindSpeed;
   
+  // Update max and average wind speed
+  if (currentData.windSpeed > currentData.windSpeedMax) {
+    currentData.windSpeedMax = currentData.windSpeed;
+  }
+  
+  static float windSpeedSum = 0;
+  static int windSpeedCount = 0;
+  windSpeedSum += currentData.windSpeed;
+  windSpeedCount++;
+  currentData.windSpeedAvg = windSpeedSum / windSpeedCount;
+  
   // Simulate wind direction (0-359 degrees with slow changes)
   static float baseWindDir = 180;
   baseWindDir += random(-5, 5) / 10.0;
   if (baseWindDir < 0) baseWindDir += 360;
   if (baseWindDir >= 360) baseWindDir -= 360;
   currentData.windDirection = (int)baseWindDir;
+  
+  // Calculate true wind from apparent wind data
+  calculateTrueWind(currentData.speed, currentData.windSpeed, currentData.windDirection,
+                    currentData.trueWindSpeed, currentData.trueWindDirection);
   
   // Simulate tilt (-45 to 45 degrees, negative for port, positive for starboard)
   static float baseTilt = 0;
@@ -312,7 +368,11 @@ String getSensorDataJson() {
   doc["speedMax"] = currentData.speedMax;
   doc["speedAvg"] = currentData.speedAvg;
   doc["windSpeed"] = currentData.windSpeed;
+  doc["windSpeedMax"] = currentData.windSpeedMax;
+  doc["windSpeedAvg"] = currentData.windSpeedAvg;
   doc["windDirection"] = currentData.windDirection;
+  doc["trueWindSpeed"] = currentData.trueWindSpeed;
+  doc["trueWindDirection"] = currentData.trueWindDirection;
   doc["tilt"] = currentData.tilt;
   doc["tiltPortMax"] = currentData.tiltPortMax;
   doc["tiltStarboardMax"] = currentData.tiltStarboardMax;
@@ -350,7 +410,11 @@ String getFullDataJson() {
   doc["speedMax"] = currentData.speedMax;
   doc["speedAvg"] = currentData.speedAvg;
   doc["windSpeed"] = currentData.windSpeed;
+  doc["windSpeedMax"] = currentData.windSpeedMax;
+  doc["windSpeedAvg"] = currentData.windSpeedAvg;
   doc["windDirection"] = currentData.windDirection;
+  doc["trueWindSpeed"] = currentData.trueWindSpeed;
+  doc["trueWindDirection"] = currentData.trueWindDirection;
   doc["tilt"] = currentData.tilt;
   doc["tiltPortMax"] = currentData.tiltPortMax;
   doc["tiltStarboardMax"] = currentData.tiltStarboardMax;

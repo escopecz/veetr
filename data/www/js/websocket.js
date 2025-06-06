@@ -214,14 +214,27 @@ function updateDashboard(data) {
         document.getElementById('speed-value').textContent = data.speed.toFixed(1);
         document.getElementById('speed-max').textContent = data.speedMax.toFixed(1);
         document.getElementById('speed-avg').textContent = data.speedAvg.toFixed(1);
-        updateSpeedGauge(data.speed);
+        
+        // Pass max and avg to the gauge update function
+        updateSpeedGauge(data.speed, data.speedMax, data.speedAvg);
     }
     
     // Update wind data
     if (data.windSpeed !== undefined && data.windDirection !== undefined) {
         document.getElementById('wind-speed-value').textContent = data.windSpeed.toFixed(1);
         document.getElementById('wind-dir-value').textContent = data.windDirection.toFixed(0);
-        updateWindDirection(data.windDirection);
+        
+        // Update true wind data if available
+        if (data.trueWindSpeed !== undefined) {
+            document.getElementById('true-wind-speed-value').textContent = data.trueWindSpeed.toFixed(1);
+        }
+        if (data.trueWindDirection !== undefined) {
+            document.getElementById('true-wind-dir-value').textContent = data.trueWindDirection.toFixed(0);
+        }
+        
+        // Pass wind speed and max/avg values to the update function, including true wind data
+        updateWindDirection(data.windDirection, data.windSpeed, data.windSpeedMax, data.windSpeedAvg,
+                           data.trueWindSpeed, data.trueWindDirection);
     }
     
     // Update tilt data

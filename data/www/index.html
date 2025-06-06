@@ -21,38 +21,64 @@
     <main>
         <section id="primary-data">
             <div class="data-card" id="speed-card">
-                <h2>Speed</h2>
-                <div class="gauge-container" id="speed-gauge"></div>
-                <div class="data-value">
-                    <span id="speed-value">0.0</span>
-                    <span class="unit">knots</span>
-                </div>
-                <div class="data-minmax">
-                    <span>Max: <span id="speed-max">0.0</span></span>
-                    <span>Avg: <span id="speed-avg">0.0</span></span>
+                <div class="speed-chart-container">
+                    <div class="speed-chart" id="speed-chart"></div>
+                    <h2>Speed</h2>
+                    <div class="data-value">
+                        <span id="speed-value">0.0</span>
+                        <span class="unit">knots</span>
+                    </div>
+                    <div class="data-minmax">
+                        <span>Max: <span id="speed-max">0.0</span></span>
+                        <span>Avg: <span id="speed-avg">0.0</span></span>
+                    </div>
                 </div>
             </div>
 
             <div class="data-card" id="wind-card">
-                <h2>Wind</h2>
-                <div class="compass-container" id="wind-direction"></div>
-                <div class="data-value">
-                    <span id="wind-speed-value">0.0</span>
-                    <span class="unit">knots</span>
-                </div>
-                <div class="data-value">
-                    <span id="wind-dir-value">0</span>
-                    <span class="unit">°</span>
+                <div class="wind-chart-container">
+                    <div class="wind-chart" id="wind-chart"></div>
+                    <h2>Wind</h2>
+                    <div class="wind-data-container">
+                        <div class="wind-section">
+                            <h3>Apparent</h3>
+                            <div class="data-value">
+                                <span id="wind-speed-value">0.0</span>
+                                <span class="unit">knots</span>
+                            </div>
+                            <div class="compass-container" id="wind-direction"></div>
+                            <div class="data-value">
+                                <span id="wind-dir-value">0</span>
+                                <span class="unit">°</span>
+                            </div>
+                        </div>
+                        <div class="wind-section">
+                            <h3>True</h3>
+                            <div class="data-value">
+                                <span id="true-wind-speed-value">0.0</span>
+                                <span class="unit">knots</span>
+                            </div>
+                            <div class="compass-container" id="true-wind-direction"></div>
+                            <div class="data-value">
+                                <span id="true-wind-dir-value">0</span>
+                                <span class="unit">°</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="data-minmax">
+                        <span>App Max: <span id="wind-speed-max">0.0</span></span>
+                        <span>App Avg: <span id="wind-speed-avg">0.0</span></span>
+                    </div>
                 </div>
             </div>
 
             <div class="data-card" id="tilt-card">
                 <h2>Heel Angle</h2>
-                <div class="tilt-indicator" id="tilt-gauge"></div>
                 <div class="data-value">
                     <span id="tilt-value">0.0</span>
                     <span class="unit">°</span>
                 </div>
+                <div class="tilt-indicator" id="tilt-gauge"></div>
                 <div class="data-minmax">
                     <span>Port Max: <span id="tilt-port-max">0.0</span></span>
                     <span>Starboard Max: <span id="tilt-starboard-max">0.0</span></span>
@@ -128,6 +154,7 @@
         <button id="settings-close">Close</button>
     </div>
 
+    <script src="/js/dashboard.js?v=1.1"></script>
     <script src="/js/websocket.js?v=1.1"></script>
     <script src="/js/main.js?v=1.1"></script>
     <script src="/js/pwa-install.js?v=1.1"></script>
