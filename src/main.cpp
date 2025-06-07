@@ -6,6 +6,13 @@
 #include <LittleFS.h>
 #include <vector>
 #include <TinyGPS++.h>
+#include <Wire.h>
+#include <Adafruit_ADXL345_U.h>
+// ADXL345 Accelerometer (I2C)
+#define ADXL345_SDA 21
+#define ADXL345_SCL 22
+Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
+
 
 // RS485 Wind Sensor Configuration (using UART1)
 #define RS485_DE 14
@@ -136,6 +143,14 @@ bool readWindSensor(float &windSpeed, int &windDirection);
 bool readGPS();
 
 void setup() {
+  // Initialize I2C for ADXL345
+  Wire.begin(ADXL345_SDA, ADXL345_SCL);
+  if (!accel.begin()) {
+    Serial.println("No ADXL345 detected, check wiring!");
+  } else {
+    Serial.println("ADXL345 accelerometer initialized");
+    accel.setRange(ADXL345_RANGE_16_G);
+  }
   // Initialize serial communication
   Serial.begin(115200);
   Serial.println("Luna Sailing Dashboard starting...");
@@ -376,7 +391,7 @@ void readSensors() {
     currentData.windDirection = -1;
   }
   
-  // Enhanced GPS debug output
+  // Enhanced GPS debug output (only print valid fix data)
   Serial.print("[GPS Debug] TinyGPS++ chars processed: ");
   Serial.print(gps.charsProcessed());
   Serial.print(", Sentences with fix: ");
@@ -388,7 +403,7 @@ void readSensors() {
   Serial.print(", Age: ");
   Serial.print(gps.location.age());
   Serial.print(" ms");
-  if (gpsDataValid) {
+  if (gps.location.isValid() && gps.speed.isValid() && gps.satellites.value() >= 5) {
     Serial.print(" | GPS FIX: Lat: ");
     Serial.print(gps.location.lat(), 6);
     Serial.print(", Lng: ");
@@ -397,7 +412,7 @@ void readSensors() {
     Serial.print(gps.speed.knots(), 2);
     Serial.println(" knots");
   } else {
-    Serial.println(" | No valid GPS fix yet");
+    Serial.println(" | No valid GPS fix or insufficient satellites");
   }
   // Optionally, print raw NMEA sentences for troubleshooting
   // while (gpsSerial.available() > 0) {
@@ -433,10 +448,43 @@ void readSensors() {
     currentData.trueWindDirection = NAN;
   }
   
-  // (Optional) Set tilt to NAN or leave as-is if you have a real tilt sensor
-  currentData.tilt = NAN;
-  currentData.tiltPortMax = NAN;
-  currentData.tiltStarboardMax = NAN;
+  // Read tilt from ADXL345 with debug output
+  sensors_event_t event;
+  if (accel.getEvent(&event)) {
+    Serial.print("[ADXL345] X: "); Serial.print(event.acceleration.x);
+    Serial.print(" Y: "); Serial.print(event.acceleration.y);
+    Serial.print(" Z: "); Serial.print(event.acceleration.z);
+    // If all axes are zero, likely a wiring or address issue
+    if (event.acceleration.x == 0 && event.acceleration.y == 0 && event.acceleration.z == 0) {
+      Serial.println(" [ADXL345] All axes zero! Check wiring or I2C address.");
+      currentData.tilt = NAN;
+      currentData.tiltPortMax = NAN;
+      currentData.tiltStarboardMax = NAN;
+    } else {
+      // Calculate heel/tilt angle (degrees)
+      // Assume Y axis is port-starboard, Z is up
+      float tilt = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
+      Serial.print(" | Calculated tilt: "); Serial.println(tilt);
+      currentData.tilt = tilt;
+      // Track max port/starboard heel
+      if (tilt < 0) {
+        // Port
+        if (isnan(currentData.tiltPortMax) || tilt < currentData.tiltPortMax) {
+          currentData.tiltPortMax = tilt;
+        }
+      } else {
+        // Starboard
+        if (isnan(currentData.tiltStarboardMax) || tilt > currentData.tiltStarboardMax) {
+          currentData.tiltStarboardMax = tilt;
+        }
+      }
+    }
+  } else {
+    Serial.println("[ADXL345] Failed to read event! (Sensor not detected?)");
+    currentData.tilt = NAN;
+    currentData.tiltPortMax = NAN;
+    currentData.tiltStarboardMax = NAN;
+  }
 }
 
 // Update history buffer with current data
