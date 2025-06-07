@@ -6,6 +6,12 @@
 #include <LittleFS.h>
 #include <vector>
 
+// RS485 Wind Sensor Configuration
+#define RS485_DE 14
+#define RS485_RX 25
+#define RS485_TX 26
+#define RS485_UART 2
+
 // Factory Reset Button Configuration
 #define FACTORY_RESET_BUTTON 0    // GPIO 0 (BOOT button)
 #define FACTORY_RESET_HOLD_TIME 5000  // 5 seconds hold time
@@ -24,6 +30,10 @@ char password[64] = "";          // Password can be up to 63 characters + null t
 // Web server & WebSocket server
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
+
+// RS485 Wind Sensor
+HardwareSerial rs485(RS485_UART);
+const uint8_t windSensorQuery[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B};
 
 // Data structure to hold sensor readings
 struct SensorData {
@@ -105,10 +115,21 @@ String getSensorDataJson();
 String getHistoryJson();
 String getFullDataJson();
 
+// Wind Sensor Functions
+void setTransmit(bool tx);
+uint16_t modbusCRC(const uint8_t *data, uint8_t len);
+bool readWindSensor(float &windSpeed, int &windDirection);
+
 void setup() {
   // Initialize serial communication
   Serial.begin(115200);
   Serial.println("Luna Sailing Dashboard starting...");
+  
+  // Initialize RS485 for wind sensor
+  rs485.begin(4800, SERIAL_8N1, RS485_RX, RS485_TX);
+  pinMode(RS485_DE, OUTPUT);
+  setTransmit(false);
+  Serial.println("RS485 wind sensor initialized");
   
   // Initialize LittleFS for serving web files
   if (!LittleFS.begin()) {
@@ -311,9 +332,35 @@ void readSensors() {
   
   // Simulate wind speed (0-25 knots with variation)
   static float baseWindSpeed = 8.0;
-  baseWindSpeed += random(-15, 15) / 100.0;
-  baseWindSpeed = constrain(baseWindSpeed, 0, 25);
-  currentData.windSpeed = baseWindSpeed;
+  // Try to read from actual wind sensor first
+  float sensorWindSpeed;
+  int sensorWindDirection;
+  if (readWindSensor(sensorWindSpeed, sensorWindDirection)) {
+    // Convert m/s to knots (1 m/s = 1.944 knots)
+    currentData.windSpeed = sensorWindSpeed * 1.944;
+    currentData.windDirection = sensorWindDirection;
+    
+    // Print to serial for debugging
+    Serial.print("Wind sensor - Speed: ");
+    Serial.print(sensorWindSpeed, 2);
+    Serial.print(" m/s (");
+    Serial.print(currentData.windSpeed, 2);
+    Serial.print(" knots), Direction: ");
+    Serial.print(sensorWindDirection);
+    Serial.println(" deg");
+  } else {
+    // Fall back to simulated data if sensor reading fails
+    baseWindSpeed += random(-15, 15) / 100.0;
+    baseWindSpeed = constrain(baseWindSpeed, 0, 25);
+    currentData.windSpeed = baseWindSpeed;
+    
+    // Simulate wind direction (0-359 degrees with slow changes)
+    static float baseWindDir = 180;
+    baseWindDir += random(-5, 5) / 10.0;
+    if (baseWindDir < 0) baseWindDir += 360;
+    if (baseWindDir >= 360) baseWindDir -= 360;
+    currentData.windDirection = (int)baseWindDir;
+  }
   
   // Update max and average wind speed
   if (currentData.windSpeed > currentData.windSpeedMax) {
@@ -325,13 +372,6 @@ void readSensors() {
   windSpeedSum += currentData.windSpeed;
   windSpeedCount++;
   currentData.windSpeedAvg = windSpeedSum / windSpeedCount;
-  
-  // Simulate wind direction (0-359 degrees with slow changes)
-  static float baseWindDir = 180;
-  baseWindDir += random(-5, 5) / 10.0;
-  if (baseWindDir < 0) baseWindDir += 360;
-  if (baseWindDir >= 360) baseWindDir -= 360;
-  currentData.windDirection = (int)baseWindDir;
   
   // Calculate true wind from apparent wind data
   calculateTrueWind(currentData.speed, currentData.windSpeed, currentData.windDirection,
@@ -608,4 +648,69 @@ void performFactoryReset() {
     serializeJson(response, responseStr);
     ws.textAll(responseStr);
   }
+}
+
+// Wind Sensor Functions
+
+// Set RS485 transmit/receive mode
+void setTransmit(bool tx) { 
+  digitalWrite(RS485_DE, tx ? HIGH : LOW); 
+}
+
+// Calculate Modbus CRC16
+uint16_t modbusCRC(const uint8_t *data, uint8_t len) {
+  uint16_t crc = 0xFFFF;
+  for (uint8_t i = 0; i < len; i++) {
+    crc ^= data[i];
+    for (uint8_t j = 0; j < 8; j++)
+      crc = (crc & 0x01) ? (crc >> 1) ^ 0xA001 : crc >> 1;
+  }
+  return crc;
+}
+
+// Read wind sensor data via RS485
+bool readWindSensor(float &windSpeed, int &windDirection) {
+  // Clear any existing data
+  while (rs485.available()) rs485.read();
+  
+  // Send query
+  setTransmit(true);
+  delayMicroseconds(100);
+  for (uint8_t i = 0; i < 8; i++) rs485.write(windSensorQuery[i]);
+  rs485.flush();
+  delayMicroseconds(100);
+  setTransmit(false);
+  delayMicroseconds(500);
+
+  // Read response
+  uint8_t response[9];
+  uint32_t startTime = millis();
+  uint8_t index = 0;
+  
+  while (index < 9 && millis() - startTime < 1000) {
+    if (rs485.available()) {
+      response[index++] = rs485.read();
+    }
+  }
+
+  // Validate response
+  if (index == 9 && response[0] == 0x01 && response[1] == 0x03 && response[2] == 0x04) {
+    uint16_t receivedCRC = (response[8] << 8) | response[7];
+    uint16_t calculatedCRC = modbusCRC(response, 7);
+    
+    if (receivedCRC == calculatedCRC) {
+      // Parse wind data
+      windSpeed = ((response[3] << 8) | response[4]) / 100.0;  // Convert to m/s
+      windDirection = (response[5] << 8) | response[6];        // Direction in degrees
+      return true;
+    } else {
+      Serial.println("Wind sensor CRC error");
+    }
+  } else {
+    Serial.print("Wind sensor invalid response, received ");
+    Serial.print(index);
+    Serial.println(" bytes");
+  }
+  
+  return false;
 }
