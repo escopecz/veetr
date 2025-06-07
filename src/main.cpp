@@ -330,11 +330,11 @@ void readSensors() {
   // Read GPS data first
   bool gpsDataValid = readGPS();
   
-  // Read real speed from GPS if valid, otherwise set to NAN
-  if (gps.location.isValid() && gps.speed.isValid()) {
+  // Only use GPS speed if we have a good fix and at least 5 satellites (for accuracy)
+  if (gps.location.isValid() && gps.speed.isValid() && gps.satellites.value() >= 5) {
     currentData.speed = gps.speed.knots();
   } else {
-    currentData.speed = NAN;
+    currentData.speed = 0.0;
   }
 
   // Update max and average speed only if valid
@@ -450,7 +450,12 @@ String getSensorDataJson() {
   doc["tiltPortMax"] = currentData.tiltPortMax;
   doc["tiltStarboardMax"] = currentData.tiltStarboardMax;
   // GPS fields
-  doc["gpsSpeed"] = gps.speed.knots();
+  // Only report GPS speed if at least 5 satellites and valid fix
+  if (gps.location.isValid() && gps.speed.isValid() && gps.satellites.value() >= 5) {
+    doc["gpsSpeed"] = gps.speed.knots();
+  } else {
+    doc["gpsSpeed"] = 0.0;
+  }
   doc["gpsSatellites"] = gps.satellites.value();
   
   String output;
@@ -495,7 +500,12 @@ String getFullDataJson() {
   doc["tiltPortMax"] = currentData.tiltPortMax;
   doc["tiltStarboardMax"] = currentData.tiltStarboardMax;
   // GPS fields
-  doc["gpsSpeed"] = gps.speed.knots();
+  // Only report GPS speed if at least 5 satellites and valid fix
+  if (gps.location.isValid() && gps.speed.isValid() && gps.satellites.value() >= 5) {
+    doc["gpsSpeed"] = gps.speed.knots();
+  } else {
+    doc["gpsSpeed"] = 0.0;
+  }
   doc["gpsSatellites"] = gps.satellites.value();
   
   // History data for chart updates
