@@ -239,8 +239,11 @@ class WindChart {
     }
 }
 
-// Global wind chart instance
+// Global wind chart instances
 let windChart = null;
+let trueWindSpeedChart = null;
+// Persistent true wind speed history for max/avg
+let trueWindSpeedHistory = [];
 
 // Dashboard display functions for Luna Sailing Dashboard
 // Big number displays - no visual gauges
@@ -299,13 +302,7 @@ function updateSpeedGauge(speed, maxSpeed = null, avgSpeed = null) {
 // Update wind direction display with CSS classes
 function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, avgWindSpeed = null, 
                            trueWindSpeed = null, trueWindDirection = null) {
-    // Apparent wind widget
-    const windDirElement = document.getElementById('wind-dir-value');
-    if (windDirElement) {
-        windDirElement.textContent = (direction !== null && direction !== undefined && !isNaN(direction)) ? direction.toFixed(0) : 'N/A';
-        windDirElement.className = 'medium-number';
-    }
-
+    // Apparent wind speed widget
     const windSpeedElement = document.getElementById('wind-speed-value');
     if (windSpeedElement) {
         if (windSpeed !== null && windSpeed !== undefined && !isNaN(windSpeed)) {
@@ -335,20 +332,56 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
         }
     }
 
-    // Apparent wind compass
+    // Apparent wind direction widget
+    const windDirElement = document.getElementById('wind-dir-value');
+    if (windDirElement) {
+        windDirElement.textContent = (direction !== null && direction !== undefined && !isNaN(direction)) ? direction.toFixed(0) : 'N/A';
+        windDirElement.className = 'medium-number';
+    }
+
     const compassContainer = document.getElementById('wind-direction');
     if (compassContainer) {
-        compassContainer.innerHTML = `
-            <div class="compass-direction">
-                ${getCardinalDirection(direction)}
-            </div>
-        `;
+        // If wind direction is not valid or wind speed is too low, show a question mark
+        if (direction === null || direction === undefined || isNaN(direction) || windSpeed === null || windSpeed === undefined || isNaN(windSpeed) || windSpeed < 0.1) {
+            compassContainer.innerHTML = `
+                <div class="wind-arrow-question" style="display:flex;align-items:center;justify-content:center;height:240px;">
+                    <span style="font-size: 120px; color: #0a4a7c; line-height: 1;">?</span>
+                </div>
+            `;
+        } else {
+            // Use a larger SVG and a longer arrow (3x), center of rotation in the middle of the arrow
+            let arrow = compassContainer.querySelector('.wind-arrow-svg');
+            if (!arrow) {
+                compassContainer.innerHTML = `
+                    <svg class="wind-arrow-svg" width="120" height="240" viewBox="0 0 64 128">
+                        <g class="wind-arrow-group">
+                            <polygon points="32,16 20,64 32,48 44,64" fill="#0a4a7c" />
+                            <rect x="28" y="64" width="8" height="56" rx="3" fill="#0a4a7c" />
+                        </g>
+                    </svg>
+                `;
+                arrow = compassContainer.querySelector('.wind-arrow-svg');
+            }
+            // Set rotation with smooth transition, center at (32, 64) (middle of arrow)
+            const group = compassContainer.querySelector('.wind-arrow-group');
+            if (group) {
+                group.setAttribute('style', `transform: rotate(${direction}deg); transform-origin: 32px 64px;`);
+            }
+        }
     }
+
 
     // Chart for apparent wind
     if (windSpeed !== null && windChart) {
         windChart.addWindSpeedData(windSpeed);
     }
+
+    // Chart for true wind and persistent history for max/avg
+    if (trueWindSpeed !== null && trueWindSpeedChart && !isNaN(trueWindSpeed)) {
+        trueWindSpeedChart.addWindSpeedData(trueWindSpeed);
+        trueWindSpeedHistory.push(trueWindSpeed);
+    }
+
 
     // True wind widget
     const trueWindSpeedElement = document.getElementById('true-wind-speed-value');
@@ -361,6 +394,26 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
         trueWindSpeedElement.className = 'big-number wind';
     }
 
+    // Max/Avg for true wind (calculate from persistent history)
+    const trueMaxElement = document.getElementById('true-wind-speed-max');
+    if (trueMaxElement) {
+        if (trueWindSpeedHistory.length > 0) {
+            const max = Math.max(...trueWindSpeedHistory);
+            trueMaxElement.textContent = max.toFixed(1);
+        } else {
+            trueMaxElement.textContent = '0.0';
+        }
+    }
+    const trueAvgElement = document.getElementById('true-wind-speed-avg');
+    if (trueAvgElement) {
+        if (trueWindSpeedHistory.length > 0) {
+            const avg = trueWindSpeedHistory.reduce((sum, v) => sum + v, 0) / trueWindSpeedHistory.length;
+            trueAvgElement.textContent = avg.toFixed(1);
+        } else {
+            trueAvgElement.textContent = '0.0';
+        }
+    }
+
     const trueWindDirElement = document.getElementById('true-wind-dir-value');
     if (trueWindDirElement) {
         if (trueWindDirection !== null && trueWindDirection !== undefined && !isNaN(trueWindDirection)) {
@@ -371,13 +424,41 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
         trueWindDirElement.className = 'medium-number';
     }
 
+    // True wind arrow or question mark
     const trueWindCompassContainer = document.getElementById('true-wind-direction');
     if (trueWindCompassContainer) {
-        trueWindCompassContainer.innerHTML = `
-            <div class="compass-direction">
-                ${getCardinalDirection(trueWindDirection)}
-            </div>
-        `;
+        if (
+            trueWindDirection === null ||
+            trueWindDirection === undefined ||
+            isNaN(trueWindDirection) ||
+            trueWindSpeed === null ||
+            trueWindSpeed === undefined ||
+            isNaN(trueWindSpeed) ||
+            trueWindSpeed < 0.1
+        ) {
+            trueWindCompassContainer.innerHTML = `
+                <div class="wind-arrow-question" style="display:flex;align-items:center;justify-content:center;height:240px;">
+                    <span style="font-size: 120px; color: #0a4a7c; line-height: 1;">?</span>
+                </div>
+            `;
+        } else {
+            let arrow = trueWindCompassContainer.querySelector('.wind-arrow-svg');
+            if (!arrow) {
+                trueWindCompassContainer.innerHTML = `
+                    <svg class="wind-arrow-svg" width="120" height="240" viewBox="0 0 64 128">
+                        <g class="wind-arrow-group">
+                            <polygon points="32,16 20,64 32,48 44,64" fill="#0a4a7c" />
+                            <rect x="28" y="64" width="8" height="56" rx="3" fill="#0a4a7c" />
+                        </g>
+                    </svg>
+                `;
+                arrow = trueWindCompassContainer.querySelector('.wind-arrow-svg');
+            }
+            const group = trueWindCompassContainer.querySelector('.wind-arrow-group');
+            if (group) {
+                group.setAttribute('style', `transform: rotate(${trueWindDirection}deg); transform-origin: 32px 64px;`);
+            }
+        }
     }
 
     const windSpeedStr = (windSpeed !== null && windSpeed !== undefined && !isNaN(windSpeed)) ? windSpeed.toFixed(1) : 'N/A';
@@ -492,10 +573,12 @@ document.addEventListener('DOMContentLoaded', function() {
         tiltGauge.innerHTML = '<div class="side-indicator tilt-good">LEVEL</div>';
     }
     
-    // Initialize charts with a small delay to ensure containers are rendered
+    // Initialize charts and reset true wind history with a small delay to ensure containers are rendered
     setTimeout(() => {
         speedChart = new SpeedChart('speed-chart');
         windChart = new WindChart('wind-chart');
-        console.log('Speed and wind charts initialized');
+        trueWindSpeedChart = new WindChart('true-wind-speed-chart');
+        trueWindSpeedHistory = [];
+        console.log('Speed, wind, and true wind charts initialized');
     }, 100);
 });

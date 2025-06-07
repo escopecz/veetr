@@ -55,6 +55,8 @@ struct SensorData {
   float windSpeedAvg;   // Average apparent wind speed
   int windDirection;    // Apparent wind direction in degrees (0-359)
   float trueWindSpeed;  // True wind speed in knots
+  float trueWindSpeedMax; // Maximum recorded true wind speed
+  float trueWindSpeedAvg; // Average true wind speed
   float trueWindDirection; // True wind direction in degrees (0-359)
   float tilt;           // Vessel heel/tilt angle in degrees
   float tiltPortMax;    // Maximum port tilt
@@ -169,6 +171,8 @@ void setup() {
   currentData.speedAvg = 0;
   currentData.windSpeedMax = 0;
   currentData.windSpeedAvg = 0;
+  currentData.trueWindSpeedMax = 0;
+  currentData.trueWindSpeedAvg = 0;
   currentData.tiltPortMax = 0;
   currentData.tiltStarboardMax = 0;
   
@@ -327,6 +331,17 @@ void notifyClients() {
 
 // Read sensor data (currently simulated)
 void readSensors() {
+  // Update max and average true wind speed only if valid
+  static float trueWindSpeedSum = 0;
+  static int trueWindSpeedCount = 0;
+  if (!isnan(currentData.trueWindSpeed)) {
+    if (currentData.trueWindSpeed > currentData.trueWindSpeedMax) {
+      currentData.trueWindSpeedMax = currentData.trueWindSpeed;
+    }
+    trueWindSpeedSum += currentData.trueWindSpeed;
+    trueWindSpeedCount++;
+    currentData.trueWindSpeedAvg = trueWindSpeedSum / trueWindSpeedCount;
+  }
   // Read GPS data first
   bool gpsDataValid = readGPS();
   
@@ -445,6 +460,8 @@ String getSensorDataJson() {
   doc["windSpeedAvg"] = currentData.windSpeedAvg;
   doc["windDirection"] = currentData.windDirection;
   doc["trueWindSpeed"] = currentData.trueWindSpeed;
+  doc["trueWindSpeedMax"] = currentData.trueWindSpeedMax;
+  doc["trueWindSpeedAvg"] = currentData.trueWindSpeedAvg;
   doc["trueWindDirection"] = currentData.trueWindDirection;
   doc["tilt"] = currentData.tilt;
   doc["tiltPortMax"] = currentData.tiltPortMax;
@@ -495,6 +512,8 @@ String getFullDataJson() {
   doc["windSpeedAvg"] = currentData.windSpeedAvg;
   doc["windDirection"] = currentData.windDirection;
   doc["trueWindSpeed"] = currentData.trueWindSpeed;
+  doc["trueWindSpeedMax"] = currentData.trueWindSpeedMax;
+  doc["trueWindSpeedAvg"] = currentData.trueWindSpeedAvg;
   doc["trueWindDirection"] = currentData.trueWindDirection;
   doc["tilt"] = currentData.tilt;
   doc["tiltPortMax"] = currentData.tiltPortMax;
