@@ -38,40 +38,36 @@
                 </div>
             </div>
 
-            <div class="data-card" id="wind-card">
+            <div class="data-card" id="apparent-wind-card">
                 <div class="wind-chart-container">
                     <div class="wind-chart" id="wind-chart"></div>
-                    <h2>Wind</h2>
-                    <div class="wind-data-container">
-                        <div class="wind-section">
-                            <h3>Apparent</h3>
-                            <div class="data-value">
-                                <span id="wind-speed-value">0.0</span>
-                                <span class="unit">knots</span>
-                            </div>
-                            <div class="compass-container" id="wind-direction"></div>
-                            <div class="data-value">
-                                <span id="wind-dir-value">0</span>
-                                <span class="unit">°</span>
-                            </div>
-                        </div>
-                        <div class="wind-section">
-                            <h3>True</h3>
-                            <div class="data-value">
-                                <span id="true-wind-speed-value">0.0</span>
-                                <span class="unit">knots</span>
-                            </div>
-                            <div class="compass-container" id="true-wind-direction"></div>
-                            <div class="data-value">
-                                <span id="true-wind-dir-value">0</span>
-                                <span class="unit">°</span>
-                            </div>
-                        </div>
+                    <h2>Apparent Wind</h2>
+                    <div class="data-value">
+                        <span id="wind-speed-value">0.0</span>
+                        <span class="unit">knots</span>
+                    </div>
+                    <div class="compass-container" id="wind-direction"></div>
+                    <div class="data-value">
+                        <span id="wind-dir-value">0</span>
+                        <span class="unit">°</span>
                     </div>
                     <div class="data-minmax">
-                        <span>App Max: <span id="wind-speed-max">0.0</span></span>
-                        <span>App Avg: <span id="wind-speed-avg">0.0</span></span>
+                        <span>Max: <span id="wind-speed-max">0.0</span></span>
+                        <span>Avg: <span id="wind-speed-avg">0.0</span></span>
                     </div>
+                </div>
+            </div>
+
+            <div class="data-card" id="true-wind-card">
+                <h2>True Wind</h2>
+                <div class="data-value">
+                    <span id="true-wind-speed-value">0.0</span>
+                    <span class="unit">knots</span>
+                </div>
+                <div class="compass-container" id="true-wind-direction"></div>
+                <div class="data-value">
+                    <span id="true-wind-dir-value">0</span>
+                    <span class="unit">°</span>
                 </div>
             </div>
 

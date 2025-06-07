@@ -299,47 +299,24 @@ function updateSpeedGauge(speed, maxSpeed = null, avgSpeed = null) {
 // Update wind direction display with CSS classes
 function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, avgWindSpeed = null, 
                            trueWindSpeed = null, trueWindDirection = null) {
-    // Update apparent wind direction
+    // Apparent wind widget
     const windDirElement = document.getElementById('wind-dir-value');
     if (windDirElement) {
-        windDirElement.textContent = direction.toFixed(0);
+        windDirElement.textContent = (direction !== null && direction !== undefined && !isNaN(direction)) ? direction.toFixed(0) : 'N/A';
         windDirElement.className = 'medium-number';
     }
-    
-    // Make apparent wind SPEED really big with CSS
+
     const windSpeedElement = document.getElementById('wind-speed-value');
     if (windSpeedElement) {
+        if (windSpeed !== null && windSpeed !== undefined && !isNaN(windSpeed)) {
+            windSpeedElement.textContent = windSpeed.toFixed(1);
+        } else {
+            windSpeedElement.textContent = 'N/A';
+        }
         windSpeedElement.className = 'big-number wind';
     }
-    
-    // Update true wind data if provided
-    if (trueWindSpeed !== null) {
-        const trueWindSpeedElement = document.getElementById('true-wind-speed-value');
-        if (trueWindSpeedElement) {
-            trueWindSpeedElement.textContent = trueWindSpeed.toFixed(1);
-            trueWindSpeedElement.className = 'big-number wind';
-        }
-    }
-    
-    if (trueWindDirection !== null) {
-        const trueWindDirElement = document.getElementById('true-wind-dir-value');
-        if (trueWindDirElement) {
-            trueWindDirElement.textContent = trueWindDirection.toFixed(0);
-            trueWindDirElement.className = 'medium-number';
-        }
-        
-        // Update true wind compass direction
-        const trueWindCompassContainer = document.getElementById('true-wind-direction');
-        if (trueWindCompassContainer) {
-            trueWindCompassContainer.innerHTML = `
-                <div class="compass-direction">
-                    ${getCardinalDirection(trueWindDirection)}
-                </div>
-            `;
-        }
-    }
-    
-    // Update max and avg if provided (from server)
+
+    // Max/Avg for apparent wind
     const maxElement = document.getElementById('wind-speed-max');
     if (maxElement) {
         if (maxWindSpeed !== null && maxWindSpeed !== undefined && !isNaN(maxWindSpeed)) {
@@ -357,13 +334,8 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
             avgElement.textContent = 'N/A';
         }
     }
-    
-    // Update the background wind chart if wind speed is provided
-    if (windSpeed !== null && windChart) {
-        windChart.addWindSpeedData(windSpeed);
-    }
-    
-    // Update apparent wind compass direction with CSS
+
+    // Apparent wind compass
     const compassContainer = document.getElementById('wind-direction');
     if (compassContainer) {
         compassContainer.innerHTML = `
@@ -372,7 +344,42 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
             </div>
         `;
     }
-    
+
+    // Chart for apparent wind
+    if (windSpeed !== null && windChart) {
+        windChart.addWindSpeedData(windSpeed);
+    }
+
+    // True wind widget
+    const trueWindSpeedElement = document.getElementById('true-wind-speed-value');
+    if (trueWindSpeedElement) {
+        if (trueWindSpeed !== null && trueWindSpeed !== undefined && !isNaN(trueWindSpeed)) {
+            trueWindSpeedElement.textContent = trueWindSpeed.toFixed(1);
+        } else {
+            trueWindSpeedElement.textContent = 'N/A';
+        }
+        trueWindSpeedElement.className = 'big-number wind';
+    }
+
+    const trueWindDirElement = document.getElementById('true-wind-dir-value');
+    if (trueWindDirElement) {
+        if (trueWindDirection !== null && trueWindDirection !== undefined && !isNaN(trueWindDirection)) {
+            trueWindDirElement.textContent = trueWindDirection.toFixed(0);
+        } else {
+            trueWindDirElement.textContent = 'N/A';
+        }
+        trueWindDirElement.className = 'medium-number';
+    }
+
+    const trueWindCompassContainer = document.getElementById('true-wind-direction');
+    if (trueWindCompassContainer) {
+        trueWindCompassContainer.innerHTML = `
+            <div class="compass-direction">
+                ${getCardinalDirection(trueWindDirection)}
+            </div>
+        `;
+    }
+
     const windSpeedStr = (windSpeed !== null && windSpeed !== undefined && !isNaN(windSpeed)) ? windSpeed.toFixed(1) : 'N/A';
     const trueWindDirStr = (trueWindDirection !== null && trueWindDirection !== undefined && !isNaN(trueWindDirection)) ? trueWindDirection.toFixed(0) : 'N/A';
     const trueWindSpeedStr = (trueWindSpeed !== null && trueWindSpeed !== undefined && !isNaN(trueWindSpeed)) ? trueWindSpeed.toFixed(1) : 'N/A';
