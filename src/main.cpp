@@ -5,12 +5,18 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <vector>
+#include <TinyGPS++.h>
 
-// RS485 Wind Sensor Configuration
+// RS485 Wind Sensor Configuration (using UART1)
 #define RS485_DE 14
 #define RS485_RX 25
 #define RS485_TX 26
-#define RS485_UART 2
+#define RS485_UART 1
+
+// GPS Module Configuration (using UART2)
+#define GPS_RX 16
+#define GPS_TX 17
+#define GPS_UART 2
 
 // Factory Reset Button Configuration
 #define FACTORY_RESET_BUTTON 0    // GPIO 0 (BOOT button)
@@ -34,6 +40,10 @@ AsyncWebSocket ws("/ws");
 // RS485 Wind Sensor
 HardwareSerial rs485(RS485_UART);
 const uint8_t windSensorQuery[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B};
+
+// GPS Module
+HardwareSerial gpsSerial(GPS_UART);
+TinyGPSPlus gps;
 
 // Data structure to hold sensor readings
 struct SensorData {
@@ -120,12 +130,19 @@ void setTransmit(bool tx);
 uint16_t modbusCRC(const uint8_t *data, uint8_t len);
 bool readWindSensor(float &windSpeed, int &windDirection);
 
+// GPS Functions
+bool readGPS();
+
 void setup() {
   // Initialize serial communication
   Serial.begin(115200);
   Serial.println("Luna Sailing Dashboard starting...");
   
-  // Initialize RS485 for wind sensor
+  // Initialize GPS module
+  gpsSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
+  Serial.println("GPS module initialized");
+  
+  // Initialize RS485 for wind sensor (keeping for backup)
   rs485.begin(4800, SERIAL_8N1, RS485_RX, RS485_TX);
   pinMode(RS485_DE, OUTPUT);
   setTransmit(false);
@@ -310,85 +327,101 @@ void notifyClients() {
 
 // Read sensor data (currently simulated)
 void readSensors() {
-  // In a real implementation, this would read from actual sensors
-  // For now, we'll generate simulated data
+  // Read GPS data first
+  bool gpsDataValid = readGPS();
   
-  // Simulate speed (0-15 knots with some variation)
-  static float baseSpeed = 5.0;
-  baseSpeed += random(-10, 10) / 100.0; // Add small random change
-  baseSpeed = constrain(baseSpeed, 0, 15);
-  currentData.speed = baseSpeed;
-  
-  // Update max and average speed
-  if (currentData.speed > currentData.speedMax) {
-    currentData.speedMax = currentData.speed;
+  // Read real speed from GPS if valid, otherwise set to NAN
+  if (gps.location.isValid() && gps.speed.isValid()) {
+    currentData.speed = gps.speed.knots();
+  } else {
+    currentData.speed = NAN;
   }
-  
-  static float speedSum = 0;
-  static int speedCount = 0;
-  speedSum += currentData.speed;
-  speedCount++;
-  currentData.speedAvg = speedSum / speedCount;
-  
-  // Simulate wind speed (0-25 knots with variation)
-  static float baseWindSpeed = 8.0;
-  // Try to read from actual wind sensor first
+
+  // Update max and average speed only if valid
+  if (!isnan(currentData.speed)) {
+    if (currentData.speed > currentData.speedMax) {
+      currentData.speedMax = currentData.speed;
+    }
+    static float speedSum = 0;
+    static int speedCount = 0;
+    speedSum += currentData.speed;
+    speedCount++;
+    currentData.speedAvg = speedSum / speedCount;
+  }
+
+  // Read wind sensor only, no fallback to simulated data
   float sensorWindSpeed;
   int sensorWindDirection;
   if (readWindSensor(sensorWindSpeed, sensorWindDirection)) {
     // Convert m/s to knots (1 m/s = 1.944 knots)
     currentData.windSpeed = sensorWindSpeed * 1.944;
     currentData.windDirection = sensorWindDirection;
-    
-    // Print to serial for debugging
-    Serial.print("Wind sensor - Speed: ");
-    Serial.print(sensorWindSpeed, 2);
-    Serial.print(" m/s (");
-    Serial.print(currentData.windSpeed, 2);
-    Serial.print(" knots), Direction: ");
-    Serial.print(sensorWindDirection);
-    Serial.println(" deg");
   } else {
-    // Fall back to simulated data if sensor reading fails
-    baseWindSpeed += random(-15, 15) / 100.0;
-    baseWindSpeed = constrain(baseWindSpeed, 0, 25);
-    currentData.windSpeed = baseWindSpeed;
-    
-    // Simulate wind direction (0-359 degrees with slow changes)
-    static float baseWindDir = 180;
-    baseWindDir += random(-5, 5) / 10.0;
-    if (baseWindDir < 0) baseWindDir += 360;
-    if (baseWindDir >= 360) baseWindDir -= 360;
-    currentData.windDirection = (int)baseWindDir;
+    currentData.windSpeed = NAN;
+    currentData.windDirection = -1;
   }
   
-  // Update max and average wind speed
-  if (currentData.windSpeed > currentData.windSpeedMax) {
-    currentData.windSpeedMax = currentData.windSpeed;
+  // Enhanced GPS debug output
+  Serial.print("[GPS Debug] TinyGPS++ chars processed: ");
+  Serial.print(gps.charsProcessed());
+  Serial.print(", Sentences with fix: ");
+  Serial.print(gps.sentencesWithFix());
+  Serial.print(", Satellites: ");
+  Serial.print(gps.satellites.value());
+  Serial.print(", HDOP: ");
+  Serial.print(gps.hdop.value());
+  Serial.print(", Age: ");
+  Serial.print(gps.location.age());
+  Serial.print(" ms");
+  if (gpsDataValid) {
+    Serial.print(" | GPS FIX: Lat: ");
+    Serial.print(gps.location.lat(), 6);
+    Serial.print(", Lng: ");
+    Serial.print(gps.location.lng(), 6);
+    Serial.print(", Speed: ");
+    Serial.print(gps.speed.knots(), 2);
+    Serial.println(" knots");
+  } else {
+    Serial.println(" | No valid GPS fix yet");
+  }
+  // Optionally, print raw NMEA sentences for troubleshooting
+  // while (gpsSerial.available() > 0) {
+  //   char c = gpsSerial.read();
+  //   Serial.write(c);
+  // }
+  
+  // Update max and average wind speed only if valid
+  if (!isnan(currentData.windSpeed)) {
+    if (currentData.windSpeed > currentData.windSpeedMax) {
+      currentData.windSpeedMax = currentData.windSpeed;
+    }
+    static float windSpeedSum = 0;
+    static int windSpeedCount = 0;
+    windSpeedSum += currentData.windSpeed;
+    windSpeedCount++;
+    currentData.windSpeedAvg = windSpeedSum / windSpeedCount;
   }
   
-  static float windSpeedSum = 0;
-  static int windSpeedCount = 0;
-  windSpeedSum += currentData.windSpeed;
-  windSpeedCount++;
-  currentData.windSpeedAvg = windSpeedSum / windSpeedCount;
-  
-  // Calculate true wind from apparent wind data
-  calculateTrueWind(currentData.speed, currentData.windSpeed, currentData.windDirection,
-                    currentData.trueWindSpeed, currentData.trueWindDirection);
-  
-  // Simulate tilt (-45 to 45 degrees, negative for port, positive for starboard)
-  static float baseTilt = 0;
-  baseTilt += random(-20, 20) / 100.0;
-  baseTilt = constrain(baseTilt, -45, 45);
-  currentData.tilt = baseTilt;
-  
-  // Update max tilt values
-  if (currentData.tilt < 0 && abs(currentData.tilt) > currentData.tiltPortMax) {
-    currentData.tiltPortMax = abs(currentData.tilt);
-  } else if (currentData.tilt > 0 && currentData.tilt > currentData.tiltStarboardMax) {
-    currentData.tiltStarboardMax = currentData.tilt;
+  // Calculate true wind: if speed is very low, set true wind = apparent wind
+  const float SPEED_THRESHOLD = 0.5; // knots
+  if (!isnan(currentData.windSpeed) && currentData.windDirection >= 0) {
+    if (!isnan(currentData.speed) && currentData.speed >= SPEED_THRESHOLD) {
+      calculateTrueWind(currentData.speed, currentData.windSpeed, currentData.windDirection,
+                        currentData.trueWindSpeed, currentData.trueWindDirection);
+    } else {
+      // Boat is stationary or moving very slowly: true wind = apparent wind
+      currentData.trueWindSpeed = currentData.windSpeed;
+      currentData.trueWindDirection = currentData.windDirection;
+    }
+  } else {
+    currentData.trueWindSpeed = NAN;
+    currentData.trueWindDirection = NAN;
   }
+  
+  // (Optional) Set tilt to NAN or leave as-is if you have a real tilt sensor
+  currentData.tilt = NAN;
+  currentData.tiltPortMax = NAN;
+  currentData.tiltStarboardMax = NAN;
 }
 
 // Update history buffer with current data
@@ -416,6 +449,9 @@ String getSensorDataJson() {
   doc["tilt"] = currentData.tilt;
   doc["tiltPortMax"] = currentData.tiltPortMax;
   doc["tiltStarboardMax"] = currentData.tiltStarboardMax;
+  // GPS fields
+  doc["gpsSpeed"] = gps.speed.knots();
+  doc["gpsSatellites"] = gps.satellites.value();
   
   String output;
   serializeJson(doc, output);
@@ -458,6 +494,9 @@ String getFullDataJson() {
   doc["tilt"] = currentData.tilt;
   doc["tiltPortMax"] = currentData.tiltPortMax;
   doc["tiltStarboardMax"] = currentData.tiltStarboardMax;
+  // GPS fields
+  doc["gpsSpeed"] = gps.speed.knots();
+  doc["gpsSatellites"] = gps.satellites.value();
   
   // History data for chart updates
   JsonObject history = doc.createNestedObject("history");
@@ -713,4 +752,21 @@ bool readWindSensor(float &windSpeed, int &windDirection) {
   }
   
   return false;
+}
+
+// GPS Functions
+
+// Read GPS data
+bool readGPS() {
+  bool newData = false;
+  
+  // Read available GPS data
+  while (gpsSerial.available() > 0) {
+    if (gps.encode(gpsSerial.read())) {
+      newData = true;
+    }
+  }
+  
+  // Return true if we have valid location data
+  return newData && gps.location.isValid();
 }

@@ -210,39 +210,102 @@ function getCurrentSSID() {
 // Update the dashboard with received data
 function updateDashboard(data) {
     // Update speed data
-    if (data.speed !== undefined) {
-        document.getElementById('speed-value').textContent = data.speed.toFixed(1);
+    // Show N/A if GPS speed is too low or invalid
+    const SPEED_THRESHOLD = 0.5; // knots
+    let displaySpeed = null;
+    if (data.gpsSpeed !== undefined && data.gpsSpeed !== null && !isNaN(data.gpsSpeed)) {
+        if (data.gpsSpeed >= SPEED_THRESHOLD) {
+            displaySpeed = data.gpsSpeed;
+            document.getElementById('speed-value').textContent = data.gpsSpeed.toFixed(1);
+        } else {
+            displaySpeed = null;
+            document.getElementById('speed-value').textContent = 'N/A';
+        }
+    } else if (data.speed !== undefined && data.speed !== null && !isNaN(data.speed)) {
+        if (data.speed >= SPEED_THRESHOLD) {
+            displaySpeed = data.speed;
+            document.getElementById('speed-value').textContent = data.speed.toFixed(1);
+        } else {
+            displaySpeed = null;
+            document.getElementById('speed-value').textContent = 'N/A';
+        }
+    } else {
+        document.getElementById('speed-value').textContent = 'N/A';
+    }
+    if (data.speedMax !== undefined && data.speedMax !== null && !isNaN(data.speedMax)) {
         document.getElementById('speed-max').textContent = data.speedMax.toFixed(1);
+    } else {
+        document.getElementById('speed-max').textContent = 'N/A';
+    }
+    if (data.speedAvg !== undefined && data.speedAvg !== null && !isNaN(data.speedAvg)) {
         document.getElementById('speed-avg').textContent = data.speedAvg.toFixed(1);
-        
-        // Pass max and avg to the gauge update function
-        updateSpeedGauge(data.speed, data.speedMax, data.speedAvg);
+    } else {
+        document.getElementById('speed-avg').textContent = 'N/A';
+    }
+    // Pass max and avg to the gauge update function, use 0 if displaySpeed is null
+    updateSpeedGauge(displaySpeed !== null ? displaySpeed : 0, data.speedMax, data.speedAvg);
+
+    // Show satellite count in the top right of the speed widget
+    if (data.gpsSatellites !== undefined) {
+        const satElem = document.getElementById('satellite-count');
+        if (satElem) {
+            satElem.textContent = `🛰️ ${data.gpsSatellites}`;
+            satElem.title = `${data.gpsSatellites} satellites`;
+        }
     }
     
     // Update wind data
-    if (data.windSpeed !== undefined && data.windDirection !== undefined) {
+    if (data.windSpeed !== undefined && data.windSpeed !== null && !isNaN(data.windSpeed)) {
         document.getElementById('wind-speed-value').textContent = data.windSpeed.toFixed(1);
-        document.getElementById('wind-dir-value').textContent = data.windDirection.toFixed(0);
-        
-        // Update true wind data if available
-        if (data.trueWindSpeed !== undefined) {
-            document.getElementById('true-wind-speed-value').textContent = data.trueWindSpeed.toFixed(1);
-        }
-        if (data.trueWindDirection !== undefined) {
-            document.getElementById('true-wind-dir-value').textContent = data.trueWindDirection.toFixed(0);
-        }
-        
-        // Pass wind speed and max/avg values to the update function, including true wind data
-        updateWindDirection(data.windDirection, data.windSpeed, data.windSpeedMax, data.windSpeedAvg,
-                           data.trueWindSpeed, data.trueWindDirection);
+    } else {
+        document.getElementById('wind-speed-value').textContent = 'N/A';
     }
+    if (data.windDirection !== undefined && data.windDirection !== null && !isNaN(data.windDirection)) {
+        document.getElementById('wind-dir-value').textContent = data.windDirection.toFixed(0);
+    } else {
+        document.getElementById('wind-dir-value').textContent = 'N/A';
+    }
+    // Update true wind data if available
+    if (data.trueWindSpeed !== undefined && data.trueWindSpeed !== null && !isNaN(data.trueWindSpeed)) {
+        document.getElementById('true-wind-speed-value').textContent = data.trueWindSpeed.toFixed(1);
+    } else {
+        document.getElementById('true-wind-speed-value').textContent = 'N/A';
+    }
+    if (data.trueWindDirection !== undefined && data.trueWindDirection !== null && !isNaN(data.trueWindDirection)) {
+        document.getElementById('true-wind-dir-value').textContent = data.trueWindDirection.toFixed(0);
+    } else {
+        document.getElementById('true-wind-dir-value').textContent = 'N/A';
+    }
+    // Pass wind speed and max/avg values to the update function, including true wind data
+    updateWindDirection(
+        data.windDirection,
+        data.windSpeed,
+        data.windSpeedMax,
+        data.windSpeedAvg,
+        data.trueWindSpeed,
+        data.trueWindDirection
+    );
     
     // Update tilt data
-    if (data.tilt !== undefined) {
+    if (data.tilt !== undefined && data.tilt !== null && !isNaN(data.tilt)) {
         document.getElementById('tilt-value').textContent = Math.abs(data.tilt).toFixed(1);
+    } else {
+        document.getElementById('tilt-value').textContent = 'N/A';
+    }
+    if (data.tiltPortMax !== undefined && data.tiltPortMax !== null && !isNaN(data.tiltPortMax)) {
         document.getElementById('tilt-port-max').textContent = data.tiltPortMax.toFixed(1);
+    } else {
+        document.getElementById('tilt-port-max').textContent = 'N/A';
+    }
+    if (data.tiltStarboardMax !== undefined && data.tiltStarboardMax !== null && !isNaN(data.tiltStarboardMax)) {
         document.getElementById('tilt-starboard-max').textContent = data.tiltStarboardMax.toFixed(1);
+    } else {
+        document.getElementById('tilt-starboard-max').textContent = 'N/A';
+    }
+    if (data.tilt !== undefined && data.tilt !== null && !isNaN(data.tilt)) {
         updateTiltGauge(data.tilt);
+    } else {
+        updateTiltGauge(0); // fallback to 0 if invalid
     }
     
     // Update charts with historical data

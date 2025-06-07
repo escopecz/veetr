@@ -137,9 +137,10 @@ function applyTheme(theme) {
 function applyViewMode(viewMode) {
     document.body.className = document.body.className.replace(/view-\w+/g, '');
     document.body.classList.add(`view-${viewMode}`);
-    
+
     const historySection = document.getElementById('history-data');
-    
+    if (!historySection) return; // Prevent error if element is missing
+
     switch (viewMode) {
         case 'basic':
             historySection.style.display = 'none';

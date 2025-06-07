@@ -249,32 +249,51 @@ let windChart = null;
 function updateSpeedGauge(speed, maxSpeed = null, avgSpeed = null) {
     const speedElement = document.getElementById('speed-value');
     if (speedElement) {
-        speedElement.textContent = speed.toFixed(1);
-        speedElement.className = 'big-number ' + 
-            (speed > 10 ? 'speed-fast' : speed > 5 ? 'speed-medium' : 'speed-good');
+        if (speed !== null && speed !== undefined && !isNaN(speed)) {
+            speedElement.textContent = speed.toFixed(1);
+            speedElement.className = 'big-number ' + 
+                (speed > 10 ? 'speed-fast' : speed > 5 ? 'speed-medium' : 'speed-good');
+        } else {
+            speedElement.textContent = 'N/A';
+            speedElement.className = 'big-number speed-good';
+        }
     }
     
     // Update max and avg if provided (from server), otherwise let chart handle it
-    if (maxSpeed !== null) {
+    if (maxSpeed !== null && maxSpeed !== undefined && !isNaN(maxSpeed)) {
         const maxElement = document.getElementById('speed-max');
         if (maxElement) {
             maxElement.textContent = maxSpeed.toFixed(1);
         }
+    } else {
+        const maxElement = document.getElementById('speed-max');
+        if (maxElement) {
+            maxElement.textContent = 'N/A';
+        }
     }
-    
-    if (avgSpeed !== null) {
+
+    if (avgSpeed !== null && avgSpeed !== undefined && !isNaN(avgSpeed)) {
         const avgElement = document.getElementById('speed-avg');
         if (avgElement) {
             avgElement.textContent = avgSpeed.toFixed(1);
         }
+    } else {
+        const avgElement = document.getElementById('speed-avg');
+        if (avgElement) {
+            avgElement.textContent = 'N/A';
+        }
     }
-    
+
     // Update the background speed chart
-    if (speedChart) {
+    if (speedChart && speed !== null && speed !== undefined && !isNaN(speed)) {
         speedChart.addSpeedData(speed);
     }
-    
-    console.log(`Speed updated: ${speed.toFixed(1)} knots`);
+
+    if (speed !== null && speed !== undefined && !isNaN(speed)) {
+        console.log(`Speed updated: ${speed.toFixed(1)} knots`);
+    } else {
+        console.log('Speed updated: N/A');
+    }
 }
 
 // Update wind direction display with CSS classes
@@ -321,17 +340,21 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
     }
     
     // Update max and avg if provided (from server)
-    if (maxWindSpeed !== null) {
-        const maxElement = document.getElementById('wind-speed-max');
-        if (maxElement) {
+    const maxElement = document.getElementById('wind-speed-max');
+    if (maxElement) {
+        if (maxWindSpeed !== null && maxWindSpeed !== undefined && !isNaN(maxWindSpeed)) {
             maxElement.textContent = maxWindSpeed.toFixed(1);
+        } else {
+            maxElement.textContent = 'N/A';
         }
     }
-    
-    if (avgWindSpeed !== null) {
-        const avgElement = document.getElementById('wind-speed-avg');
-        if (avgElement) {
+
+    const avgElement = document.getElementById('wind-speed-avg');
+    if (avgElement) {
+        if (avgWindSpeed !== null && avgWindSpeed !== undefined && !isNaN(avgWindSpeed)) {
             avgElement.textContent = avgWindSpeed.toFixed(1);
+        } else {
+            avgElement.textContent = 'N/A';
         }
     }
     
@@ -350,7 +373,10 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
         `;
     }
     
-    console.log(`Wind updated - Apparent: ${direction}° (${getCardinalDirection(direction)}) ${windSpeed?.toFixed(1) || 'N/A'} kts, True: ${trueWindDirection?.toFixed(0) || 'N/A'}° ${trueWindSpeed?.toFixed(1) || 'N/A'} kts`);
+    const windSpeedStr = (windSpeed !== null && windSpeed !== undefined && !isNaN(windSpeed)) ? windSpeed.toFixed(1) : 'N/A';
+    const trueWindDirStr = (trueWindDirection !== null && trueWindDirection !== undefined && !isNaN(trueWindDirection)) ? trueWindDirection.toFixed(0) : 'N/A';
+    const trueWindSpeedStr = (trueWindSpeed !== null && trueWindSpeed !== undefined && !isNaN(trueWindSpeed)) ? trueWindSpeed.toFixed(1) : 'N/A';
+    console.log(`Wind updated - Apparent: ${direction}° (${getCardinalDirection(direction)}) ${windSpeedStr} kts, True: ${trueWindDirStr}° ${trueWindSpeedStr} kts`);
 }
 
 // Update tilt display with CSS classes
