@@ -1,3 +1,42 @@
+/* Tilt widget custom styles */
+.tilt-widget-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2em;
+  font-size: 1.3rem;
+  margin-bottom: 0.5em;
+}
+.tilt-side-label {
+  font-weight: bold;
+  letter-spacing: 0.1em;
+}
+.tilt-degree-label {
+  font-family: monospace;
+  font-size: 1.1em;
+}
+.tilt-svg-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 130px;
+  margin-bottom: 0.2em;
+  width: 100%;
+  min-width: 120px;
+  max-width: 100%;
+}
+.tilt-svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+/* Smooth mast animation for tilt widget */
+.mast-group {
+  transition: transform 0.7s cubic-bezier(0.4,0.0,0.2,1);
+  /* transform-origin is set dynamically in JS */
+}
 /* Apparent wind arrow (big, centered, smooth) */
 .wind-arrow-svg {
   display: block;

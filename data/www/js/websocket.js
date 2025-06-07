@@ -287,13 +287,9 @@ function updateDashboard(data) {
     );
     
     // Update tilt data
-    if (data.tilt !== undefined && data.tilt !== null && !isNaN(data.tilt)) {
-        document.getElementById('tilt-value').textContent = Math.abs(data.tilt).toFixed(1);
-    } else {
-        document.getElementById('tilt-value').textContent = 'N/A';
-    }
+    // No more tilt-value element, handled by updateTiltGauge
     if (data.tiltPortMax !== undefined && data.tiltPortMax !== null && !isNaN(data.tiltPortMax)) {
-        document.getElementById('tilt-port-max').textContent = data.tiltPortMax.toFixed(1);
+        document.getElementById('tilt-port-max').textContent = Math.abs(data.tiltPortMax).toFixed(1);
     } else {
         document.getElementById('tilt-port-max').textContent = 'N/A';
     }

@@ -469,26 +469,88 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
 
 // Update tilt display with CSS classes
 function updateTiltGauge(tilt) {
-    const tiltElement = document.getElementById('tilt-value');
-    if (tiltElement) {
-        tiltElement.textContent = Math.abs(tilt).toFixed(1);
-        tiltElement.className = 'big-number ' + 
-            (Math.abs(tilt) > 20 ? 'tilt-danger' : Math.abs(tilt) > 10 ? 'tilt-medium' : 'tilt-good');
+    // Update side label and degree label
+    const side = tilt < 0 ? 'PORT' : tilt > 0 ? 'STARBOARD' : 'LEVEL';
+    const colorClass = Math.abs(tilt) > 20 ? 'tilt-danger' : Math.abs(tilt) > 10 ? 'tilt-medium' : 'tilt-good';
+    const tiltSideLabel = document.getElementById('tilt-side-label');
+    const tiltDegreeLabel = document.getElementById('tilt-degree-label');
+    if (tiltSideLabel) {
+        tiltSideLabel.textContent = side;
+        tiltSideLabel.className = `tilt-side-label ${colorClass}`;
     }
-    
-    // Update the tilt gauge container with side indicator
+    if (tiltDegreeLabel) {
+        tiltDegreeLabel.textContent = `${Math.abs(tilt).toFixed(1)}°`;
+        tiltDegreeLabel.className = `tilt-degree-label ${colorClass}`;
+    }
+
+    // SVG mast and waterline
     const tiltGaugeContainer = document.getElementById('tilt-gauge');
     if (tiltGaugeContainer) {
-        const side = tilt < 0 ? 'PORT' : tilt > 0 ? 'STARBOARD' : 'LEVEL';
-        const colorClass = Math.abs(tilt) > 20 ? 'tilt-danger' : Math.abs(tilt) > 10 ? 'tilt-medium' : 'tilt-good';
-        tiltGaugeContainer.innerHTML = `
-            <div class="side-indicator ${colorClass}">
-                ${side}
-            </div>
-        `;
+        // SVG size and mast length
+        const width = tiltGaugeContainer.offsetWidth > 0 ? tiltGaugeContainer.offsetWidth : 180;
+        const height = 120;
+        const mastLength = 95; // Even longer mast
+        const mastBaseX = width / 2;
+        const mastBaseY = height * 0.92; // Lower the base for less top margin
+        const mastAngle = Math.max(-45, Math.min(45, tilt)); // Clamp for display
+
+        // Check if SVG exists, else create it
+        let svg = tiltGaugeContainer.querySelector('.tilt-svg');
+        let mastGroup;
+        if (!svg) {
+            tiltGaugeContainer.innerHTML = `
+<svg class="tilt-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <!-- Waterline (full width) -->
+  <line x1="0" y1="${mastBaseY}" x2="${width}" y2="${mastBaseY}" stroke="#0a4a7c" stroke-width="3" />
+  <!-- Mast group for animation -->
+  <g class="mast-group" style="transform: rotate(${mastAngle}deg); transform-origin: ${mastBaseX}px ${mastBaseY}px;">
+    <line x1="${mastBaseX}" y1="${mastBaseY}" x2="${mastBaseX}" y2="${mastBaseY - mastLength}" stroke="#ffa500" stroke-width="6" stroke-linecap="round" />
+  </g>
+  <!-- Boat dot -->
+  <circle cx="${mastBaseX}" cy="${mastBaseY}" r="10" fill="#0a4a7c" stroke="#fff" stroke-width="2" />
+</svg>`;
+            svg = tiltGaugeContainer.querySelector('.tilt-svg');
+            mastGroup = svg ? svg.querySelector('.mast-group') : null;
+        } else {
+            // Update SVG size and waterline if container size changes
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+            svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+            // Update waterline and mast line positions
+            const waterline = svg.querySelector('line');
+            if (waterline) {
+                waterline.setAttribute('x1', 0);
+                waterline.setAttribute('y1', mastBaseY);
+                waterline.setAttribute('x2', width);
+                waterline.setAttribute('y2', mastBaseY);
+            }
+            mastGroup = svg.querySelector('.mast-group');
+            if (mastGroup) {
+                // Update mast line
+                const mastLine = mastGroup.querySelector('line');
+                if (mastLine) {
+                    mastLine.setAttribute('x1', mastBaseX);
+                    mastLine.setAttribute('y1', mastBaseY);
+                    mastLine.setAttribute('x2', mastBaseX);
+                    mastLine.setAttribute('y2', mastBaseY - mastLength);
+                }
+                // Update transform-origin and animate rotation
+                mastGroup.style.transformOrigin = `${mastBaseX}px ${mastBaseY}px`;
+                mastGroup.style.transform = `rotate(${mastAngle}deg)`;
+            }
+            // Update boat dot position
+            const boatDot = svg.querySelector('circle');
+            if (boatDot) {
+                boatDot.setAttribute('cx', mastBaseX);
+                boatDot.setAttribute('cy', mastBaseY);
+            }
+        }
+        // Always ensure transition is set
+        if (mastGroup) {
+            mastGroup.style.transition = 'transform 0.7s cubic-bezier(0.4,0.0,0.2,1)';
+        }
     }
-    
-    console.log(`Tilt updated: ${tilt.toFixed(1)}° (${tilt < 0 ? 'Port' : tilt > 0 ? 'Starboard' : 'Level'})`);
+    console.log(`Tilt updated: ${tilt.toFixed(1)}° (${side})`);
 }
 
 // Helper function to convert degrees to cardinal direction
