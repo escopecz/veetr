@@ -112,6 +112,39 @@ function setupEventListeners() {
             }
         });
     }
+
+    // Heel angle reset button
+    const resetHeelAngleButton = document.getElementById('reset-heel-angle');
+    if (resetHeelAngleButton) {
+        resetHeelAngleButton.addEventListener('click', () => {
+            console.log('[UI] Reset Heel Angle button clicked');
+            if (!window.getWebSocketState || typeof window.getWebSocketState !== 'function') {
+                alert('Error: WebSocket not properly initialized. Please reload the page and try again.');
+                return;
+            }
+            const wsState = window.getWebSocketState();
+            if (!wsState.socket || wsState.readyState !== WebSocket.OPEN) {
+                alert('Error: Not connected to device. Please wait for connection and try again.');
+                return;
+            }
+            if (!confirm('Set the current heel angle as zero? Make sure the boat is at rest and in the desired reference position.')) {
+                return;
+            }
+            try {
+                console.log('[UI] Sending resetHeelAngle over WebSocket');
+                wsState.socket.send(JSON.stringify({ action: 'resetHeelAngle' }));
+                resetHeelAngleButton.textContent = 'Resetting...';
+                resetHeelAngleButton.disabled = true;
+                setTimeout(() => {
+                    resetHeelAngleButton.textContent = 'Reset Heel Angle';
+                    resetHeelAngleButton.disabled = false;
+                }, 3000);
+            } catch (error) {
+                alert('Error: Failed to send reset command.');
+                console.error('[UI] Failed to send resetHeelAngle:', error);
+            }
+        });
+    }
 }
 
 // Apply theme

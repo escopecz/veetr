@@ -4,6 +4,10 @@
 #include <AsyncTCP.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+#include <Preferences.h>
+// Persistent storage for heel angle zeroing
+Preferences preferences;
+float heelAngleDelta = 0.0f;
 #include <vector>
 #include <TinyGPS++.h>
 #include <Wire.h>
@@ -143,6 +147,11 @@ bool readWindSensor(float &windSpeed, int &windDirection);
 bool readGPS();
 
 void setup() {
+  // Initialize Preferences for persistent storage
+  preferences.begin("heel", false);
+  heelAngleDelta = preferences.getFloat("delta", 0.0f);
+  Serial.print("[Boot] Loaded heelAngleDelta from NVS: ");
+  Serial.println(heelAngleDelta);
   // Initialize I2C for ADXL345
   Wire.begin(ADXL345_SDA, ADXL345_SCL);
   if (!accel.begin()) {
@@ -311,6 +320,22 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
           updateWiFiSettings(newSSID.c_str(), newPassword.c_str());
         }
       }
+      // Handle heel angle reset
+      else if (action == "resetHeelAngle") {
+        Serial.println("[DEBUG] Heel angle reset triggered!");
+        sensors_event_t event;
+        if (accel.getEvent(&event)) {
+          float currentTilt = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
+          // Set new delta so that zeroed tilt is zero at this position
+          heelAngleDelta = currentTilt;
+          preferences.putFloat("delta", heelAngleDelta);
+          Serial.print("[Heel] New heelAngleDelta stored: ");
+          Serial.println(heelAngleDelta);
+          ws.textAll("{\"heelAngleReset\":true}");
+        } else {
+          Serial.println("[Heel] Failed to read accelerometer for reset.");
+        }
+      }
     }
   }
 }
@@ -464,8 +489,14 @@ void readSensors() {
       // Calculate heel/tilt angle (degrees)
       // Assume Y axis is port-starboard, Z is up
       float tilt = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
-      Serial.print(" | Calculated tilt: "); Serial.println(tilt);
-      currentData.tilt = tilt;
+      Serial.print(" [DEBUG] Raw tilt: ");
+      Serial.print(tilt);
+      Serial.print(" | heelAngleDelta: ");
+      Serial.print(heelAngleDelta);
+      Serial.print(" | Calculated tilt: "); Serial.print(tilt);
+      float zeroedTilt = tilt - heelAngleDelta;
+      Serial.print(" | Zeroed tilt: "); Serial.println(zeroedTilt);
+      currentData.tilt = zeroedTilt;
       // Track max port/starboard heel
       if (tilt < 0) {
         // Port
