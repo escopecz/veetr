@@ -1,21 +1,15 @@
-/* Tilt widget custom styles */
-.tilt-widget-row {
+/* Wind arrow question mark (centered, large, consistent) */
+.wind-arrow-question {
   display: flex;
-  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 1.2em;
-  font-size: 1.3rem;
-  margin-bottom: 0.5em;
 }
-.tilt-side-label {
-  font-weight: bold;
-  letter-spacing: 0.1em;
+.wind-arrow-question span {
+  font-size: 120px;
+  color: var(--primary-color);
+  line-height: 1;
 }
-.tilt-degree-label {
-  font-family: monospace;
-  font-size: 1.1em;
-}
+/* Tilt widget custom styles */
 .tilt-svg-container {
   display: flex;
   justify-content: center;
@@ -42,40 +36,13 @@
   display: block;
   margin: 0 auto;
   width: 120px;
-  height: 240px;
+  height: 120px;
   max-width: 100%;
   max-height: 100%;
 }
 .wind-arrow-group {
   transition: transform 0.6s cubic-bezier(0.4,0.0,0.2,1);
   transform-origin: 32px 32px;
-}
-.speed-widget-header {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  width: 100%;
-}
-.speed-widget-header h2 {
-  margin: 0;
-  font-size: 2rem;
-}
-.satellite-count {
-  font-size: 1rem;
-  color: #888;
-  opacity: 0.7;
-  align-self: flex-start;
-  padding: 0.5rem 1rem;
-  margin: 0;
-  text-align: right;
-}
-.satellite-count {
-  font-size: 1rem;
-  color: #888;
-  margin-left: 0.5em;
-  vertical-align: super;
-  opacity: 0.7;
 }
 /* Luna Sailing Dashboard Styles */
 
@@ -194,8 +161,8 @@ main {
 /* Data cards */
 #primary-data {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0.3rem;
   margin-bottom: 1.5rem;
   max-width: 1200px;
   margin-left: auto;
@@ -224,31 +191,10 @@ main {
 }
 
 .data-card h2 {
-  margin-bottom: 1rem;
   color: var(--primary-color);
 }
 
-.gauge-container, .compass-container, .tilt-indicator {
-  width: 100%;
-  height: 150px;
-  margin-bottom: 1rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 150px;
-}
 
-/* Ensure gauge canvas elements are centered and properly sized */
-.gauge-container canvas,
-.compass-container canvas,
-.tilt-indicator canvas {
-  display: block;
-  margin: 0 auto;
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
-}
 
 .data-value {
   font-size: 2rem;
@@ -619,10 +565,6 @@ select, input {
   margin-bottom: 0.5rem;
 }
 
-.medium-number {
-  font-size: 1.5rem !important;
-  font-weight: bold !important;
-}
 
 .big-number.speed-good { color: #6bcf7f; }
 .big-number.speed-medium { color: #ffd93d; }
@@ -649,10 +591,6 @@ select, input {
   margin-top: 0.5rem;
 }
 
-/* Hide gauge containers since we're not using them */
-.gauge-container {
-  display: none !important;
-}
 
 .data-value {
   font-size: 2rem;
@@ -660,12 +598,6 @@ select, input {
   margin-bottom: 0.5rem;
   display: flex;
   align-items: baseline;
-}
-
-.unit {
-  font-size: 1rem;
-  margin-left: 0.25rem;
-  opacity: 0.7;
 }
 
 .data-minmax {
@@ -907,9 +839,6 @@ select, input {
     font-size: 3rem;
   }
   
-  .medium-number {
-    font-size: 1.2rem;
-  }
 }
 
 /* Responsive adjustments for speed chart */

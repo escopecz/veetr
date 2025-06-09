@@ -336,21 +336,22 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
     const windDirElement = document.getElementById('wind-dir-value');
     if (windDirElement) {
         windDirElement.textContent = (direction !== null && direction !== undefined && !isNaN(direction)) ? direction.toFixed(0) : 'N/A';
-        windDirElement.className = 'medium-number';
     }
 
     const compassContainer = document.getElementById('wind-direction');
     if (compassContainer) {
         // If wind direction is not valid or wind speed is too low, show a question mark
         if (direction === null || direction === undefined || isNaN(direction) || windSpeed === null || windSpeed === undefined || isNaN(windSpeed) || windSpeed < 0.1) {
-            compassContainer.innerHTML = `
-                <div class="wind-arrow-question" style="display:flex;align-items:center;justify-content:center;height:240px;">
-                    <span style="font-size: 120px; color: #0a4a7c; line-height: 1;">?</span>
-                </div>
-            `;
+            // Only replace with question mark if not already present
+            if (!compassContainer.querySelector('.wind-arrow-question')) {
+                compassContainer.innerHTML = `
+                    <div class="wind-arrow-question"><span>?</span></div>
+                `;
+            }
         } else {
-            // Use a larger SVG and a longer arrow (3x), center of rotation in the middle of the arrow
+            // Only create the SVG once
             let arrow = compassContainer.querySelector('.wind-arrow-svg');
+            let group;
             if (!arrow) {
                 compassContainer.innerHTML = `
                     <svg class="wind-arrow-svg" width="120" height="240" viewBox="0 0 64 128">
@@ -362,8 +363,7 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
                 `;
                 arrow = compassContainer.querySelector('.wind-arrow-svg');
             }
-            // Set rotation with smooth transition, center at (32, 64) (middle of arrow)
-            const group = compassContainer.querySelector('.wind-arrow-group');
+            group = compassContainer.querySelector('.wind-arrow-group');
             if (group) {
                 group.setAttribute('style', `transform: rotate(${direction}deg); transform-origin: 32px 64px;`);
             }
@@ -421,7 +421,6 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
         } else {
             trueWindDirElement.textContent = 'N/A';
         }
-        trueWindDirElement.className = 'medium-number';
     }
 
     // True wind arrow or question mark
@@ -436,13 +435,16 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
             isNaN(trueWindSpeed) ||
             trueWindSpeed < 0.1
         ) {
-            trueWindCompassContainer.innerHTML = `
-                <div class="wind-arrow-question" style="display:flex;align-items:center;justify-content:center;height:240px;">
-                    <span style="font-size: 120px; color: #0a4a7c; line-height: 1;">?</span>
-                </div>
-            `;
+            // Only replace with question mark if not already present
+            if (!trueWindCompassContainer.querySelector('.wind-arrow-question')) {
+                trueWindCompassContainer.innerHTML = `
+                    <div class="wind-arrow-question"><span>?</span></div>
+                `;
+            }
         } else {
+            // Only create the SVG once
             let arrow = trueWindCompassContainer.querySelector('.wind-arrow-svg');
+            let group;
             if (!arrow) {
                 trueWindCompassContainer.innerHTML = `
                     <svg class="wind-arrow-svg" width="120" height="240" viewBox="0 0 64 128">
@@ -454,7 +456,7 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
                 `;
                 arrow = trueWindCompassContainer.querySelector('.wind-arrow-svg');
             }
-            const group = trueWindCompassContainer.querySelector('.wind-arrow-group');
+            group = trueWindCompassContainer.querySelector('.wind-arrow-group');
             if (group) {
                 group.setAttribute('style', `transform: rotate(${trueWindDirection}deg); transform-origin: 32px 64px;`);
             }
@@ -469,15 +471,9 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
 
 // Update tilt display with CSS classes
 function updateTiltGauge(tilt) {
-    // Update side label and degree label
-    const side = tilt < 0 ? 'PORT' : tilt > 0 ? 'STARBOARD' : 'LEVEL';
+    // Update degree label
     const colorClass = Math.abs(tilt) > 20 ? 'tilt-danger' : Math.abs(tilt) > 10 ? 'tilt-medium' : 'tilt-good';
-    const tiltSideLabel = document.getElementById('tilt-side-label');
     const tiltDegreeLabel = document.getElementById('tilt-degree-label');
-    if (tiltSideLabel) {
-        tiltSideLabel.textContent = side;
-        tiltSideLabel.className = `tilt-side-label ${colorClass}`;
-    }
     if (tiltDegreeLabel) {
         tiltDegreeLabel.textContent = `${Math.abs(tilt).toFixed(1)}°`;
         tiltDegreeLabel.className = `tilt-degree-label ${colorClass}`;
@@ -550,7 +546,7 @@ function updateTiltGauge(tilt) {
             mastGroup.style.transition = 'transform 0.7s cubic-bezier(0.4,0.0,0.2,1)';
         }
     }
-    console.log(`Tilt updated: ${tilt.toFixed(1)}° (${side})`);
+    console.log(`Tilt updated: ${tilt.toFixed(1)}°`);
 }
 
 // Helper function to convert degrees to cardinal direction
@@ -596,15 +592,6 @@ function makeBigNumbers() {
         trueWindSpeedValue.className = 'big-number wind';
     }
     
-    const windDirValue = document.getElementById('wind-dir-value');
-    if (windDirValue) {
-        windDirValue.className = 'medium-number';
-    }
-    
-    const trueWindDirValue = document.getElementById('true-wind-dir-value');
-    if (trueWindDirValue) {
-        trueWindDirValue.className = 'medium-number';
-    }
     
     const tiltValue = document.getElementById('tilt-value');
     if (tiltValue) {

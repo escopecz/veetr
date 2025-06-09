@@ -23,16 +23,14 @@
             <div class="data-card" id="speed-card">
                 <div class="speed-chart-container">
                     <div class="speed-chart" id="speed-chart"></div>
-                    <div class="speed-widget-header">
-                        <h2>Speed</h2>
-                        <span id="satellite-count" class="satellite-count"></span>
-                    </div>
+                    <h2>Speed</h2>
                     <div class="data-value">
                         <span id="speed-value">0.0</span>
                         <span class="unit">knots</span>
                     </div>
                     <div class="data-minmax">
                         <span>Max: <span id="speed-max">0.0</span></span>
+                        <span id="satellite-count" class="satellite-count"></span>
                         <span>Avg: <span id="speed-avg">0.0</span></span>
                     </div>
                 </div>
@@ -58,9 +56,8 @@
             <div class="data-card" id="apparent-wind-direction-card">
                 <h2>Apparent Wind Direction</h2>
                 <div class="compass-container" id="wind-direction"></div>
-                <div class="data-value">
-                    <span id="wind-dir-value">0</span>
-                    <span class="unit">°</span>
+                <div class="data-minmax">
+                    <span><span id="wind-dir-value">0</span><span class="unit">°</span></span>
                 </div>
             </div>
 
@@ -84,22 +81,18 @@
             <div class="data-card" id="true-wind-direction-card">
                 <h2>True Wind Direction</h2>
                 <div class="compass-container" id="true-wind-direction"></div>
-                <div class="data-value">
-                    <span id="true-wind-dir-value">0</span>
-                    <span class="unit">°</span>
+                <div class="data-minmax">
+                    <span><span id="true-wind-dir-value">0</span><span class="unit">°</span></span>
                 </div>
             </div>
 
             <div class="data-card" id="tilt-card">
                 <h2>Heel Angle</h2>
                 <div class="tilt-svg-container" id="tilt-gauge"></div>
-                <div class="tilt-widget-row">
-                    <span id="tilt-side-label">LEVEL</span>
-                    <span id="tilt-degree-label">0.0°</span>
-                </div>
                 <div class="data-minmax">
-                    <span>Port Max: <span id="tilt-port-max">0.0</span></span>
-                    <span>Starboard Max: <span id="tilt-starboard-max">0.0</span></span>
+                    <span>P Max: <span id="tilt-port-max">0.0</span></span>
+                    <span><span id="tilt-degree-label">0.0°</span></span>
+                    <span>S Max: <span id="tilt-starboard-max">0.0</span></span>
                 </div>
             </div>
         </section>
@@ -167,6 +160,14 @@
                     <li>Dashboard settings reset</li>
                 </ul>
                 <p><small>⚠️ Use only when you've lost access to WiFi settings</small></p>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <h3>Heel Angle Calibration</h3>
+            <div class="setting">
+                <button id="reset-heel-angle" class="apply-button">Reset Heel Angle</button>
+                <small>This sets the current heel angle as zero. Use after installation or when the boat is at rest.</small>
             </div>
         </div>
         <button id="settings-close">Close</button>
