@@ -617,11 +617,6 @@ document.addEventListener('DOMContentLoaded', function() {
         trueWindDirection.innerHTML = '<div class="compass-direction">---</div>';
     }
     
-    const tiltGauge = document.getElementById('tilt-gauge');
-    if (tiltGauge) {
-        tiltGauge.innerHTML = '<div class="side-indicator tilt-good">LEVEL</div>';
-    }
-    
     // Initialize charts and reset true wind history with a small delay to ensure containers are rendered
     setTimeout(() => {
         speedChart = new SpeedChart('speed-chart');

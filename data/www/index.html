@@ -23,10 +23,9 @@
             <div class="data-card" id="speed-card">
                 <div class="speed-chart-container">
                     <div class="speed-chart" id="speed-chart"></div>
-                    <h2>Speed</h2>
+                    <h2>Vessel Speed</h2>
                     <div class="data-value">
-                        <span id="speed-value">0.0</span>
-                        <span class="unit">knots</span>
+                        <span id="speed-value">0.0<span class="unit">kt</span></span>
                     </div>
                     <div class="data-minmax">
                         <span>Max: <span id="speed-max">0.0</span></span>
@@ -36,14 +35,12 @@
                 </div>
             </div>
 
-            <!-- Apparent Wind Speed Widget -->
             <div class="data-card" id="apparent-wind-speed-card">
                 <div class="wind-chart-container">
                     <div class="wind-chart" id="wind-chart"></div>
-                    <h2>Apparent Wind Speed</h2>
+                    <h2>Apparent Wind</h2>
                     <div class="data-value">
-                        <span id="wind-speed-value">0.0</span>
-                        <span class="unit">knots</span>
+                        <span id="wind-speed-value">0.0<span class="unit">kt</span></span>
                     </div>
                     <div class="data-minmax">
                         <span>Max: <span id="wind-speed-max">0.0</span></span>
@@ -52,23 +49,20 @@
                 </div>
             </div>
 
-            <!-- Apparent Wind Direction Widget -->
             <div class="data-card" id="apparent-wind-direction-card">
-                <h2>Apparent Wind Direction</h2>
+                <h2>Apparent Wind</h2>
                 <div class="compass-container" id="wind-direction"></div>
                 <div class="data-minmax">
                     <span><span id="wind-dir-value">0</span><span class="unit">°</span></span>
                 </div>
             </div>
 
-            <!-- True Wind Speed Widget -->
             <div class="data-card" id="true-wind-speed-card">
                 <div class="wind-chart-container">
                     <div class="wind-chart" id="true-wind-speed-chart"></div>
-                    <h2>True Wind Speed</h2>
+                    <h2>True Wind</h2>
                     <div class="data-value">
-                        <span id="true-wind-speed-value">0.0</span>
-                        <span class="unit">knots</span>
+                        <span id="true-wind-speed-value">0.0<span class="unit">kt</span></span>
                     </div>
                     <div class="data-minmax">
                         <span>Max: <span id="true-wind-speed-max">0.0</span></span>
@@ -77,9 +71,8 @@
                 </div>
             </div>
 
-            <!-- True Wind Direction Widget -->
             <div class="data-card" id="true-wind-direction-card">
-                <h2>True Wind Direction</h2>
+                <h2>True Wind</h2>
                 <div class="compass-container" id="true-wind-direction"></div>
                 <div class="data-minmax">
                     <span><span id="true-wind-dir-value">0</span><span class="unit">°</span></span>
@@ -94,6 +87,28 @@
                     <span><span id="tilt-degree-label">0.0°</span></span>
                     <span>S Max: <span id="tilt-starboard-max">0.0</span></span>
                 </div>
+            </div>
+            <div class="data-card" id="regatta-start-card">
+            <h2>Regatta Start</h2>
+            <div class="regatta-widget-row">
+                <button id="regatta-set-port" class="regatta-set-btn regatta-port" aria-label="Set port">set</button>
+                <div class="regatta-horizontal-group">
+                  <div class="regatta-dashed-line"></div>
+                  <div class="regatta-vertical-group">
+                    <div class="regatta-vertical-line">
+                      <span class="regatta-arrow-line">
+                        <div class="regatta-arrow-css">
+                          <div class="regatta-boat-dot"></div>
+                        </div>
+                      </span>
+                    </div>
+                    <div class="data-value">
+                        <span id="wind-speed-value" class="big-number wind">0<span class="unit">m</span></span>
+                    </div>
+                  </div>
+                </div>
+                <button id="regatta-set-starboard" class="regatta-set-btn regatta-starboard" aria-label="Set starboard">set</button>
+            </div>
             </div>
         </section>
     </main>
