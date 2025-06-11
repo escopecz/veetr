@@ -336,6 +336,82 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
           Serial.println("[Heel] Failed to read accelerometer for reset.");
         }
       }
+      // --- Regatta Start Line: Set Port/Starboard Flags ---
+      static double regattaPortLat = NAN, regattaPortLng = NAN;
+      static double regattaStarboardLat = NAN, regattaStarboardLng = NAN;
+
+      if (action == "regattaSetPort") {
+        if (gps.location.isValid()) {
+          regattaPortLat = gps.location.lat();
+          regattaPortLng = gps.location.lng();
+          Serial.printf("[Regatta] Port flag set: %.6f, %.6f\n", regattaPortLat, regattaPortLng);
+          // Send event-driven feedback to UI
+          DynamicJsonDocument feedbackDoc(128);
+          feedbackDoc["regatta"] = true;
+          feedbackDoc["lastSet"] = "port";
+          String feedbackJson;
+          serializeJson(feedbackDoc, feedbackJson);
+          ws.textAll(feedbackJson);
+        } else {
+          Serial.println("[Regatta] Port flag set requested, but GPS location invalid!");
+        }
+      } else if (action == "regattaSetStarboard") {
+        if (gps.location.isValid()) {
+          regattaStarboardLat = gps.location.lat();
+          regattaStarboardLng = gps.location.lng();
+          Serial.printf("[Regatta] Starboard flag set: %.6f, %.6f\n", regattaStarboardLat, regattaStarboardLng);
+          // Send event-driven feedback to UI
+          DynamicJsonDocument feedbackDoc(128);
+          feedbackDoc["regatta"] = true;
+          feedbackDoc["lastSet"] = "starboard";
+          String feedbackJson;
+          serializeJson(feedbackDoc, feedbackJson);
+          ws.textAll(feedbackJson);
+        } else {
+          Serial.println("[Regatta] Starboard flag set requested, but GPS location invalid!");
+        }
+      }
+
+      // If both flags are set, calculate distance from boat to start line
+      if (!isnan(regattaPortLat) && !isnan(regattaPortLng) && !isnan(regattaStarboardLat) && !isnan(regattaStarboardLng)) {
+        if (gps.location.isValid()) {
+          double boatLat = gps.location.lat();
+          double boatLng = gps.location.lng();
+          // Calculate distance from boat to line (in meters)
+          double d = 0.0;
+          // Convert all to radians
+          double lat1 = regattaPortLat * DEG_TO_RAD;
+          double lon1 = regattaPortLng * DEG_TO_RAD;
+          double lat2 = regattaStarboardLat * DEG_TO_RAD;
+          double lon2 = regattaStarboardLng * DEG_TO_RAD;
+          double lat0 = boatLat * DEG_TO_RAD;
+          double lon0 = boatLng * DEG_TO_RAD;
+          // Equirectangular projection (good enough for small distances)
+          double x1 = (lon1 - lon0) * cos(0.5 * (lat1 + lat0));
+          double y1 = lat1 - lat0;
+          double x2 = (lon2 - lon0) * cos(0.5 * (lat2 + lat0));
+          double y2 = lat2 - lat0;
+          double x0 = 0.0, y0 = 0.0;
+          // Distance from point (0,0) to line (x1,y1)-(x2,y2)
+          double num = fabs((y2 - y1) * x0 - (x2 - x1) * y0 + x2*y1 - y2*x1);
+          double den = sqrt((y2 - y1)*(y2 - y1) + (x2 - x1)*(x2 - x1));
+          d = (den > 0) ? (num / den) * 6371000.0 : 0.0; // meters
+          Serial.printf("[Regatta] Boat distance to start line: %.1f m\n", d);
+          // Optionally: send to all clients
+          DynamicJsonDocument regattaDoc(256);
+          regattaDoc["regatta"] = true;
+          regattaDoc["portLat"] = regattaPortLat;
+          regattaDoc["portLng"] = regattaPortLng;
+          regattaDoc["starboardLat"] = regattaStarboardLat;
+          regattaDoc["starboardLng"] = regattaStarboardLng;
+          regattaDoc["boatLat"] = boatLat;
+          regattaDoc["boatLng"] = boatLng;
+          regattaDoc["distanceToLine"] = d;
+          String regattaJson;
+          serializeJson(regattaDoc, regattaJson);
+          ws.textAll(regattaJson);
+        }
+      }
     }
   }
 }

@@ -18,6 +18,26 @@ function initDashboard() {
     
     // Set up event listeners
     setupEventListeners();
+
+    // Listen for regatta distance updates from ESP
+    if (typeof window.getWebSocketState === 'function') {
+        const wsState = window.getWebSocketState();
+        if (wsState && wsState.socket) {
+            wsState.socket.addEventListener('message', function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.regatta && typeof data.distanceToLine === 'number') {
+                        const regattaValue = document.getElementById('start-distance-value');
+                        if (regattaValue) {
+                            regattaValue.textContent = data.distanceToLine.toFixed(1);
+                        }
+                    }
+                } catch (e) {
+                    // Ignore non-JSON or unrelated messages
+                }
+            });
+        }
+    }
     
     // Debug: Check if WebSocket functions are available
     console.log('WebSocket functions available:', {
@@ -65,6 +85,71 @@ function initializeSettings() {
 
 // Set up event listeners
 function setupEventListeners() {
+    // Regatta Start buttons (deduplicated handler)
+    // Regatta Start buttons (event-driven feedback)
+    const regattaButtons = [
+        { btnId: 'regatta-set-port', action: 'regattaSetPort', errorMsg: 'regatta port set command.' },
+        { btnId: 'regatta-set-starboard', action: 'regattaSetStarboard', errorMsg: 'regatta starboard set command.' }
+    ];
+    // Map action to button for event-driven re-enabling
+    const regattaBtnMap = {};
+    regattaButtons.forEach(({ btnId, action, errorMsg }) => {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        regattaBtnMap[action] = btn;
+        btn.addEventListener('click', () => {
+            if (!window.getWebSocketState || typeof window.getWebSocketState !== 'function') {
+                alert('Error: WebSocket not properly initialized. Please reload the page and try again.');
+                return;
+            }
+            const wsState = window.getWebSocketState();
+            if (!wsState.socket || wsState.readyState !== WebSocket.OPEN) {
+                alert('Error: Not connected to device. Please wait for connection and try again.');
+                return;
+            }
+            try {
+                wsState.socket.send(JSON.stringify({ action }));
+                btn.textContent = 'Set!';
+                btn.disabled = true;
+            } catch (error) {
+                alert('Error: Failed to send ' + errorMsg);
+                console.error('[UI] Failed to send ' + action + ':', error);
+            }
+        });
+    });
+
+    // Listen for regatta distance updates and button feedback from ESP
+    if (typeof window.getWebSocketState === 'function') {
+        const wsState = window.getWebSocketState();
+        if (wsState && wsState.socket) {
+            wsState.socket.addEventListener('message', function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    // Regatta distance update
+                    if (data.regatta && typeof data.distanceToLine === 'number') {
+                        const regattaValue = document.getElementById('wind-speed-value');
+                        if (regattaValue) {
+                            regattaValue.textContent = data.distanceToLine.toFixed(1);
+                        }
+                    }
+                    // Regatta button feedback (event-driven re-enable)
+                    if (data.regatta && typeof data.lastSet === 'string') {
+                        // lastSet: 'port' or 'starboard'
+                        let action = null;
+                        if (data.lastSet === 'port') action = 'regattaSetPort';
+                        if (data.lastSet === 'starboard') action = 'regattaSetStarboard';
+                        if (action && regattaBtnMap[action]) {
+                            const btn = regattaBtnMap[action];
+                            btn.textContent = 'set';
+                            btn.disabled = false;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore non-JSON or unrelated messages
+                }
+            });
+        }
+    }
     // Settings panel toggle
     settingsToggle.addEventListener('click', () => {
         settingsPanel.classList.toggle('hidden');
