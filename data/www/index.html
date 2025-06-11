@@ -37,8 +37,8 @@
 
             <div class="data-card" id="apparent-wind-speed-card">
                 <div class="wind-chart-container">
-                    <div class="wind-chart" id="wind-chart"></div>
                     <h2>Apparent Wind</h2>
+                    <div class="wind-chart" id="wind-chart"></div>
                     <div class="data-value">
                         <span id="wind-speed-value">0.0<span class="unit">kt</span></span>
                     </div>
@@ -50,10 +50,39 @@
             </div>
 
             <div class="data-card" id="apparent-wind-direction-card">
-                <h2>Apparent Wind</h2>
-                <div class="compass-container" id="wind-direction"></div>
+                <div class="compass-container" id="wind-direction">
+                  <svg class="wind-boat-svg" width="180" height="180" viewBox="0 0 120 120">
+                    <g transform="translate(0,10)">
+                      <!-- Dead wind zone: red V at ±40° from bow, drawn below the hull but above the arrows for visibility -->
+                      <!-- Just the hull shape: pointy bow, rounded sides, flat stern (even longer version) -->
+                      <g class="boat-group">
+                        <path d="M60 5 Q90 60 80 105 Q60 115 40 105 Q30 60 60 5 Z" fill="#b3e6ff" stroke="#e0e0e0" stroke-width="2" style="mix-blend-mode: normal;" />
+                        <!-- Mast/center of gravity dot -->
+                        <circle cx="60" cy="60" r="5" fill="#000" stroke="#fff" stroke-width="2" />
+                      </g>
+                      <g class="dead-wind-v-group" style="pointer-events:none">
+                        <polyline points="60,60 28,5" fill="none" stroke="#e74c3c" stroke-width="1.5" stroke-linecap="round" />
+                        <polyline points="60,60 92,5" fill="none" stroke="#e74c3c" stroke-width="1.5" stroke-linecap="round" />
+                      </g>
+                      <!-- Just the hull shape: pointy bow, rounded sides, flat stern (even longer version) -->
+                      <g class="boat-group">
+                        <!-- (moved above for dead wind V visibility) -->
+                      </g>
+                      <!-- Static orange arrow at 90deg -->
+                      <g class="wind-arrow-group-static" style="opacity:0.2;">
+                        <!-- Orange arrow now overlays the blue arrow, always at the same angle as the blue wind direction -->
+                        <polygon points="55,0 60,60 65,0" fill="#ffa500" stroke="#ffa500" stroke-width="2.5" />
+                      </g>
+                      <!-- Wind triangle indicator (dynamic, blue) -->
+                      <g class="wind-arrow-group" style="opacity:0.2;">
+                        <polygon points="57,0 60,60 63,0" fill="#3498db" stroke="#3498db" stroke-width="2" />
+                      </g>
+                    </g>
+                  </svg>
+                </div>
                 <div class="data-minmax">
-                    <span><span id="wind-dir-value">0</span><span class="unit">°</span></span>
+                    <span>APPR: <span id="wind-dir-value">0</span><span class="unit">°</span></span>
+                    <span>TRUE: <span id="true-wind-dir-value">0</span><span class="unit">°</span></span>
                 </div>
             </div>
 
@@ -71,13 +100,6 @@
                 </div>
             </div>
 
-            <div class="data-card" id="true-wind-direction-card">
-                <h2>True Wind</h2>
-                <div class="compass-container" id="true-wind-direction"></div>
-                <div class="data-minmax">
-                    <span><span id="true-wind-dir-value">0</span><span class="unit">°</span></span>
-                </div>
-            </div>
 
             <div class="data-card" id="tilt-card">
                 <h2>Heel Angle</h2>

@@ -340,33 +340,35 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
 
     const compassContainer = document.getElementById('wind-direction');
     if (compassContainer) {
-        // If wind direction is not valid or wind speed is too low, show a question mark
-        if (direction === null || direction === undefined || isNaN(direction) || windSpeed === null || windSpeed === undefined || isNaN(windSpeed) || windSpeed < 0.1) {
-            // Only replace with question mark if not already present
-            if (!compassContainer.querySelector('.wind-arrow-question')) {
-                compassContainer.innerHTML = `
-                    <div class="wind-arrow-question"><span>?</span></div>
-                `;
-            }
-        } else {
-            // Only create the SVG once
-            let arrow = compassContainer.querySelector('.wind-arrow-svg');
-            let group;
-            if (!arrow) {
-                compassContainer.innerHTML = `
-                    <svg class="wind-arrow-svg" width="120" height="240" viewBox="0 0 64 128">
-                        <g class="wind-arrow-group">
-                            <polygon points="32,16 20,64 32,48 44,64" fill="#0a4a7c" />
-                            <rect x="28" y="64" width="8" height="56" rx="3" fill="#0a4a7c" />
-                        </g>
-                    </svg>
-                `;
-                arrow = compassContainer.querySelector('.wind-arrow-svg');
-            }
-            group = compassContainer.querySelector('.wind-arrow-group');
-            if (group) {
-                group.setAttribute('style', `transform: rotate(${direction}deg); transform-origin: 32px 64px;`);
-            }
+        // Only update the rotation and opacity of the wind-arrow-group (apparent) and wind-arrow-group-static (true), SVG is now static in HTML
+        const apparentArrowGroup = compassContainer.querySelector('.wind-arrow-group');
+        const trueArrowGroup = compassContainer.querySelector('.wind-arrow-group-static');
+
+        // Apparent wind angle (blue)
+        // Keep last known direction if data is missing, default to 0 (bow/front)
+        if (!updateWindDirection._lastApparentAngle && updateWindDirection._lastApparentAngle !== 0) updateWindDirection._lastApparentAngle = 0;
+        let apparentAngle = updateWindDirection._lastApparentAngle;
+        let apparentOpacity = 0.2;
+        if (direction !== null && direction !== undefined && !isNaN(direction) && windSpeed !== null && windSpeed !== undefined && !isNaN(windSpeed) && windSpeed >= 0.1) {
+            apparentAngle = direction;
+            updateWindDirection._lastApparentAngle = direction;
+            apparentOpacity = 1;
+        }
+        if (apparentArrowGroup) {
+            apparentArrowGroup.setAttribute('style', `transform: rotate(${apparentAngle}deg); transform-origin: 60px 60px; transition: transform 0.5s cubic-bezier(0.4,0.0,0.2,1); opacity: ${apparentOpacity};`);
+        }
+
+        // True wind angle (orange)
+        if (!updateWindDirection._lastTrueAngle && updateWindDirection._lastTrueAngle !== 0) updateWindDirection._lastTrueAngle = 0;
+        let trueAngle = updateWindDirection._lastTrueAngle;
+        let trueOpacity = 0.2;
+        if (trueWindDirection !== null && trueWindDirection !== undefined && !isNaN(trueWindDirection) && trueWindSpeed !== null && trueWindSpeed !== undefined && !isNaN(trueWindSpeed) && trueWindSpeed >= 0.1) {
+            trueAngle = trueWindDirection;
+            updateWindDirection._lastTrueAngle = trueWindDirection;
+            trueOpacity = 1;
+        }
+        if (trueArrowGroup) {
+            trueArrowGroup.setAttribute('style', `transform: rotate(${trueAngle}deg); transform-origin: 60px 60px; transition: transform 0.5s cubic-bezier(0.4,0.0,0.2,1); opacity: ${trueOpacity};`);
         }
     }
 
@@ -383,7 +385,8 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
     }
 
 
-    // True wind widget
+
+    // True wind speed value
     const trueWindSpeedElement = document.getElementById('true-wind-speed-value');
     if (trueWindSpeedElement) {
         if (trueWindSpeed !== null && trueWindSpeed !== undefined && !isNaN(trueWindSpeed)) {
@@ -392,6 +395,16 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
             trueWindSpeedElement.textContent = 'N/A';
         }
         trueWindSpeedElement.className = 'big-number wind';
+    }
+
+    // True wind direction value (keep, as the element is still in the main widget)
+    const trueWindDirElement = document.getElementById('true-wind-dir-value');
+    if (trueWindDirElement) {
+        if (trueWindDirection !== null && trueWindDirection !== undefined && !isNaN(trueWindDirection)) {
+            trueWindDirElement.textContent = trueWindDirection.toFixed(0);
+        } else {
+            trueWindDirElement.textContent = 'N/A';
+        }
     }
 
     // Max/Avg for true wind (calculate from persistent history)
@@ -414,54 +427,6 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
         }
     }
 
-    const trueWindDirElement = document.getElementById('true-wind-dir-value');
-    if (trueWindDirElement) {
-        if (trueWindDirection !== null && trueWindDirection !== undefined && !isNaN(trueWindDirection)) {
-            trueWindDirElement.textContent = trueWindDirection.toFixed(0);
-        } else {
-            trueWindDirElement.textContent = 'N/A';
-        }
-    }
-
-    // True wind arrow or question mark
-    const trueWindCompassContainer = document.getElementById('true-wind-direction');
-    if (trueWindCompassContainer) {
-        if (
-            trueWindDirection === null ||
-            trueWindDirection === undefined ||
-            isNaN(trueWindDirection) ||
-            trueWindSpeed === null ||
-            trueWindSpeed === undefined ||
-            isNaN(trueWindSpeed) ||
-            trueWindSpeed < 0.1
-        ) {
-            // Only replace with question mark if not already present
-            if (!trueWindCompassContainer.querySelector('.wind-arrow-question')) {
-                trueWindCompassContainer.innerHTML = `
-                    <div class="wind-arrow-question"><span>?</span></div>
-                `;
-            }
-        } else {
-            // Only create the SVG once
-            let arrow = trueWindCompassContainer.querySelector('.wind-arrow-svg');
-            let group;
-            if (!arrow) {
-                trueWindCompassContainer.innerHTML = `
-                    <svg class="wind-arrow-svg" width="120" height="240" viewBox="0 0 64 128">
-                        <g class="wind-arrow-group">
-                            <polygon points="32,16 20,64 32,48 44,64" fill="#0a4a7c" />
-                            <rect x="28" y="64" width="8" height="56" rx="3" fill="#0a4a7c" />
-                        </g>
-                    </svg>
-                `;
-                arrow = trueWindCompassContainer.querySelector('.wind-arrow-svg');
-            }
-            group = trueWindCompassContainer.querySelector('.wind-arrow-group');
-            if (group) {
-                group.setAttribute('style', `transform: rotate(${trueWindDirection}deg); transform-origin: 32px 64px;`);
-            }
-        }
-    }
 
     const windSpeedStr = (windSpeed !== null && windSpeed !== undefined && !isNaN(windSpeed)) ? windSpeed.toFixed(1) : 'N/A';
     const trueWindDirStr = (trueWindDirection !== null && trueWindDirection !== undefined && !isNaN(trueWindDirection)) ? trueWindDirection.toFixed(0) : 'N/A';
@@ -589,16 +554,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Apply CSS classes to make numbers big
     makeBigNumbers();
     
-    // Set up initial container states with CSS classes
-    const windDirection = document.getElementById('wind-direction');
-    if (windDirection) {
-        windDirection.innerHTML = '<div class="compass-direction">---</div>';
-    }
-    
-    const trueWindDirection = document.getElementById('true-wind-direction');
-    if (trueWindDirection) {
-        trueWindDirection.innerHTML = '<div class="compass-direction">---</div>';
-    }
     
     // Initialize charts and reset true wind history with a small delay to ensure containers are rendered
     setTimeout(() => {
