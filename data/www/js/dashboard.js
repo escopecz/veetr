@@ -485,29 +485,15 @@ function updateTiltGauge(tilt) {
         // SVG size and mast length
         const width = tiltGaugeContainer.offsetWidth > 0 ? tiltGaugeContainer.offsetWidth : 180;
         const height = 120;
-        const mastLength = 95; // Even longer mast
+        const mastLength = 95;
         const mastBaseX = width / 2;
-        const mastBaseY = height * 0.92; // Lower the base for less top margin
-        const mastAngle = Math.max(-45, Math.min(45, tilt)); // Clamp for display
+        const mastBaseY = height * 0.92;
+        const mastAngle = Math.max(-45, Math.min(45, tilt));
 
-        // Check if SVG exists, else create it
-        let svg = tiltGaugeContainer.querySelector('.tilt-svg');
-        let mastGroup;
-        if (!svg) {
-            tiltGaugeContainer.innerHTML = `
-<svg class="tilt-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <!-- Waterline (full width) -->
-  <line x1="0" y1="${mastBaseY}" x2="${width}" y2="${mastBaseY}" stroke="#0a4a7c" stroke-width="3" />
-  <!-- Mast group for animation -->
-  <g class="mast-group" style="transform: rotate(${mastAngle}deg); transform-origin: ${mastBaseX}px ${mastBaseY}px;">
-    <line x1="${mastBaseX}" y1="${mastBaseY}" x2="${mastBaseX}" y2="${mastBaseY - mastLength}" stroke="#ffa500" stroke-width="6" stroke-linecap="round" />
-  </g>
-  <!-- Boat dot -->
-  <circle cx="${mastBaseX}" cy="${mastBaseY}" r="10" fill="#0a4a7c" stroke="#fff" stroke-width="2" />
-</svg>`;
-            svg = tiltGaugeContainer.querySelector('.tilt-svg');
-            mastGroup = svg ? svg.querySelector('.mast-group') : null;
-        } else {
+        // Check if SVG exists, else do nothing (SVG is static in HTML)
+        let svg = tiltGaugeContainer.querySelector('svg');
+        let mastGroup = svg ? svg.querySelector('.mast-group') : null;
+        if (svg) {
             // Update SVG size and waterline if container size changes
             svg.setAttribute('width', width);
             svg.setAttribute('height', height);
@@ -533,6 +519,7 @@ function updateTiltGauge(tilt) {
                 // Update transform-origin and animate rotation
                 mastGroup.style.transformOrigin = `${mastBaseX}px ${mastBaseY}px`;
                 mastGroup.style.transform = `rotate(${mastAngle}deg)`;
+                mastGroup.style.transition = 'transform 0.7s cubic-bezier(0.4,0.0,0.2,1)';
             }
             // Update boat dot position
             const boatDot = svg.querySelector('circle');
@@ -540,10 +527,6 @@ function updateTiltGauge(tilt) {
                 boatDot.setAttribute('cx', mastBaseX);
                 boatDot.setAttribute('cy', mastBaseY);
             }
-        }
-        // Always ensure transition is set
-        if (mastGroup) {
-            mastGroup.style.transition = 'transform 0.7s cubic-bezier(0.4,0.0,0.2,1)';
         }
     }
     console.log(`Tilt updated: ${tilt.toFixed(1)}°`);
