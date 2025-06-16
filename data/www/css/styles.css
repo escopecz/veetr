@@ -27,12 +27,7 @@
   display: block;
   pointer-events: none;
 }
-#regatta-start-widget {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-}
+
 
 .regatta-widget-row {
   display: flex;
@@ -177,15 +172,7 @@
   transition: transform 0.7s cubic-bezier(0.4,0.0,0.2,1);
   /* transform-origin is set dynamically in JS */
 }
-/* Apparent wind arrow (big, centered, smooth) */
-.wind-arrow-svg {
-  display: block;
-  margin: 0 auto;
-  width: 120px;
-  height: 120px;
-  max-width: 100%;
-  max-height: 100%;
-}
+
 /* Wind arrow group (apparent and true) - smooth transform and opacity transitions */
 .wind-arrow-group,
 .wind-arrow-group-static {
@@ -353,8 +340,7 @@ main {
 /* Remove padding for cards with chart containers so charts extend to edges */
 .data-card:has(.speed-chart-container),
 .data-card:has(.wind-chart-container),
-#speed-card,
-#wind-card {
+#speed-card {
   padding: 0;
 }
 
@@ -596,20 +582,9 @@ main {
 .big-number.tilt-medium { color: #ffd93d; }
 .big-number.tilt-danger { color: #ff6b6b; }
 
-.side-indicator {
-  font-size: 2rem;
-  font-weight: bold;
-  text-align: center;
-  margin-top: 0.5rem;
-}
 
-.compass-direction {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #4ecdc4;
-  text-align: center;
-  margin-top: 0.5rem;
-}
+
+
 
 
 .data-value {
@@ -638,23 +613,7 @@ main {
   padding: 0 1rem;
 }
 
-.chart-container {
-  background-color: var(--card-background);
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  height: 200px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
 
-.chart-container canvas {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
 
 /* Settings panel */
 #settings-panel {
@@ -812,19 +771,11 @@ select, input {
     grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
   }
-  
-  .chart-container {
-    height: 250px;
-  }
 }
 
 @media (min-width: 1024px) {
   #history-data {
     gap: 2rem;
-  }
-  
-  .chart-container {
-    height: 300px;
   }
 }
 
@@ -835,20 +786,6 @@ select, input {
   
   #settings-panel {
     width: 100%;
-  }
-  
-  .wind-data-container {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .wind-section {
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--border-color);
-  }
-  
-  .wind-section:last-child {
-    border-bottom: none;
   }
   
   /* Adjust big numbers for mobile */
@@ -918,9 +855,5 @@ select, input {
   
   .wind-chart-container {
     min-height: 100px;
-  }
-  
-  .data-grid {
-    grid-template-columns: 1fr;
   }
 }
