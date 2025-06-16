@@ -5,29 +5,30 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <Preferences.h>
-// Persistent storage for heel angle zeroing
+// Persistent storage for settings
 Preferences preferences;
 float heelAngleDelta = 0.0f;
+int deadWindAngle = 40; // default
 #include <vector>
 #include <TinyGPS++.h>
 #include <Wire.h>
 #include <Adafruit_ADXL345_U.h>
 // ADXL345 Accelerometer (I2C)
-#define ADXL345_SDA 21
-#define ADXL345_SCL 22
+#define ADXL345_SDA 18
+#define ADXL345_SCL 19
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 
 
-// RS485 Wind Sensor Configuration (using UART1)
+// RS485 Wind Sensor Configuration (using UART2)
 #define RS485_DE 14
 #define RS485_RX 25
 #define RS485_TX 26
-#define RS485_UART 1
+#define RS485_UART 2
 
-// GPS Module Configuration (using UART2)
+// GPS Module Configuration (using UART1)
 #define GPS_RX 16
 #define GPS_TX 17
-#define GPS_UART 2
+#define GPS_UART 1
 
 // Factory Reset Button Configuration
 #define FACTORY_RESET_BUTTON 0    // GPIO 0 (BOOT button)
@@ -148,10 +149,13 @@ bool readGPS();
 
 void setup() {
   // Initialize Preferences for persistent storage
-  preferences.begin("heel", false);
+  preferences.begin("settings", false);
   heelAngleDelta = preferences.getFloat("delta", 0.0f);
+  deadWindAngle = preferences.getInt("deadWindAngle", 40);
   Serial.print("[Boot] Loaded heelAngleDelta from NVS: ");
   Serial.println(heelAngleDelta);
+  Serial.print("[Boot] Loaded deadWindAngle from NVS: ");
+  Serial.println(deadWindAngle);
   // Initialize I2C for ADXL345
   Wire.begin(ADXL345_SDA, ADXL345_SCL);
   if (!accel.begin()) {
@@ -336,6 +340,17 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
           Serial.println("[Heel] Failed to read accelerometer for reset.");
         }
       }
+      // Handle dead wind angle update from dashboard
+      else if (action == "setDeadWindAngle" && doc.containsKey("value")) {
+        int newAngle = doc["value"];
+        if (newAngle < 20) newAngle = 20;
+        if (newAngle > 60) newAngle = 60;
+        deadWindAngle = newAngle;
+        preferences.putInt("deadWindAngle", deadWindAngle);
+        Serial.printf("[Settings] Dead wind angle updated to %d and saved to NVS\n", deadWindAngle);
+        // Optionally, send immediate feedback to all clients:
+        ws.textAll(getFullDataJson());
+      }
       // --- Regatta Start Line: Set Port/Starboard Flags ---
       static double regattaPortLat = NAN, regattaPortLng = NAN;
       static double regattaStarboardLat = NAN, regattaStarboardLng = NAN;
@@ -487,9 +502,17 @@ void readSensors() {
     // Convert m/s to knots (1 m/s = 1.944 knots)
     currentData.windSpeed = sensorWindSpeed * 1.944;
     currentData.windDirection = sensorWindDirection;
+    Serial.print("[Wind Sensor] Wind speed: ");
+    Serial.print(sensorWindSpeed, 2);
+    Serial.print(" m/s (");
+    Serial.print(currentData.windSpeed, 2);
+    Serial.print(" knots), Direction: ");
+    Serial.print(sensorWindDirection);
+    Serial.println(" deg");
   } else {
     currentData.windSpeed = NAN;
     currentData.windDirection = -1;
+    Serial.println("[Wind Sensor] No valid data (NAN)");
   }
   
   // Enhanced GPS debug output (only print valid fix data)
@@ -621,6 +644,7 @@ String getSensorDataJson() {
   doc["tilt"] = currentData.tilt;
   doc["tiltPortMax"] = currentData.tiltPortMax;
   doc["tiltStarboardMax"] = currentData.tiltStarboardMax;
+  doc["deadWindAngle"] = deadWindAngle;
   // GPS fields
   // Only report GPS speed if at least 5 satellites and valid fix
   if (gps.location.isValid() && gps.speed.isValid() && gps.satellites.value() >= 5) {
@@ -673,6 +697,7 @@ String getFullDataJson() {
   doc["tilt"] = currentData.tilt;
   doc["tiltPortMax"] = currentData.tiltPortMax;
   doc["tiltStarboardMax"] = currentData.tiltStarboardMax;
+  doc["deadWindAngle"] = deadWindAngle;
   // GPS fields
   // Only report GPS speed if at least 5 satellites and valid fix
   if (gps.location.isValid() && gps.speed.isValid() && gps.satellites.value() >= 5) {

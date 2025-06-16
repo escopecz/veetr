@@ -340,12 +340,31 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
 
     const compassContainer = document.getElementById('wind-direction');
     if (compassContainer) {
+        // Update the dead wind V shape
+        const deadWindVGroup = compassContainer.querySelector('.dead-wind-v-group');
+        if (deadWindVGroup) {
+            let deadWindAngle = window.currentDeadWindAngle;
+            if (isNaN(deadWindAngle)) deadWindAngle = 40;
+            // SVG center and radius
+            const cx = 60, cy = 60, r = 55;
+            // Calculate left and right V points
+            const leftAngle = (-deadWindAngle) * Math.PI / 180;
+            const rightAngle = (deadWindAngle) * Math.PI / 180;
+            const leftX = cx + r * Math.sin(leftAngle);
+            const leftY = cy - r * Math.cos(leftAngle);
+            const rightX = cx + r * Math.sin(rightAngle);
+            const rightY = cy - r * Math.cos(rightAngle);
+            // Update polylines
+            const lines = deadWindVGroup.querySelectorAll('polyline');
+            if (lines.length === 2) {
+                lines[0].setAttribute('points', `${cx},${cy} ${leftX.toFixed(1)},${leftY.toFixed(1)}`);
+                lines[1].setAttribute('points', `${cx},${cy} ${rightX.toFixed(1)},${rightY.toFixed(1)}`);
+            }
+        }
         // Only update the rotation and opacity of the wind-arrow-group (apparent) and wind-arrow-group-static (true), SVG is now static in HTML
         const apparentArrowGroup = compassContainer.querySelector('.wind-arrow-group');
         const trueArrowGroup = compassContainer.querySelector('.wind-arrow-group-static');
-
         // Apparent wind angle (blue)
-        // Keep last known direction if data is missing, default to 0 (bow/front)
         if (!updateWindDirection._lastApparentAngle && updateWindDirection._lastApparentAngle !== 0) updateWindDirection._lastApparentAngle = 0;
         let apparentAngle = updateWindDirection._lastApparentAngle;
         let apparentOpacity = 0.2;
@@ -357,7 +376,6 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
         if (apparentArrowGroup) {
             apparentArrowGroup.setAttribute('style', `transform: rotate(${apparentAngle}deg); transform-origin: 60px 60px; transition: transform 0.5s cubic-bezier(0.4,0.0,0.2,1); opacity: ${apparentOpacity};`);
         }
-
         // True wind angle (orange)
         if (!updateWindDirection._lastTrueAngle && updateWindDirection._lastTrueAngle !== 0) updateWindDirection._lastTrueAngle = 0;
         let trueAngle = updateWindDirection._lastTrueAngle;
@@ -372,7 +390,6 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
         }
     }
 
-
     // Chart for apparent wind
     if (windSpeed !== null && windChart) {
         windChart.addWindSpeedData(windSpeed);
@@ -383,8 +400,6 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
         trueWindSpeedChart.addWindSpeedData(trueWindSpeed);
         trueWindSpeedHistory.push(trueWindSpeed);
     }
-
-
 
     // True wind speed value
     const trueWindSpeedElement = document.getElementById('true-wind-speed-value');
@@ -427,12 +442,51 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
         }
     }
 
-
     const windSpeedStr = (windSpeed !== null && windSpeed !== undefined && !isNaN(windSpeed)) ? windSpeed.toFixed(1) : 'N/A';
     const trueWindDirStr = (trueWindDirection !== null && trueWindDirection !== undefined && !isNaN(trueWindDirection)) ? trueWindDirection.toFixed(0) : 'N/A';
     const trueWindSpeedStr = (trueWindSpeed !== null && trueWindSpeed !== undefined && !isNaN(trueWindSpeed)) ? trueWindSpeed.toFixed(1) : 'N/A';
     console.log(`Wind updated - Apparent: ${direction}° (${getCardinalDirection(direction)}) ${windSpeedStr} kts, True: ${trueWindDirStr}° ${trueWindSpeedStr} kts`);
 }
+
+// --- Dead wind angle settings logic ---
+// Place these at the end of the file to avoid conflicts with dashboard logic
+
+function setupDeadWindAngleInput() {
+    const deadWindInput = document.getElementById('dead-wind-angle');
+    window.currentDeadWindAngle = 40; // default
+    if (deadWindInput) {
+        deadWindInput.addEventListener('input', function() {
+            let val = parseInt(deadWindInput.value, 10);
+            if (isNaN(val) || val < 20) val = 20;
+            if (val > 60) val = 60;
+            deadWindInput.value = val;
+            window.currentDeadWindAngle = val;
+            // Send to ESP32 via WebSocket
+            if (typeof window.getWebSocketState === 'function') {
+                const wsState = window.getWebSocketState();
+                if (wsState && wsState.socket && wsState.readyState === WebSocket.OPEN) {
+                    wsState.socket.send(JSON.stringify({ action: 'setDeadWindAngle', value: val }));
+                }
+            }
+            updateWindDirection();
+        });
+    }
+}
+
+// Called from updateDashboard (websocket.js) to set the dead wind angle from ESP32
+window.setDeadWindAngleFromESP = function(val) {
+    const deadWindInput = document.getElementById('dead-wind-angle');
+    // Only update the input value if it does NOT have focus
+    if (deadWindInput && document.activeElement === deadWindInput) {
+        // User is editing: do not overwrite input or widget
+        return;
+    }
+    if (deadWindInput) {
+        deadWindInput.value = val;
+    }
+    window.currentDeadWindAngle = val;
+    updateWindDirection();
+};
 
 // Update tilt display with CSS classes
 function updateTiltGauge(tilt) {
@@ -550,11 +604,10 @@ function makeBigNumbers() {
 // Initialize - apply CSS classes and set up containers
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Dashboard display functions initialized - big numbers mode');
-    
     // Apply CSS classes to make numbers big
     makeBigNumbers();
-    
-    
+    // Setup dead wind angle input and listener
+    setupDeadWindAngleInput();
     // Initialize charts and reset true wind history with a small delay to ensure containers are rendered
     setTimeout(() => {
         speedChart = new SpeedChart('speed-chart');

@@ -276,6 +276,10 @@ function updateDashboard(data) {
     } else {
         document.getElementById('true-wind-dir-value').textContent = 'N/A';
     }
+    // Set dead wind angle from ESP32 if present
+    if (typeof data.deadWindAngle === 'number' && !isNaN(data.deadWindAngle)) {
+        window.setDeadWindAngleFromESP(data.deadWindAngle);
+    }
     // Pass wind speed and max/avg values to the update function, including true wind data
     updateWindDirection(
         data.windDirection,
