@@ -12,30 +12,9 @@
     <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
 </head>
 <body>
-    <header>
-        <h1>Luna Sailing</h1>
-        <div id="connection-status" class="connected">Connected</div>
-        <button id="settings-toggle" aria-label="Settings">⚙️</button>
-    </header>
-
     <main>
         <section id="primary-data">
-            <div class="data-card" id="speed-card">
-                <div class="speed-chart-container">
-                    <div class="speed-chart" id="speed-chart"></div>
-                    <h2>Vessel Speed</h2>
-                    <div class="data-value">
-                        <span id="speed-value">0.0<span class="unit">kt</span></span>
-                    </div>
-                    <div class="data-minmax">
-                        <span>Max: <span id="speed-max">0.0</span></span>
-                        <span id="satellite-count" class="satellite-count"></span>
-                        <span>Avg: <span id="speed-avg">0.0</span></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="data-card" id="apparent-wind-speed-card">
+            <div class="data-card half-vh" id="apparent-wind-speed-card">
                 <div class="wind-chart-container">
                     <h2>Apparent Wind</h2>
                     <div class="wind-chart" id="wind-chart"></div>
@@ -49,7 +28,7 @@
                 </div>
             </div>
 
-            <div class="data-card" id="apparent-wind-direction-card">
+            <div class="data-card full-vh" id="apparent-wind-direction-card">
                 <div class="compass-container" id="wind-direction">
                   <svg class="wind-boat-svg" width="180" height="180" viewBox="0 0 120 120">
                     <g transform="translate(0,10)">
@@ -86,7 +65,7 @@
                 </div>
             </div>
 
-            <div class="data-card" id="true-wind-speed-card">
+            <div class="data-card half-vh" id="true-wind-speed-card">
                 <div class="wind-chart-container">
                     <div class="wind-chart" id="true-wind-speed-chart"></div>
                     <h2>True Wind</h2>
@@ -100,8 +79,22 @@
                 </div>
             </div>
 
+            <div class="data-card half-vh" id="speed-card">
+                <div class="speed-chart-container">
+                    <div class="speed-chart" id="speed-chart"></div>
+                    <h2>Vessel Speed</h2>
+                    <div class="data-value">
+                        <span id="speed-value">0.0<span class="unit">kt</span></span>
+                    </div>
+                    <div class="data-minmax">
+                        <span>Max: <span id="speed-max">0.0</span></span>
+                        <span id="satellite-count" class="satellite-count"></span>
+                        <span>Avg: <span id="speed-avg">0.0</span></span>
+                    </div>
+                </div>
+            </div>
 
-            <div class="data-card" id="tilt-card">
+            <div class="data-card half-vh" id="tilt-card">
                 <h2>Heel Angle</h2>
                 <div class="tilt-svg-container" id="tilt-gauge">
                   <svg class="tilt-svg" width="180" height="120" viewBox="0 0 180 120" aria-label="Boat heel pictogram">
@@ -121,7 +114,7 @@
                     <span>S Max: <span id="tilt-starboard-max">0.0</span></span>
                 </div>
             </div>
-            <div class="data-card" id="regatta-start-card">
+            <div class="data-card half-vh" id="regatta-start-card">
             <h2>Regatta Start</h2>
             <div class="regatta-widget-row">
                 <button id="regatta-set-port" class="regatta-set-btn regatta-port" aria-label="Set port">set</button>
@@ -145,6 +138,11 @@
             </div>
         </section>
     </main>
+
+    <footer>
+        <div id="connection-status" class="connected">Connected</div>
+        <button id="settings-toggle" aria-label="Settings">⚙️</button>
+    </footer>
 
     <div id="settings-panel" class="hidden">
         <h2>Settings</h2>

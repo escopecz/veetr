@@ -256,9 +256,11 @@ function updateDashboard(data) {
     
     // Update wind data
     if (data.windSpeed !== undefined && data.windSpeed !== null && !isNaN(data.windSpeed)) {
-        document.getElementById('wind-speed-value').textContent = data.windSpeed.toFixed(1);
+        const windSpeedElement = document.getElementById('wind-speed-value');
+        windSpeedElement.textContent = data.windSpeed.toFixed(1);
     } else {
-        document.getElementById('wind-speed-value').textContent = 'N/A';
+        const windSpeedElement = document.getElementById('wind-speed-value');
+        windSpeedElement.textContent = 'N/A';
     }
     if (data.windDirection !== undefined && data.windDirection !== null && !isNaN(data.windDirection)) {
         document.getElementById('wind-dir-value').textContent = data.windDirection.toFixed(0);
@@ -267,9 +269,11 @@ function updateDashboard(data) {
     }
     // Update true wind data if available
     if (data.trueWindSpeed !== undefined && data.trueWindSpeed !== null && !isNaN(data.trueWindSpeed)) {
-        document.getElementById('true-wind-speed-value').textContent = data.trueWindSpeed.toFixed(1);
+        const trueWindSpeedElement = document.getElementById('true-wind-speed-value');
+        trueWindSpeedElement.textContent = data.trueWindSpeed.toFixed(1);
     } else {
-        document.getElementById('true-wind-speed-value').textContent = 'N/A';
+        const trueWindSpeedElement = document.getElementById('true-wind-speed-value');
+        trueWindSpeedElement.textContent = 'N/A';
     }
     if (data.trueWindDirection !== undefined && data.trueWindDirection !== null && !isNaN(data.trueWindDirection)) {
         document.getElementById('true-wind-dir-value').textContent = data.trueWindDirection.toFixed(0);

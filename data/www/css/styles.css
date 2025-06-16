@@ -1,4 +1,3 @@
-
 .regatta-arrow-line,
 .regatta-vertical-line {
   overflow: visible;
@@ -235,7 +234,6 @@ html, body {
     Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   background-color: var(--background-color);
   color: var(--text-color);
-  height: 100%;
   width: 100%;
   overflow-x: hidden;
 }
@@ -245,10 +243,10 @@ body {
   flex-direction: column;
   padding: 0;
   margin: 0;
+  min-height: 100vh;
 }
 
-/* Header styles */
-header {
+footer {
   background-color: var(--primary-color);
   color: white;
   padding: 1rem;
@@ -256,11 +254,7 @@ header {
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-header h1 {
-  font-size: 1.5rem;
-  margin: 0;
+  margin-top: auto;
 }
 
 #connection-status {
@@ -299,8 +293,6 @@ header h1 {
 
 /* Main content styles */
 main {
-  flex: 1;
-  padding: 1rem;
   overflow-y: auto;
   max-width: 1200px;
   margin: 0 auto;
@@ -310,14 +302,29 @@ main {
 /* Data cards */
 #primary-data {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 0.3rem;
+  grid-template-columns: 25vw 50vw 25vw;
+  grid-template-rows: 1fr 1fr;
+  gap: 0rem;
   margin-bottom: 1.5rem;
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
-  justify-items: center;
+  justify-items: stretch;
+  align-items: stretch;
+  min-height: calc(100vh - 200px);
 }
+
+/* Place the full-vh card in the center column spanning both rows */
+#primary-data .full-vh {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+/* Place the half-vh cards in the corners */
+#primary-data .half-vh:nth-of-type(1) { grid-column: 1; grid-row: 1; }
+#primary-data .half-vh:nth-of-type(2) { grid-column: 1; grid-row: 2; }
+#primary-data .half-vh:nth-of-type(3) { grid-column: 3; grid-row: 1; }
+#primary-data .half-vh:nth-of-type(4) { grid-column: 3; grid-row: 2; }
 
 .data-card {
   background-color: var(--card-background);
@@ -328,7 +335,19 @@ main {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 350px;
+  /* Remove max-width constraint since we're using viewport units */
+}
+
+.full-vh {
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+}
+
+.half-vh {
+  height: 50vh;
+  min-height: 0;
+  max-height: 50vh;
 }
 
 /* Remove padding for cards with chart containers so charts extend to edges */
@@ -341,372 +360,231 @@ main {
 
 .data-card h2 {
   color: var(--primary-color);
+  text-align: center;
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+  
+  /* Much smaller heading size - headings should be secondary to big numbers */
+  font-size: clamp(0.6rem, 2.5cqw, 1rem);
 }
 
+/* Responsive heading sizes based on container dimensions */
+@container data-card (max-width: 200px) {
+  .data-card h2 {
+    font-size: clamp(0.5rem, 3cqw, 0.8rem);
+  }
+}
 
+@container data-card (min-width: 200px) and (max-width: 300px) {
+  .data-card h2 {
+    font-size: clamp(0.6rem, 2.5cqw, 0.9rem);
+  }
+}
 
+@container data-card (min-width: 300px) and (max-width: 400px) {
+  .data-card h2 {
+    font-size: clamp(0.6rem, 2cqw, 1rem);
+  }
+}
 
+@container data-card (min-width: 400px) {
+  .data-card h2 {
+    font-size: clamp(0.7rem, 1.8cqw, 1rem);
+  }
+}
+
+/* Smaller headings for half-height cards */
+.half-vh h2 {
+  font-size: clamp(0.5rem, 2cqw, 0.8rem);
+}
+
+@container data-card (max-width: 200px) {
+  .half-vh h2 {
+    font-size: clamp(0.4rem, 2.5cqw, 0.6rem);
+  }
+}
+
+@container data-card (min-width: 200px) and (max-width: 300px) {
+  .half-vh h2 {
+    font-size: clamp(0.5rem, 2cqw, 0.7rem);
+  }
+}
+
+@container data-card (min-width: 300px) {
+  .half-vh h2 {
+    font-size: clamp(0.5rem, 1.8cqw, 0.8rem);
+  }
+}
+
+/* Larger headings for full-height cards */
+.full-vh h2 {
+  font-size: clamp(0.8rem, 3cqw, 1.2rem);
+}
+
+@container data-card (max-width: 250px) {
+  .full-vh h2 {
+    font-size: clamp(0.6rem, 3.5cqw, 1rem);
+  }
+}
+
+@container data-card (min-width: 250px) and (max-width: 350px) {
+  .full-vh h2 {
+    font-size: clamp(0.7rem, 3cqw, 1.1rem);
+  }
+}
+
+@container data-card (min-width: 350px) {
+  .full-vh h2 {
+    font-size: clamp(0.8rem, 2.5cqw, 1.2rem);
+  }
+}
 
 .unit {
-  font-size: 1rem;
   margin-left: 0.25rem;
   opacity: 0.7;
+  
+  /* Responsive unit size based on container width */
+  font-size: clamp(0.6rem, 4cqw, 1.5rem);
 }
 
 .data-minmax {
   display: flex;
   justify-content: space-between;
   width: 100%;
-  font-size: 0.85rem;
   opacity: 0.8;
+  
+  /* Responsive minmax text size based on container width */
+  font-size: clamp(0.5rem, 3cqw, 1.2rem);
 }
 
-/* Chart styles */
-#history-data {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
+/* Responsive unit and minmax sizes based on container dimensions */
+@container data-card (max-width: 200px) {
+  .unit {
+    font-size: clamp(0.4rem, 6cqw, 0.8rem);
+  }
+  
+  .data-minmax {
+    font-size: clamp(0.4rem, 5cqw, 0.7rem);
+  }
 }
 
-.chart-container {
-  background-color: var(--card-background);
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  height: 200px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+@container data-card (min-width: 200px) and (max-width: 300px) {
+  .unit {
+    font-size: clamp(0.5rem, 5cqw, 1rem);
+  }
+  
+  .data-minmax {
+    font-size: clamp(0.5rem, 4cqw, 0.9rem);
+  }
 }
 
-.chart-container canvas {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+@container data-card (min-width: 300px) and (max-width: 400px) {
+  .unit {
+    font-size: clamp(0.6rem, 4cqw, 1.2rem);
+  }
+  
+  .data-minmax {
+    font-size: clamp(0.6rem, 3.5cqw, 1rem);
+  }
 }
 
-/* Settings panel */
-#settings-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--card-background);
-  width: 300px;
-  padding: 1.5rem;
-  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
-  overflow-y: auto;
-  transition: transform 0.3s ease;
-  z-index: 1000;
+@container data-card (min-width: 400px) {
+  .unit {
+    font-size: clamp(0.8rem, 3.5cqw, 1.5rem);
+  }
+  
+  .data-minmax {
+    font-size: clamp(0.7rem, 3cqw, 1.2rem);
+  }
 }
 
-#settings-panel.hidden {
-  transform: translateX(100%);
+/* Smaller units and minmax for half-height cards */
+.half-vh .unit {
+  font-size: clamp(0.4rem, 3cqw, 1rem);
 }
 
-#settings-panel h2 {
-  margin-bottom: 1.5rem;
-  color: var(--primary-color);
+.half-vh .data-minmax {
+  font-size: clamp(0.4rem, 2.5cqw, 0.8rem);
 }
 
-.setting-group {
-  margin-bottom: 1.5rem;
+@container data-card (max-width: 200px) {
+  .half-vh .unit {
+    font-size: clamp(0.3rem, 4cqw, 0.6rem);
+  }
+  
+  .half-vh .data-minmax {
+    font-size: clamp(0.3rem, 3.5cqw, 0.5rem);
+  }
 }
 
-.setting-group h3 {
-  margin-bottom: 0.5rem;
-  font-size: 1.1rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.25rem;
+@container data-card (min-width: 200px) and (max-width: 300px) {
+  .half-vh .unit {
+    font-size: clamp(0.4rem, 3.5cqw, 0.8rem);
+  }
+  
+  .half-vh .data-minmax {
+    font-size: clamp(0.4rem, 3cqw, 0.7rem);
+  }
 }
 
-.setting {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
+@container data-card (min-width: 300px) {
+  .half-vh .unit {
+    font-size: clamp(0.5rem, 3cqw, 1rem);
+  }
+  
+  .half-vh .data-minmax {
+    font-size: clamp(0.5rem, 2.5cqw, 0.8rem);
+  }
 }
 
-.setting label {
-  margin-right: 1rem;
+/* Larger units and minmax for full-height cards */
+.full-vh .unit {
+  font-size: clamp(0.8rem, 5cqw, 2rem);
 }
 
-.setting input[type="text"], 
-.setting input[type="password"] {
-  flex: 1;
-  min-width: 0;
+.full-vh .data-minmax {
+  font-size: clamp(0.6rem, 4cqw, 1.5rem);
 }
 
-.setting {
-  flex-direction: column;
-  align-items: stretch;
+@container data-card (max-width: 250px) {
+  .full-vh .unit {
+    font-size: clamp(0.6rem, 6cqw, 1.2rem);
+  }
+  
+  .full-vh .data-minmax {
+    font-size: clamp(0.5rem, 5cqw, 1rem);
+  }
 }
 
-.setting label {
-  margin-bottom: 0.25rem;
-  margin-right: 0;
+@container data-card (min-width: 250px) and (max-width: 350px) {
+  .full-vh .unit {
+    font-size: clamp(0.7rem, 5cqw, 1.5rem);
+  }
+  
+  .full-vh .data-minmax {
+    font-size: clamp(0.6rem, 4cqw, 1.2rem);
+  }
 }
 
-select, input {
-  padding: 0.5rem;
-  border-radius: 4px;
-  border: 1px solid var(--border-color);
-  background-color: var(--background-color);
-  color: var(--text-color);
+@container data-card (min-width: 350px) {
+  .full-vh .unit {
+    font-size: clamp(0.8rem, 4cqw, 2rem);
+  }
+  
+  .full-vh .data-minmax {
+    font-size: clamp(0.7rem, 3.5cqw, 1.5rem);
+  }
 }
 
-.apply-button {
-  padding: 0.5rem 1rem;
-  background-color: var(--accent-color);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 0.5rem;
-}
-
-.apply-button:hover {
-  opacity: 0.9;
-}
-
-.warning {
-  color: var(--danger-color);
-  font-size: 0.8rem;
-  margin-top: 0.25rem;
-  display: block;
-}
-
-#settings-close {
-  display: block;
-  width: 100%;
-  padding: 0.75rem;
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 1rem;
-}
-
-#install-button {
-  display: block;
-  width: 100%;
-  padding: 0.75rem;
-  background-color: var(--accent-color);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-#install-button.hidden {
-  display: none;
-}
-
-/* Factory Reset styles */
-.factory-reset-info {
-  background-color: var(--warning-color);
-  background-color: rgba(255, 193, 7, 0.1);
-  border: 1px solid var(--warning-color);
-  border-radius: 4px;
-  padding: 1rem;
-  font-size: 0.9rem;
-}
-
-.factory-reset-info strong {
-  color: var(--danger-color);
-}
-
-.factory-reset-info ul {
-  margin: 0.5rem 0;
-  padding-left: 1.5rem;
-}
-
-.factory-reset-info ul li {
-  margin-bottom: 0.25rem;
-}
-
-.factory-reset-info small {
-  display: block;
-  margin-top: 0.5rem;
-  color: var(--danger-color);
-  font-weight: bold;
-}
-
-/* Wind Chart Background Styles */
-.wind-chart-container {
-  position: relative;
-  min-height: 200px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 0;
-  margin: 0;
-}
-
-.wind-chart {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: flex-end;
-  justify-content: flex-start;
-  gap: 0;
-  z-index: 1;
-  padding: 0;
-  margin: 0;
-}
-
-.wind-chart-bar {
-  background-color: var(--accent-color);
-  opacity: 0.15;
-  min-height: 2px;
-  margin: 0;
-  padding: 0;
-  border: none;
-  outline: none;
-  box-sizing: border-box;
-}
-
-.wind-chart-container h2,
-.wind-chart-container .data-value,
-.wind-chart-container .data-minmax,
-.wind-chart-container .compass-container {
-  position: relative;
-  z-index: 2;
-  padding: 0.5rem 1rem;
-  margin: 0;
-}
-
-/* Wind data layout */
-.wind-data-container {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  position: relative;
-  z-index: 2;
-  padding: 0 1rem;
-}
-
-.wind-section {
-  flex: 1;
-  text-align: center;
-}
-
-.wind-section h3 {
-  margin: 0.5rem 0;
-  font-size: 0.9rem;
-  color: var(--secondary-color);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.wind-section .data-value {
-  margin: 0.5rem 0;
-}
-
-.wind-section .compass-container {
-  padding: 0.25rem;
-  margin: 0.25rem 0;
-}
-
-.wind-chart-container h2 {
-  text-align: center;
-}
-
-.wind-chart-container .data-value {
-  text-align: center;
-  margin: auto;
-}
-
-.wind-chart-container .data-minmax {
-  text-align: center;
-}
-
-.wind-chart-container .compass-container {
-  text-align: center;
-}
-
-/* Speed Chart Background Styles */
-.speed-chart-container {
-  position: relative;
-  min-height: 200px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 0;
-  margin: 0;
-}
-
-.speed-chart {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: flex-end;
-  justify-content: flex-start;
-  gap: 0;
-  z-index: 1;
-  padding: 0;
-  margin: 0;
-}
-
-.speed-chart-bar {
-  background-color: var(--primary-color);
-  opacity: 0.15;
-  min-height: 2px;
-  margin: 0;
-  padding: 0;
-  border: none;
-  outline: none;
-  box-sizing: border-box;
-}
-
-.speed-chart-container h2,
-.speed-chart-container .data-value,
-.speed-chart-container .data-minmax {
-  position: relative;
-  z-index: 2;
-  padding: 0.5rem 1rem;
-  margin: 0;
-}
-
-.speed-chart-container h2 {
-  text-align: center;
-}
-
-.speed-chart-container .data-value {
-  text-align: center;
-  margin: auto;
-}
-
-.speed-chart-container .data-minmax {
-  text-align: center;
-}
-
-/* Big number display styles */
+/* Big number responsive sizing using container queries */
 .big-number {
-  font-size: 6rem !important;
-  font-weight: bold !important;
-  line-height: 1 !important;
-  display: block !important;
-  text-align: center !important;
+  line-height: 1;
+  font-weight: 700;
+  text-align: center;
+  display: block;
+  margin: 0.25rem 0;
+  font-size: clamp(10cqw, 12cqw, 14cqw);
 }
-
 
 .big-number.speed-good { color: #6bcf7f; }
 .big-number.speed-medium { color: #ffd93d; }
@@ -951,10 +829,6 @@ select, input {
 }
 
 @media (max-width: 600px) {
-  header h1 {
-    font-size: 1.2rem;
-  }
-  
   .data-value {
     font-size: 1.5rem;
   }
@@ -975,6 +849,49 @@ select, input {
   
   .wind-section:last-child {
     border-bottom: none;
+  }
+  
+  /* Adjust big numbers for mobile */
+  .big-number {
+    font-size: clamp(1rem, 8vw, 3rem) !important;
+  }
+  
+  /* Adjust headings for mobile */
+  .data-card h2 {
+    font-size: clamp(0.8rem, 4vw, 1.5rem) !important;
+  }
+  
+  .half-vh h2 {
+    font-size: clamp(0.7rem, 3vw, 1.2rem) !important;
+  }
+  
+  .full-vh h2 {
+    font-size: clamp(1rem, 5vw, 1.8rem) !important;
+  }
+  
+  /* Adjust units and minmax for mobile */
+  .unit {
+    font-size: clamp(0.4rem, 2.5vw, 0.8rem) !important;
+  }
+  
+  .data-minmax {
+    font-size: clamp(0.3rem, 2vw, 0.6rem) !important;
+  }
+  
+  .half-vh .unit {
+    font-size: clamp(0.3rem, 2vw, 0.6rem) !important;
+  }
+  
+  .half-vh .data-minmax {
+    font-size: clamp(0.3rem, 1.5vw, 0.5rem) !important;
+  }
+  
+  .full-vh .unit {
+    font-size: clamp(0.5rem, 3vw, 1rem) !important;
+  }
+  
+  .full-vh .data-minmax {
+    font-size: clamp(0.4rem, 2.5vw, 0.8rem) !important;
   }
 }
 
