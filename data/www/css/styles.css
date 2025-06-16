@@ -37,7 +37,6 @@
   position: relative;
   min-height: 130px;
   width: 100%;
-  /* Remove max-width and margin to inherit from .data-card */
 }
 
 
@@ -147,6 +146,21 @@
 .regatta-widget-row .data-value {
   justify-content: flex-end;
   width: 100%;
+}
+
+/* Wind direction compass styling */
+.compass-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+
+.wind-boat-svg {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
 }
 
 /* Wind arrow question mark (centered, large, consistent) */
@@ -317,12 +331,10 @@ main {
   background-color: var(--card-background);
   border-radius: 8px;
   padding: 1rem;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-  /* Remove max-width constraint since we're using viewport units */
 }
 
 .full-vh {

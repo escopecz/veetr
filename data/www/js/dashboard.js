@@ -332,12 +332,6 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
         }
     }
 
-    // Apparent wind direction widget
-    const windDirElement = document.getElementById('wind-dir-value');
-    if (windDirElement) {
-        windDirElement.textContent = (direction !== null && direction !== undefined && !isNaN(direction)) ? direction.toFixed(0) : 'N/A';
-    }
-
     const compassContainer = document.getElementById('wind-direction');
     if (compassContainer) {
         // Update the dead wind V shape
@@ -410,16 +404,6 @@ function updateWindDirection(direction, windSpeed = null, maxWindSpeed = null, a
             trueWindSpeedElement.textContent = 'N/A';
         }
         trueWindSpeedElement.className = 'big-number wind';
-    }
-
-    // True wind direction value (keep, as the element is still in the main widget)
-    const trueWindDirElement = document.getElementById('true-wind-dir-value');
-    if (trueWindDirElement) {
-        if (trueWindDirection !== null && trueWindDirection !== undefined && !isNaN(trueWindDirection)) {
-            trueWindDirElement.textContent = trueWindDirection.toFixed(0);
-        } else {
-            trueWindDirElement.textContent = 'N/A';
-        }
     }
 
     // Max/Avg for true wind (calculate from persistent history)

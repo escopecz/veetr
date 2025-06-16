@@ -30,18 +30,18 @@
 
             <div class="data-card full-vh" id="apparent-wind-direction-card">
                 <div class="compass-container" id="wind-direction">
-                  <svg class="wind-boat-svg" width="180" height="180" viewBox="0 0 120 120">
+                  <svg class="wind-boat-svg" width="100%" height="100%" viewBox="0 0 120 120" preserveAspectRatio="xMidYMid meet">
                     <g transform="translate(0,10)">
                       <!-- Dead wind zone: red V at ±40° from bow, drawn below the hull but above the arrows for visibility -->
-                      <!-- Just the hull shape: pointy bow, rounded sides, flat stern (even longer version) -->
+                      <!-- Just the hull shape: pointy bow, rounded sides, flat stern (smaller version) -->
                       <g class="boat-group">
-                        <path d="M60 5 Q90 60 80 105 Q60 115 40 105 Q30 60 60 5 Z" fill="#b3e6ff" stroke="#e0e0e0" stroke-width="2" style="mix-blend-mode: normal;" />
+                        <path d="M60 25 Q75 60 70 85 Q60 90 50 85 Q45 60 60 25 Z" fill="#b3e6ff" stroke="#e0e0e0" stroke-width="2" style="mix-blend-mode: normal;" />
                         <!-- Mast/center of gravity dot -->
-                        <circle cx="60" cy="60" r="5" fill="#000" stroke="#fff" stroke-width="2" />
+                        <circle cx="60" cy="60" r="3" fill="#000" stroke="#fff" stroke-width="1.5" />
                       </g>
                       <g class="dead-wind-v-group" style="pointer-events:none">
-                        <polyline points="60,60 28,5" fill="none" stroke="#e74c3c" stroke-width="1.5" stroke-linecap="round" />
-                        <polyline points="60,60 92,5" fill="none" stroke="#e74c3c" stroke-width="1.5" stroke-linecap="round" />
+                        <polyline points="60,60 0,0" fill="none" stroke="#e74c3c" stroke-width="0.5" stroke-linecap="round" />
+                        <polyline points="60,60 120,0" fill="none" stroke="#e74c3c" stroke-width="0.5" stroke-linecap="round" />
                       </g>
                       <!-- Just the hull shape: pointy bow, rounded sides, flat stern (even longer version) -->
                       <g class="boat-group">
@@ -58,10 +58,6 @@
                       </g>
                     </g>
                   </svg>
-                </div>
-                <div class="card-footer">
-                    <span>APPR: <span id="wind-dir-value">0</span><span class="unit">°</span></span>
-                    <span>TRUE: <span id="true-wind-dir-value">0</span><span class="unit">°</span></span>
                 </div>
             </div>
 

@@ -261,11 +261,6 @@ function updateDashboard(data) {
     } else {
         windSpeedElement.textContent = 'N/A';
     }
-    if (data.windDirection !== undefined && data.windDirection !== null && !isNaN(data.windDirection)) {
-        document.getElementById('wind-dir-value').textContent = data.windDirection.toFixed(0);
-    } else {
-        document.getElementById('wind-dir-value').textContent = 'N/A';
-    }
     // Update true wind data if available
     if (data.trueWindSpeed !== undefined && data.trueWindSpeed !== null && !isNaN(data.trueWindSpeed)) {
         const trueWindSpeedElement = document.getElementById('true-wind-speed-value');
@@ -273,11 +268,6 @@ function updateDashboard(data) {
     } else {
         const trueWindSpeedElement = document.getElementById('true-wind-speed-value');
         trueWindSpeedElement.textContent = 'N/A';
-    }
-    if (data.trueWindDirection !== undefined && data.trueWindDirection !== null && !isNaN(data.trueWindDirection)) {
-        document.getElementById('true-wind-dir-value').textContent = data.trueWindDirection.toFixed(0);
-    } else {
-        document.getElementById('true-wind-dir-value').textContent = 'N/A';
     }
     // Set dead wind angle from ESP32 if present
     if (typeof data.deadWindAngle === 'number' && !isNaN(data.deadWindAngle)) {
