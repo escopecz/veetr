@@ -255,11 +255,10 @@ function updateDashboard(data) {
     }
     
     // Update wind data
+    const windSpeedElement = document.getElementById('wind-speed-value');
     if (data.windSpeed !== undefined && data.windSpeed !== null && !isNaN(data.windSpeed)) {
-        const windSpeedElement = document.getElementById('wind-speed-value');
         windSpeedElement.textContent = data.windSpeed.toFixed(1);
     } else {
-        const windSpeedElement = document.getElementById('wind-speed-value');
         windSpeedElement.textContent = 'N/A';
     }
     if (data.windDirection !== undefined && data.windDirection !== null && !isNaN(data.windDirection)) {
@@ -310,11 +309,6 @@ function updateDashboard(data) {
         updateTiltGauge(data.tilt);
     } else {
         updateTiltGauge(0); // fallback to 0 if invalid
-    }
-    
-    // Update charts with historical data
-    if (data.history) {
-        updateCharts(data.history);
     }
 }
 

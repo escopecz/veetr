@@ -246,9 +246,6 @@ function applyTheme(theme) {
     } else {
         document.body.classList.remove('dark-theme');
     }
-    
-    // Update charts theme
-    updateChartsTheme();
 }
 
 // Apply view mode

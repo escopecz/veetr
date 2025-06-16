@@ -564,18 +564,6 @@ function getCardinalDirection(degrees) {
     return directions[index];
 }
 
-// Function to update all charts (stub for compatibility)
-function updateCharts(historyData) {
-    // Charts disabled for performance
-    console.log('Charts update called (charts disabled for performance)');
-}
-
-// Function to update charts theme (stub for compatibility)  
-function updateChartsTheme() {
-    // Charts disabled for performance
-    console.log('Charts theme update called (charts disabled for performance)');
-}
-
 // Apply CSS classes to make numbers big
 function makeBigNumbers() {
     // Apply CSS classes instead of inline styles
@@ -592,12 +580,6 @@ function makeBigNumbers() {
     const trueWindSpeedValue = document.getElementById('true-wind-speed-value');
     if (trueWindSpeedValue) {
         trueWindSpeedValue.className = 'big-number wind';
-    }
-    
-    
-    const tiltValue = document.getElementById('tilt-value');
-    if (tiltValue) {
-        tiltValue.className = 'big-number tilt-good';
     }
 }
 
