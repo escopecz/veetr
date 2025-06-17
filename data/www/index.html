@@ -7,13 +7,21 @@
     <meta name="description" content="Luna Sailing Dashboard - Monitor your sailing vessel's data in real-time">
     <title>Luna Sailing</title>
     <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="/css/styles.css?v=1.1">
     <link rel="icon" href="/images/icons/icon-192x192.png">
     <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
 </head>
 <body>
-    <main>
-        <section id="primary-data">
+    <!-- Full-screen map background -->
+    <div id="map-container">
+        <div id="sailing-map"></div>
+    </div>
+    
+    <!-- Data overlay container -->
+    <div id="data-overlay">
+        <main>
+            <section id="primary-data">
             <div class="data-card half-vh" id="apparent-wind-speed-card">
                 <div class="wind-chart-container">
                     <h2>Apparent Wind</h2>
@@ -28,7 +36,7 @@
                 </div>
             </div>
 
-            <div class="data-card full-vh" id="apparent-wind-direction-card">
+            <div class="data-card full-vh" id="wind-direction-card">
                 <div class="compass-container" id="wind-direction">
                   <svg class="wind-boat-svg" width="100%" height="100%" viewBox="0 0 120 120" preserveAspectRatio="xMidYMid meet">
                     <g transform="translate(0,10)">
@@ -134,11 +142,12 @@
             </div>
         </section>
     </main>
-
+    
     <footer>
         <div id="connection-status" class="connected">Connected</div>
         <button id="settings-toggle" aria-label="Settings">⚙️</button>
     </footer>
+    </div> <!-- Close data-overlay -->
 
     <div id="settings-panel" class="hidden">
         <h2>Settings</h2>
@@ -220,6 +229,8 @@
         <button id="settings-close">Close</button>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/js/sailing-map.js?v=1.1"></script>
     <script src="/js/dashboard.js?v=1.1"></script>
     <script src="/js/websocket.js?v=1.1"></script>
     <script src="/js/main.js?v=1.1"></script>
