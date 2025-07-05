@@ -176,22 +176,6 @@
             </div>
         </div>
         <div class="setting-group">
-            <h3>WiFi Access Point</h3>
-            <div class="setting">
-                <label for="wifi-ssid">Network Name (SSID):</label>
-                <input type="text" id="wifi-ssid" value="Luna_Sailing" maxlength="32">
-            </div>
-            <div class="setting">
-                <label for="wifi-password">Password:</label>
-                <input type="password" id="wifi-password" placeholder="Leave empty for open network" maxlength="63">
-                <small>8-63 characters for WPA2 security, or leave empty for open network</small>
-            </div>
-            <div class="setting">
-                <button id="wifi-apply" class="apply-button">Apply WiFi Settings</button>
-                <small class="warning">⚠️ Applying will restart WiFi and disconnect all clients</small>
-            </div>
-        </div>
-        <div class="setting-group">
             <h3>Updates</h3>
             <div class="setting">
                 <label for="refresh-rate">Refresh Rate (seconds):</label>
@@ -232,7 +216,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/js/sailing-map.js?v=1.1"></script>
     <script src="/js/dashboard.js?v=1.1"></script>
-    <script src="/js/websocket.js?v=1.1"></script>
+    <script src="/js/ble.js?v=1.1"></script>
     <script src="/js/main.js?v=1.1"></script>
     <script src="/js/pwa-install.js?v=1.1"></script>
     <script>

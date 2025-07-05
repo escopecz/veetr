@@ -1,25 +1,41 @@
 #include <Arduino.h>
-#include <WiFi.h>
-#include <ESPAsyncWebServer.h>
-#include <AsyncTCP.h>
 #include <ArduinoJson.h>
-#include <LittleFS.h>
 #include <Preferences.h>
-// Persistent storage for settings
-Preferences preferences;
-float heelAngleDelta = 0.0f;
-int deadWindAngle = 40; // default
 #include <vector>
 #include <TinyGPS++.h>
 #include <Wire.h>
 #include <Adafruit_ADXL345_U.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
+// Debug flags - uncomment for verbose output
+// #define DEBUG_BLE_DATA
+// #define DEBUG_WIND_SENSOR
+#define DEBUG_GPS         // Temporarily enable GPS debugging
+// #define DEBUG_ACCEL
+
+// Persistent storage for settings
+Preferences preferences;
+float heelAngleDelta = 0.0f;
+int deadWindAngle = 40; // default
+
+// BLE Configuration
+#define SERVICE_UUID        "12345678-1234-1234-1234-123456789abc"
+#define SENSOR_DATA_UUID    "87654321-4321-4321-4321-cba987654321"
+#define COMMAND_UUID        "11111111-2222-3333-4444-555555555555"
+
+BLEServer* pServer = NULL;
+BLECharacteristic* pSensorDataCharacteristic = NULL;
+BLECharacteristic* pCommandCharacteristic = NULL;
+bool deviceConnected = false;
+bool oldDeviceConnected = false;
+
 // ADXL345 Accelerometer (I2C)
 #define ADXL345_SDA 18
 #define ADXL345_SCL 19
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
-
-
-// RS485 Wind Sensor Configuration (using UART2)
 #define RS485_DE 14
 #define RS485_RX 25
 #define RS485_TX 26
@@ -30,25 +46,6 @@ Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 #define GPS_TX 17
 #define GPS_UART 1
 
-// Factory Reset Button Configuration
-#define FACTORY_RESET_BUTTON 0    // GPIO 0 (BOOT button)
-#define FACTORY_RESET_HOLD_TIME 5000  // 5 seconds hold time
-#define FACTORY_RESET_DEBOUNCE 50 // 50ms debounce time
-
-// Factory reset button state
-unsigned long buttonPressStart = 0;
-unsigned long lastButtonCheck = 0;
-bool buttonPressed = false;
-bool factoryResetInProgress = false;
-
-// Define your WiFi credentials for Access Point mode
-char ssid[33] = "Luna_Sailing";  // SSID can be up to 32 characters + null terminator
-char password[64] = "";          // Password can be up to 63 characters + null terminator
-
-// Web server & WebSocket server
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
-
 // RS485 Wind Sensor
 HardwareSerial rs485(RS485_UART);
 const uint8_t windSensorQuery[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B};
@@ -56,6 +53,58 @@ const uint8_t windSensorQuery[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x
 // GPS Module
 HardwareSerial gpsSerial(GPS_UART);
 TinyGPSPlus gps;
+
+// BLE Server Callbacks
+class MyServerCallbacks: public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+      deviceConnected = true;
+      Serial.println("BLE Client connected");
+    };
+
+    void onDisconnect(BLEServer* pServer) {
+      deviceConnected = false;
+      Serial.println("BLE Client disconnected");
+    }
+};
+
+class CommandCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+      std::string value = pCharacteristic->getValue();
+      
+      if (value.length() > 0) {
+        #ifdef DEBUG_BLE_DATA
+        Serial.print("BLE Command received: ");
+        Serial.println(value.c_str());
+        #endif
+        
+        // Parse JSON command
+        DynamicJsonDocument doc(256);
+        DeserializationError error = deserializeJson(doc, value.c_str());
+        
+        if (!error) {
+          String action = doc["action"];
+          
+          if (action == "resetHeelAngle") {
+            // Reset heel angle by saving current tilt as delta
+            sensors_event_t event;
+            if (accel.getEvent(&event)) {
+              heelAngleDelta = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
+              preferences.putFloat("delta", heelAngleDelta);
+              Serial.println("Heel angle reset");
+            }
+          }
+          else if (action == "regattaSetPort") {
+            Serial.println("Regatta port line set");
+            // TODO: Implement regatta line setting logic
+          }
+          else if (action == "regattaSetStarboard") {
+            Serial.println("Regatta starboard line set");
+            // TODO: Implement regatta line setting logic
+          }
+        }
+      }
+    }
+};
 
 // Data structure to hold sensor readings
 struct SensorData {
@@ -113,6 +162,9 @@ void calculateTrueWind(float vesselSpeed, float apparentWindSpeed, float apparen
 // Current sensor data
 SensorData currentData = {0};
 
+// GPS status
+bool gpsDataValid = false;
+
 // History buffer for chart data
 const int HISTORY_LENGTH = 60; // 1 minute at 1Hz
 std::vector<SensorData> dataHistory;
@@ -124,20 +176,11 @@ int refreshRate = 1000;
 unsigned long nextUpdate = 0;
 
 // Function prototypes
-void setupWiFi();
-void setupWebServer();
-void setupFactoryReset();
-void checkFactoryReset();
-void performFactoryReset();
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len);
-void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
-void notifyClients();
 void readSensors();
 void updateHistory();
-void updateWiFiSettings(const char* newSSID, const char* newPassword);
 String getSensorDataJson();
-String getHistoryJson();
-String getFullDataJson();
+void setupBLE();
+void updateBLEData();
 
 // Wind Sensor Functions
 void setTransmit(bool tx);
@@ -146,6 +189,77 @@ bool readWindSensor(float &windSpeed, int &windDirection);
 
 // GPS Functions
 bool readGPS();
+bool isGPSDataValid();
+
+// BLE Setup Function
+void setupBLE() {
+  // Create the BLE Device with minimal configuration
+  BLEDevice::init("Luna_Sailing");
+  
+  // Set TX power to minimum for power saving
+  BLEDevice::setPower(ESP_PWR_LVL_N12);
+
+  // Create the BLE Server
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+
+  // Create the BLE Service
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+
+  // Create BLE Characteristics with minimal properties
+  
+  // Sensor Data Characteristic (notify only)
+  pSensorDataCharacteristic = pService->createCharacteristic(
+                      SENSOR_DATA_UUID,
+                      BLECharacteristic::PROPERTY_NOTIFY
+                    );
+  pSensorDataCharacteristic->addDescriptor(new BLE2902());
+
+  // Command Characteristic (write only)
+  pCommandCharacteristic = pService->createCharacteristic(
+                      COMMAND_UUID,
+                      BLECharacteristic::PROPERTY_WRITE
+                    );
+  pCommandCharacteristic->setCallbacks(new CommandCallbacks());
+
+  // Start the service
+  pService->start();
+
+  // Start advertising with minimal configuration
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(false);
+  pAdvertising->setMinPreferred(0x06);  // 7.5ms intervals for faster connection
+  pAdvertising->setMaxPreferred(0x12);  // 22.5ms intervals
+  BLEDevice::startAdvertising();
+  
+  Serial.println("BLE Server started, waiting for client connections...");
+}
+
+// Update BLE with current sensor data
+void updateBLEData() {
+  if (deviceConnected && pSensorDataCharacteristic) {
+    String jsonData = getSensorDataJson();
+    
+    #ifdef DEBUG_BLE_DATA
+    Serial.print("[BLE] JSON size: ");
+    Serial.print(jsonData.length());
+    Serial.print(" bytes: ");
+    Serial.println(jsonData);
+    #endif
+    
+    // Limit JSON size for BLE MTU (usually 244 bytes max)
+    if (jsonData.length() > 240) {
+      #ifdef DEBUG_BLE_DATA
+      Serial.println("[BLE] Warning: Data too large, truncating");
+      #endif
+      jsonData = jsonData.substring(0, 240);
+    }
+    
+    pSensorDataCharacteristic->setValue(jsonData.c_str());
+    pSensorDataCharacteristic->notify();
+  }
+}
 
 void setup() {
   // Initialize Preferences for persistent storage
@@ -168,6 +282,9 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Luna Sailing Dashboard starting...");
   
+  // Initialize BLE
+  setupBLE();
+  
   // Initialize GPS module
   gpsSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
   Serial.println("GPS module initialized");
@@ -177,22 +294,6 @@ void setup() {
   pinMode(RS485_DE, OUTPUT);
   setTransmit(false);
   Serial.println("RS485 wind sensor initialized");
-  
-  // Initialize LittleFS for serving web files
-  if (!LittleFS.begin()) {
-    Serial.println("An error occurred while mounting LittleFS");
-    return;
-  }
-  Serial.println("LittleFS mounted successfully");
-  
-  // Setup WiFi Access Point
-  setupWiFi();
-  
-  // Setup web server and WebSocket
-  setupWebServer();
-  
-  // Setup factory reset functionality
-  setupFactoryReset();
   
   // Initialize sensor data and history
   currentData.speedMax = 0;
@@ -213,9 +314,6 @@ void setup() {
 }
 
 void loop() {
-  // Handle WebSocket events
-  ws.cleanupClients();
-  
   // Check if it's time to update data
   if (millis() >= nextUpdate) {
     // Read sensor data
@@ -224,243 +322,59 @@ void loop() {
     // Update history
     updateHistory();
     
-    // Notify connected clients
-    notifyClients();
+    // Update BLE clients with sensor data
+    updateBLEData();
+    
+    // Handle BLE disconnection/reconnection
+    if (!deviceConnected && oldDeviceConnected) {
+        delay(500); // give the bluetooth stack the chance to get things ready
+        pServer->startAdvertising(); // restart advertising
+        Serial.println("BLE: Reconnecting...");
+        oldDeviceConnected = deviceConnected;
+    }
+    // connecting
+    if (deviceConnected && !oldDeviceConnected) {
+        oldDeviceConnected = deviceConnected;
+    };
     
     // Set next update time
     nextUpdate = millis() + refreshRate;
+    
+    // Print concise status summary every 5 seconds
+    static unsigned long lastStatusTime = 0;
+    if (millis() - lastStatusTime > 5000) {
+      Serial.print("Status: ");
+      if (deviceConnected) Serial.print("BLE✓ ");
+      if (!isnan(currentData.speed) && currentData.speed > 0) 
+        Serial.printf("Spd:%.1fkt ", currentData.speed);
+      if (!isnan(currentData.windSpeed)) 
+        Serial.printf("Wind:%.1fkt@%d° ", currentData.windSpeed, currentData.windDirection);
+      if (!isnan(currentData.tilt)) 
+        Serial.printf("Tilt:%.1f° ", currentData.tilt);
+      
+      // GPS status - only show satellite count if we have actual GPS data
+      if (gps.charsProcessed() > 10) {
+        // We're receiving GPS data
+        if (isGPSDataValid()) {
+          Serial.printf("GPS:%dsat✓ ", gps.satellites.value());
+        } else if (gps.satellites.isValid()) {
+          Serial.printf("GPS:%dsat(no fix) ", gps.satellites.value());
+        } else {
+          Serial.print("GPS:parsing ");
+        }
+      } else {
+        // No GPS data being received
+        Serial.print("GPS:no data ");
+      }
+      
+      Serial.println();
+      lastStatusTime = millis();
+    }
   }
-  
-  // Check factory reset button state
-  checkFactoryReset();
 }
 
 // Set up WiFi Access Point
-void setupWiFi() {
-  Serial.println("Setting up WiFi Access Point...");
-  
-  WiFi.mode(WIFI_AP);
-  
-  // Configure WiFi settings for better file transfer performance
-  WiFi.setTxPower(WIFI_POWER_19_5dBm);  // High power for better range/speed
-  
-  // Configure AP with optimized settings
-  WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
-  
-  // Create AP with optimized settings for performance
-  WiFi.softAP(ssid, password, 6, false, 4);  // Channel 6, not hidden, max 4 clients
-  
-  // Wait a moment for AP to fully initialize
-  delay(100);
-  
-  IPAddress IP = WiFi.softAPIP();
-  Serial.print("AP IP address: ");
-  Serial.println(IP);
-  
-  // Also print SSID and security info
-  Serial.printf("SSID: %s\n", ssid);
-  Serial.printf("Security: %s\n", strlen(password) > 0 ? "WPA2" : "Open");
-  Serial.printf("WiFi Channel: 6, Max Clients: 4\n");
-}
-
-// WebSocket event handler
-void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-  switch (type) {
-    case WS_EVT_CONNECT:
-      Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
-      // Send current data to newly connected client
-      client->text(getFullDataJson());
-      break;
-    case WS_EVT_DISCONNECT:
-      Serial.printf("WebSocket client #%u disconnected\n", client->id());
-      break;
-    case WS_EVT_DATA:
-      handleWebSocketMessage(arg, data, len);
-      break;
-    case WS_EVT_PONG:
-    case WS_EVT_ERROR:
-      break;
-  }
-}
-
-// Handle incoming WebSocket messages
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
-  AwsFrameInfo *info = (AwsFrameInfo*)arg;
-  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-    // Null-terminate the data for string operations
-    data[len] = 0;
-    
-    // Parse JSON message
-    DynamicJsonDocument doc(1024);
-    DeserializationError error = deserializeJson(doc, (char*)data);
-    
-    if (error) {
-      Serial.print("deserializeJson() failed: ");
-      Serial.println(error.c_str());
-      return;
-    }
-    
-    // Check for action field
-    if (doc.containsKey("action")) {
-      String action = doc["action"];
-      
-      // Handle subscribe action (client registering for updates)
-      if (action == "subscribe" && doc.containsKey("refreshRate")) {
-        refreshRate = doc["refreshRate"].as<float>() * 1000; // Convert to milliseconds
-        Serial.printf("Client subscribed with refresh rate: %d ms\n", refreshRate);
-      }
-      
-      // Handle settings update
-      else if (action == "updateSettings" && doc.containsKey("refreshRate")) {
-        refreshRate = doc["refreshRate"].as<float>() * 1000; // Convert to milliseconds
-        Serial.printf("Refresh rate updated: %d ms\n", refreshRate);
-      }
-      
-      // Handle WiFi settings update
-      else if (action == "updateWiFi") {
-        if (doc.containsKey("ssid")) {
-          String newSSID = doc["ssid"].as<String>();
-          String newPassword = doc.containsKey("password") ? doc["password"].as<String>() : "";
-          updateWiFiSettings(newSSID.c_str(), newPassword.c_str());
-        }
-      }
-      // Handle heel angle reset
-      else if (action == "resetHeelAngle") {
-        Serial.println("[DEBUG] Heel angle reset triggered!");
-        sensors_event_t event;
-        if (accel.getEvent(&event)) {
-          float currentTilt = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
-          // Set new delta so that zeroed tilt is zero at this position
-          heelAngleDelta = currentTilt;
-          preferences.putFloat("delta", heelAngleDelta);
-          Serial.print("[Heel] New heelAngleDelta stored: ");
-          Serial.println(heelAngleDelta);
-          ws.textAll("{\"heelAngleReset\":true}");
-        } else {
-          Serial.println("[Heel] Failed to read accelerometer for reset.");
-        }
-      }
-      // Handle dead wind angle update from dashboard
-      else if (action == "setDeadWindAngle" && doc.containsKey("value")) {
-        int newAngle = doc["value"];
-        if (newAngle < 20) newAngle = 20;
-        if (newAngle > 60) newAngle = 60;
-        deadWindAngle = newAngle;
-        preferences.putInt("deadWindAngle", deadWindAngle);
-        Serial.printf("[Settings] Dead wind angle updated to %d and saved to NVS\n", deadWindAngle);
-        // Optionally, send immediate feedback to all clients:
-        ws.textAll(getFullDataJson());
-      }
-      // --- Regatta Start Line: Set Port/Starboard Flags ---
-      static double regattaPortLat = NAN, regattaPortLng = NAN;
-      static double regattaStarboardLat = NAN, regattaStarboardLng = NAN;
-
-      if (action == "regattaSetPort") {
-        if (gps.location.isValid()) {
-          regattaPortLat = gps.location.lat();
-          regattaPortLng = gps.location.lng();
-          Serial.printf("[Regatta] Port flag set: %.6f, %.6f\n", regattaPortLat, regattaPortLng);
-          // Send event-driven feedback to UI
-          DynamicJsonDocument feedbackDoc(128);
-          feedbackDoc["regatta"] = true;
-          feedbackDoc["lastSet"] = "port";
-          String feedbackJson;
-          serializeJson(feedbackDoc, feedbackJson);
-          ws.textAll(feedbackJson);
-        } else {
-          Serial.println("[Regatta] Port flag set requested, but GPS location invalid!");
-        }
-      } else if (action == "regattaSetStarboard") {
-        if (gps.location.isValid()) {
-          regattaStarboardLat = gps.location.lat();
-          regattaStarboardLng = gps.location.lng();
-          Serial.printf("[Regatta] Starboard flag set: %.6f, %.6f\n", regattaStarboardLat, regattaStarboardLng);
-          // Send event-driven feedback to UI
-          DynamicJsonDocument feedbackDoc(128);
-          feedbackDoc["regatta"] = true;
-          feedbackDoc["lastSet"] = "starboard";
-          String feedbackJson;
-          serializeJson(feedbackDoc, feedbackJson);
-          ws.textAll(feedbackJson);
-        } else {
-          Serial.println("[Regatta] Starboard flag set requested, but GPS location invalid!");
-        }
-      }
-
-      // If both flags are set, calculate distance from boat to start line
-      if (!isnan(regattaPortLat) && !isnan(regattaPortLng) && !isnan(regattaStarboardLat) && !isnan(regattaStarboardLng)) {
-        if (gps.location.isValid()) {
-          double boatLat = gps.location.lat();
-          double boatLng = gps.location.lng();
-          // Calculate distance from boat to line (in meters)
-          double d = 0.0;
-          // Convert all to radians
-          double lat1 = regattaPortLat * DEG_TO_RAD;
-          double lon1 = regattaPortLng * DEG_TO_RAD;
-          double lat2 = regattaStarboardLat * DEG_TO_RAD;
-          double lon2 = regattaStarboardLng * DEG_TO_RAD;
-          double lat0 = boatLat * DEG_TO_RAD;
-          double lon0 = boatLng * DEG_TO_RAD;
-          // Equirectangular projection (good enough for small distances)
-          double x1 = (lon1 - lon0) * cos(0.5 * (lat1 + lat0));
-          double y1 = lat1 - lat0;
-          double x2 = (lon2 - lon0) * cos(0.5 * (lat2 + lat0));
-          double y2 = lat2 - lat0;
-          double x0 = 0.0, y0 = 0.0;
-          // Distance from point (0,0) to line (x1,y1)-(x2,y2)
-          double num = fabs((y2 - y1) * x0 - (x2 - x1) * y0 + x2*y1 - y2*x1);
-          double den = sqrt((y2 - y1)*(y2 - y1) + (x2 - x1)*(x2 - x1));
-          d = (den > 0) ? (num / den) * 6371000.0 : 0.0; // meters
-          Serial.printf("[Regatta] Boat distance to start line: %.1f m\n", d);
-          // Optionally: send to all clients
-          DynamicJsonDocument regattaDoc(256);
-          regattaDoc["regatta"] = true;
-          regattaDoc["portLat"] = regattaPortLat;
-          regattaDoc["portLng"] = regattaPortLng;
-          regattaDoc["starboardLat"] = regattaStarboardLat;
-          regattaDoc["starboardLng"] = regattaStarboardLng;
-          regattaDoc["boatLat"] = boatLat;
-          regattaDoc["boatLng"] = boatLng;
-          regattaDoc["distanceToLine"] = d;
-          String regattaJson;
-          serializeJson(regattaDoc, regattaJson);
-          ws.textAll(regattaJson);
-        }
-      }
-    }
-  }
-}
-
-// Set up the web server
-void setupWebServer() {
-  // Initialize WebSocket
-  ws.onEvent(onEvent);
-  server.addHandler(&ws);
-  
-  // Serve static files from LittleFS with cache control
-  server.serveStatic("/", LittleFS, "/www/")
-    .setDefaultFile("index.html")
-    .setCacheControl("no-cache, no-store, must-revalidate");
-  
-  // Handle unknown requests
-  server.onNotFound([](AsyncWebServerRequest *request) {
-    request->redirect("/");
-  });
-  
-  // Start server
-  server.begin();
-  Serial.println("Web server started");
-}
-
-// Send updates to all connected WebSocket clients
-void notifyClients() {
-  // Only send data if clients are connected
-  if (ws.count() > 0) {
-    ws.textAll(getFullDataJson());
-  }
-}
-
-// Read sensor data (currently simulated)
+// Read sensor data
 void readSensors() {
   // Update max and average true wind speed only if valid
   static float trueWindSpeedSum = 0;
@@ -476,8 +390,8 @@ void readSensors() {
   // Read GPS data first
   bool gpsDataValid = readGPS();
   
-  // Only use GPS speed if we have a good fix and at least 5 satellites (for accuracy)
-  if (gps.location.isValid() && gps.speed.isValid() && gps.satellites.value() >= 5) {
+  // Only use GPS speed if we have valid, recent data with good satellite count
+  if (gpsDataValid && gps.speed.isValid() && gps.satellites.value() >= 5) {
     currentData.speed = gps.speed.knots();
   } else {
     currentData.speed = 0.0;
@@ -502,6 +416,7 @@ void readSensors() {
     // Convert m/s to knots (1 m/s = 1.944 knots)
     currentData.windSpeed = sensorWindSpeed * 1.944;
     currentData.windDirection = sensorWindDirection;
+    #ifdef DEBUG_WIND_SENSOR
     Serial.print("[Wind Sensor] Wind speed: ");
     Serial.print(sensorWindSpeed, 2);
     Serial.print(" m/s (");
@@ -509,13 +424,20 @@ void readSensors() {
     Serial.print(" knots), Direction: ");
     Serial.print(sensorWindDirection);
     Serial.println(" deg");
+    #endif
   } else {
     currentData.windSpeed = NAN;
     currentData.windDirection = -1;
-    Serial.println("[Wind Sensor] No valid data (NAN)");
+    // Only show error once every 10 seconds to avoid spam
+    static unsigned long lastErrorTime = 0;
+    if (millis() - lastErrorTime > 10000) {
+      Serial.println("[Wind Sensor] No valid data");
+      lastErrorTime = millis();
+    }
   }
   
-  // Enhanced GPS debug output (only print valid fix data)
+  // Enhanced GPS debug output (only when needed)
+  #ifdef DEBUG_GPS
   Serial.print("[GPS Debug] TinyGPS++ chars processed: ");
   Serial.print(gps.charsProcessed());
   Serial.print(", Sentences with fix: ");
@@ -538,6 +460,7 @@ void readSensors() {
   } else {
     Serial.println(" | No valid GPS fix or insufficient satellites");
   }
+  #endif
   // Optionally, print raw NMEA sentences for troubleshooting
   // while (gpsSerial.available() > 0) {
   //   char c = gpsSerial.read();
@@ -572,15 +495,22 @@ void readSensors() {
     currentData.trueWindDirection = NAN;
   }
   
-  // Read tilt from ADXL345 with debug output
+  // Read tilt from ADXL345
   sensors_event_t event;
   if (accel.getEvent(&event)) {
+    #ifdef DEBUG_ACCEL
     Serial.print("[ADXL345] X: "); Serial.print(event.acceleration.x);
     Serial.print(" Y: "); Serial.print(event.acceleration.y);
     Serial.print(" Z: "); Serial.print(event.acceleration.z);
+    #endif
     // If all axes are zero, likely a wiring or address issue
     if (event.acceleration.x == 0 && event.acceleration.y == 0 && event.acceleration.z == 0) {
-      Serial.println(" [ADXL345] All axes zero! Check wiring or I2C address.");
+      // Only show error once every 10 seconds to avoid spam
+      static unsigned long lastI2CErrorTime = 0;
+      if (millis() - lastI2CErrorTime > 10000) {
+        Serial.println("[ADXL345] All axes zero! Check wiring or I2C address.");
+        lastI2CErrorTime = millis();
+      }
       currentData.tilt = NAN;
       currentData.tiltPortMax = NAN;
       currentData.tiltStarboardMax = NAN;
@@ -588,13 +518,7 @@ void readSensors() {
       // Calculate heel/tilt angle (degrees)
       // Assume Y axis is port-starboard, Z is up
       float tilt = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
-      Serial.print(" [DEBUG] Raw tilt: ");
-      Serial.print(tilt);
-      Serial.print(" | heelAngleDelta: ");
-      Serial.print(heelAngleDelta);
-      Serial.print(" | Calculated tilt: "); Serial.print(tilt);
       float zeroedTilt = tilt - heelAngleDelta;
-      Serial.print(" | Zeroed tilt: "); Serial.println(zeroedTilt);
       currentData.tilt = zeroedTilt;
       // Track max port/starboard heel
       if (tilt < 0) {
@@ -610,7 +534,12 @@ void readSensors() {
       }
     }
   } else {
-    Serial.println("[ADXL345] Failed to read event! (Sensor not detected?)");
+    // Only show error once every 10 seconds to avoid spam
+    static unsigned long lastAccelErrorTime = 0;
+    if (millis() - lastAccelErrorTime > 10000) {
+      Serial.println("[ADXL345] Sensor not detected");
+      lastAccelErrorTime = millis();
+    }
     currentData.tilt = NAN;
     currentData.tiltPortMax = NAN;
     currentData.tiltStarboardMax = NAN;
@@ -626,276 +555,31 @@ void updateHistory() {
   dataHistory.push_back(currentData);
 }
 
-// Generate JSON string with current sensor data
+// Generate JSON string with current sensor data (compact format)
 String getSensorDataJson() {
-  DynamicJsonDocument doc(1024);
+  DynamicJsonDocument doc(300); // Reduced even further
   
-  doc["speed"] = currentData.speed;
-  doc["speedMax"] = currentData.speedMax;
-  doc["speedAvg"] = currentData.speedAvg;
-  doc["windSpeed"] = currentData.windSpeed;
-  doc["windSpeedMax"] = currentData.windSpeedMax;
-  doc["windSpeedAvg"] = currentData.windSpeedAvg;
-  doc["windDirection"] = currentData.windDirection;
-  doc["trueWindSpeed"] = currentData.trueWindSpeed;
-  doc["trueWindSpeedMax"] = currentData.trueWindSpeedMax;
-  doc["trueWindSpeedAvg"] = currentData.trueWindSpeedAvg;
-  doc["trueWindDirection"] = currentData.trueWindDirection;
-  doc["tilt"] = currentData.tilt;
-  doc["tiltPortMax"] = currentData.tiltPortMax;
-  doc["tiltStarboardMax"] = currentData.tiltStarboardMax;
-  doc["deadWindAngle"] = deadWindAngle;
-  // GPS fields
-  // Only report GPS speed if at least 5 satellites and valid fix
-  if (gps.location.isValid() && gps.speed.isValid() && gps.satellites.value() >= 5) {
-    doc["gpsSpeed"] = gps.speed.knots();
-  } else {
-    doc["gpsSpeed"] = 0.0;
-  }
-  doc["gpsSatellites"] = gps.satellites.value();
+  // Use even shorter keys and remove some less critical data
+  doc["spd"] = isnan(currentData.speed) ? 0 : currentData.speed;
+  doc["wSpd"] = isnan(currentData.windSpeed) ? 0 : currentData.windSpeed;
+  doc["wDir"] = currentData.windDirection;
+  doc["twSpd"] = isnan(currentData.trueWindSpeed) ? 0 : currentData.trueWindSpeed;
+  doc["twDir"] = isnan(currentData.trueWindDirection) ? 0 : currentData.trueWindDirection;
+  doc["tilt"] = isnan(currentData.tilt) ? 0 : currentData.tilt;
+  doc["gSpd"] = (gpsDataValid && gps.speed.isValid() && gps.satellites.value() >= 5) ? gps.speed.knots() : 0.0;
+  doc["gSat"] = (gps.charsProcessed() > 10 && gps.satellites.isValid()) ? gps.satellites.value() : 0;
   
-  String output;
-  serializeJson(doc, output);
-  return output;
-}
-
-// Generate JSON string with historical data for charts
-String getHistoryJson() {
-  DynamicJsonDocument doc(4096);
-  
-  // Get the most recent history data point for chart updates
-  if (!dataHistory.empty()) {
-    SensorData lastPoint = dataHistory.back();
-    
-    doc["speed"] = lastPoint.speed;
-    doc["windSpeed"] = lastPoint.windSpeed;
-    doc["windDirection"] = lastPoint.windDirection;
-    doc["tilt"] = lastPoint.tilt;
+  // Optional: Add max values only if space allows
+  if (doc.memoryUsage() < 200) {
+    doc["spdMax"] = currentData.speedMax;
+    doc["wSpdMax"] = currentData.windSpeedMax;
+    doc["tiltPMax"] = currentData.tiltPortMax;
+    doc["tiltSMax"] = currentData.tiltStarboardMax;
   }
   
   String output;
   serializeJson(doc, output);
   return output;
-}
-
-// Generate JSON with both current and historical data
-String getFullDataJson() {
-  DynamicJsonDocument doc(4096);
-  
-  // Current data
-  doc["speed"] = currentData.speed;
-  doc["speedMax"] = currentData.speedMax;
-  doc["speedAvg"] = currentData.speedAvg;
-  doc["windSpeed"] = currentData.windSpeed;
-  doc["windSpeedMax"] = currentData.windSpeedMax;
-  doc["windSpeedAvg"] = currentData.windSpeedAvg;
-  doc["windDirection"] = currentData.windDirection;
-  doc["trueWindSpeed"] = currentData.trueWindSpeed;
-  doc["trueWindSpeedMax"] = currentData.trueWindSpeedMax;
-  doc["trueWindSpeedAvg"] = currentData.trueWindSpeedAvg;
-  doc["trueWindDirection"] = currentData.trueWindDirection;
-  doc["tilt"] = currentData.tilt;
-  doc["tiltPortMax"] = currentData.tiltPortMax;
-  doc["tiltStarboardMax"] = currentData.tiltStarboardMax;
-  doc["deadWindAngle"] = deadWindAngle;
-  // GPS fields
-  // Only report GPS speed if at least 5 satellites and valid fix
-  if (gps.location.isValid() && gps.speed.isValid() && gps.satellites.value() >= 5) {
-    doc["gpsSpeed"] = gps.speed.knots();
-  } else {
-    doc["gpsSpeed"] = 0.0;
-  }
-  doc["gpsSatellites"] = gps.satellites.value();
-  
-  // History data for chart updates
-  JsonObject history = doc.createNestedObject("history");
-  if (!dataHistory.empty()) {
-    SensorData lastPoint = dataHistory.back();
-    
-    history["speed"] = lastPoint.speed;
-    history["windSpeed"] = lastPoint.windSpeed;
-    history["windDirection"] = lastPoint.windDirection;
-    history["tilt"] = lastPoint.tilt;
-  }
-  
-  String output;
-  serializeJson(doc, output);
-  return output;
-}
-
-// Update WiFi Access Point settings
-void updateWiFiSettings(const char* newSSID, const char* newPassword) {
-  Serial.println("Updating WiFi settings...");
-  
-  // Validate SSID
-  if (strlen(newSSID) == 0 || strlen(newSSID) > 32) {
-    Serial.println("Invalid SSID length");
-    return;
-  }
-  
-  // Validate password
-  if (strlen(newPassword) > 0 && (strlen(newPassword) < 8 || strlen(newPassword) > 63)) {
-    Serial.println("Invalid password length");
-    return;
-  }
-  
-  // Copy new credentials
-  strncpy(ssid, newSSID, sizeof(ssid) - 1);
-  ssid[sizeof(ssid) - 1] = '\0'; // Ensure null termination
-  
-  strncpy(password, newPassword, sizeof(password) - 1);
-  password[sizeof(password) - 1] = '\0'; // Ensure null termination
-  
-  // Log the change (don't log password for security)
-  Serial.printf("New SSID: %s\n", ssid);
-  Serial.printf("Security: %s\n", strlen(password) > 0 ? "WPA2" : "Open");
-  
-  // Notify clients that WiFi is restarting
-  if (ws.count() > 0) {
-    DynamicJsonDocument response(256);
-    response["action"] = "wifiRestart";
-    response["ssid"] = ssid;
-    response["security"] = strlen(password) > 0 ? "WPA2" : "Open";
-    
-    String responseStr;
-    serializeJson(response, responseStr);
-    ws.textAll(responseStr);
-  }
-  
-  // Small delay to ensure message is sent
-  delay(100);
-  
-  // Restart WiFi with new settings
-  WiFi.softAPdisconnect(true);
-  delay(1000);
-  
-  // Setup WiFi with new credentials
-  setupWiFi();
-}
-
-// Set up factory reset functionality
-void setupFactoryReset() {
-  pinMode(FACTORY_RESET_BUTTON, INPUT_PULLUP);
-  
-  Serial.println("========================================");
-  Serial.println("FACTORY RESET SETUP");
-  Serial.println("========================================");
-  Serial.println("Factory reset button configured on GPIO 0 (BOOT button)");
-  Serial.println("Hold for 5 seconds to trigger factory reset");
-  Serial.println("========================================");
-}
-
-// Check factory reset button state
-void checkFactoryReset() {
-  // Only check button at most every FACTORY_RESET_DEBOUNCE ms
-  if (millis() - lastButtonCheck < FACTORY_RESET_DEBOUNCE) {
-    return;
-  }
-  lastButtonCheck = millis();
-  
-  // Read the state of the factory reset button
-  bool buttonState = digitalRead(FACTORY_RESET_BUTTON) == LOW;
-  
-  if (buttonState && !buttonPressed) {
-    // Button was just pressed
-    buttonPressStart = millis();
-    buttonPressed = true;
-    Serial.println("Factory reset button pressed - hold for 5 seconds");
-    Serial.println("(This only works during normal operation, not during flashing)");
-  } else if (buttonState && buttonPressed) {
-    // Button is still being held
-    unsigned long holdTime = millis() - buttonPressStart;
-    
-    // Blink LED faster as we approach the reset time
-    if (holdTime < FACTORY_RESET_HOLD_TIME) {
-      // Print progress every second
-      if (holdTime > 0 && (holdTime / 1000) != ((holdTime - FACTORY_RESET_DEBOUNCE) / 1000)) {
-        Serial.printf("Factory reset in %d seconds...\n", 
-                      (FACTORY_RESET_HOLD_TIME - holdTime) / 1000 + 1);
-      }
-    }
-  } else if (!buttonState && buttonPressed) {
-    // Button was just released
-    buttonPressed = false;
-    
-    // Check if it was held long enough for a factory reset
-    unsigned long holdTime = millis() - buttonPressStart;
-    if (holdTime >= FACTORY_RESET_HOLD_TIME) {
-      Serial.printf("Factory reset triggered (held for %lu ms)\n", holdTime);
-      performFactoryReset();
-    } else {
-      Serial.printf("Factory reset cancelled (held for %lu ms, needed %d ms)\n", 
-                    holdTime, FACTORY_RESET_HOLD_TIME);
-    }
-  }
-}
-
-// Perform factory reset
-void performFactoryReset() {
-  factoryResetInProgress = true;
-  
-  Serial.println("========================================");
-  Serial.println("PERFORMING FACTORY RESET");
-  Serial.println("========================================");
-  
-  // Notify clients before reset
-  if (ws.count() > 0) {
-    DynamicJsonDocument response(256);
-    response["action"] = "factoryReset";
-    response["message"] = "Factory reset in progress...";
-    
-    String responseStr;
-    serializeJson(response, responseStr);
-    ws.textAll(responseStr);
-    
-    // Give time for message to be sent
-    delay(500);
-  }
-  
-  // Reset WiFi settings
-  Serial.println("Resetting WiFi settings...");
-  WiFi.softAPdisconnect(true);
-  delay(1000);
-  
-  // Reinitialize WiFi with default credentials
-  strcpy(ssid, "Luna_Sailing");
-  strcpy(password, "");
-  Serial.printf("SSID reset to: %s\n", ssid);
-  Serial.println("Password reset to: [OPEN NETWORK]");
-  
-  setupWiFi();
-  
-  // Reset sensor data and history
-  Serial.println("Resetting sensor data...");
-  currentData = {0};
-  dataHistory.clear();
-  
-  // Pre-populate history with zero values
-  for (int i = 0; i < HISTORY_LENGTH; i++) {
-    dataHistory.push_back(currentData);
-  }
-  
-  factoryResetInProgress = false;
-  
-  Serial.println("Factory reset complete!");
-  Serial.println("Default settings restored:");
-  Serial.println("  SSID: Luna_Sailing");
-  Serial.println("  Password: None (open network)");
-  Serial.println("  IP Address: 192.168.4.1");
-  Serial.println("========================================");
-  
-  // Final notification to clients
-  if (ws.count() > 0) {
-    DynamicJsonDocument response(256);
-    response["action"] = "factoryReset";
-    response["message"] = "Factory reset complete";
-    response["ssid"] = ssid;
-    response["security"] = "Open";
-    
-    String responseStr;
-    serializeJson(response, responseStr);
-    ws.textAll(responseStr);
-  }
 }
 
 // Wind Sensor Functions
@@ -952,12 +636,16 @@ bool readWindSensor(float &windSpeed, int &windDirection) {
       windDirection = (response[5] << 8) | response[6];        // Direction in degrees
       return true;
     } else {
+      #ifdef DEBUG_WIND_SENSOR
       Serial.println("Wind sensor CRC error");
+      #endif
     }
   } else {
+    #ifdef DEBUG_WIND_SENSOR
     Serial.print("Wind sensor invalid response, received ");
     Serial.print(index);
     Serial.println(" bytes");
+    #endif
   }
   
   return false;
@@ -965,17 +653,35 @@ bool readWindSensor(float &windSpeed, int &windDirection) {
 
 // GPS Functions
 
+// Check if GPS has valid, recent data
+bool isGPSDataValid() {
+  // Require multiple conditions for valid GPS:
+  // 1. Must have processed characters (indicating actual serial data)
+  // 2. Must have valid sentences with fix data
+  // 3. Location must be valid
+  // 4. Data must be recent (less than 5 seconds old)
+  // 5. Must have reasonable satellite count (not just noise)
+  return gps.charsProcessed() > 10 &&        // Must have processed actual data
+         gps.sentencesWithFix() > 0 &&       // Must have valid NMEA sentences
+         gps.location.isValid() && 
+         gps.location.age() < 5000 && 
+         gps.satellites.isValid() &&
+         gps.satellites.value() >= 3;         // Minimum for any fix
+}
+
 // Read GPS data
 bool readGPS() {
   bool newData = false;
+  int bytesRead = 0;
   
-  // Read available GPS data
-  while (gpsSerial.available() > 0) {
+  // Read available GPS data (but limit to prevent infinite loops)
+  while (gpsSerial.available() > 0 && bytesRead < 256) {
     if (gps.encode(gpsSerial.read())) {
       newData = true;
     }
+    bytesRead++;
   }
   
-  // Return true if we have valid location data
-  return newData && gps.location.isValid();
+  // Return true only if we have valid, recent location data
+  return newData && isGPSDataValid();
 }

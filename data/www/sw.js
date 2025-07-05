@@ -1,17 +1,16 @@
 // Service Worker for Luna Sailing Dashboard PWA
 
-const CACHE_NAME = 'luna-sailing-cache-v1';
+const CACHE_NAME = 'luna-sailing-cache-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
   '/css/styles.css',
   '/js/main.js',
-  '/js/websocket.js',
-  '/js/charts.js',
-  '/js/gauges.js',
-  '/js/chart.min.js',
+  '/js/ble.js',
+  '/js/dashboard.js',
   '/js/pwa-install.js',
+  '/js/sailing-map.js',
   '/images/icons/icon-192x192.png',
   '/images/icons/icon-512x512.png'
 ];
@@ -46,7 +45,7 @@ self.addEventListener('activate', event => {
 
 // Fetch event - serve from cache if available, otherwise fetch from network
 self.addEventListener('fetch', event => {
-  // Skip WebSocket connections
+  // Skip BLE connections (though they don't use HTTP fetch)
   if (event.request.url.includes('/ws')) {
     return;
   }
@@ -91,11 +90,11 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// Handle WebSocket reconnection when coming back online
+// Handle BLE reconnection when coming back online
 self.addEventListener('message', event => {
   if (event.data === 'ONLINE') {
     self.clients.matchAll().then(clients => {
-      clients.forEach(client => client.postMessage('RECONNECT'));
+      clients.forEach(client => client.postMessage('RECONNECT_BLE'));
     });
   }
 });

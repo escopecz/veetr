@@ -331,7 +331,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Global functions for ESP32 integration
-        // These functions will be called by websocket.js when GPS data arrives
+        // These functions will be called by ble.js when GPS data arrives
         window.updateMapPosition = function(lat, lon, timestamp) {
             if (window.sailingMap) {
                 window.sailingMap.updateGPSPosition(lat, lon, timestamp);

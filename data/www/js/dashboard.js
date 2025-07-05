@@ -445,11 +445,12 @@ function setupDeadWindAngleInput() {
             if (val > 60) val = 60;
             deadWindInput.value = val;
             window.currentDeadWindAngle = val;
-            // Send to ESP32 via WebSocket
-            if (typeof window.getWebSocketState === 'function') {
-                const wsState = window.getWebSocketState();
-                if (wsState && wsState.socket && wsState.readyState === WebSocket.OPEN) {
-                    wsState.socket.send(JSON.stringify({ action: 'setDeadWindAngle', value: val }));
+            // Send to ESP32 via BLE
+            if (typeof window.getBLEState === 'function') {
+                const bleState = window.getBLEState();
+                if (bleState && bleState.device && bleState.isConnected) {
+                    // TODO: Send actual BLE command when characteristics are implemented
+                    console.log('Sending setDeadWindAngle over BLE:', val);
                 }
             }
             updateWindDirection();
@@ -457,7 +458,7 @@ function setupDeadWindAngleInput() {
     }
 }
 
-// Called from updateDashboard (websocket.js) to set the dead wind angle from ESP32
+// Called from updateDashboard (ble.js) to set the dead wind angle from ESP32
 window.setDeadWindAngleFromESP = function(val) {
     const deadWindInput = document.getElementById('dead-wind-angle');
     // Only update the input value if it does NOT have focus
