@@ -149,6 +149,8 @@ function getRefreshRate() {
 
 // Update the dashboard with received data (handles compact JSON keys)
 function updateDashboard(data) {
+    console.log('[DEBUG] Raw data received:', data);
+    
     // Map compact keys to original names for compatibility
     const mappedData = {
         speed: data.spd || 0,
@@ -170,47 +172,96 @@ function updateDashboard(data) {
         gpsSatellites: data.gSat || 0
     };
     
+    console.log('[DEBUG] Mapped data:', mappedData);
+    
     // Use original update logic with mapped data
     updateDashboardOriginal(mappedData);
 }
 
 // Original dashboard update function (renamed)
 function updateDashboardOriginal(data) {
+    console.log('[DEBUG] updateDashboardOriginal called with:', data);
+    
     // Update speed data
     // Show N/A if GPS speed is too low or invalid
     const SPEED_THRESHOLD = 0.5; // knots
     let displaySpeed = null;
+    
+    console.log('[DEBUG] GPS Speed:', data.gpsSpeed, 'Speed:', data.speed);
+    
     if (data.gpsSpeed !== undefined && data.gpsSpeed !== null && !isNaN(data.gpsSpeed)) {
         if (data.gpsSpeed >= SPEED_THRESHOLD) {
             displaySpeed = data.gpsSpeed;
-            document.getElementById('speed-value').textContent = data.gpsSpeed.toFixed(1);
+            const speedElement = document.getElementById('speed-value');
+            if (speedElement) {
+                speedElement.textContent = data.gpsSpeed.toFixed(1);
+                console.log('[DEBUG] Updated speed-value element to:', data.gpsSpeed.toFixed(1));
+            } else {
+                console.error('[DEBUG] speed-value element not found!');
+            }
         } else {
             displaySpeed = null;
-            document.getElementById('speed-value').textContent = 'N/A';
+            const speedElement = document.getElementById('speed-value');
+            if (speedElement) {
+                speedElement.textContent = 'N/A';
+            }
         }
     } else if (data.speed !== undefined && data.speed !== null && !isNaN(data.speed)) {
         if (data.speed >= SPEED_THRESHOLD) {
             displaySpeed = data.speed;
-            document.getElementById('speed-value').textContent = data.speed.toFixed(1);
+            const speedElement = document.getElementById('speed-value');
+            if (speedElement) {
+                speedElement.textContent = data.speed.toFixed(1);
+                console.log('[DEBUG] Updated speed-value element to:', data.speed.toFixed(1));
+            } else {
+                console.error('[DEBUG] speed-value element not found!');
+            }
         } else {
             displaySpeed = null;
-            document.getElementById('speed-value').textContent = 'N/A';
+            const speedElement = document.getElementById('speed-value');
+            if (speedElement) {
+                speedElement.textContent = 'N/A';
+            }
         }
     } else {
-        document.getElementById('speed-value').textContent = 'N/A';
+        const speedElement = document.getElementById('speed-value');
+        if (speedElement) {
+            speedElement.textContent = 'N/A';
+        }
     }
+    
     if (data.speedMax !== undefined && data.speedMax !== null && !isNaN(data.speedMax)) {
-        document.getElementById('speed-max').textContent = data.speedMax.toFixed(1);
+        const speedMaxElement = document.getElementById('speed-max');
+        if (speedMaxElement) {
+            speedMaxElement.textContent = data.speedMax.toFixed(1);
+        }
     } else {
-        document.getElementById('speed-max').textContent = 'N/A';
+        const speedMaxElement = document.getElementById('speed-max');
+        if (speedMaxElement) {
+            speedMaxElement.textContent = 'N/A';
+        }
     }
     if (data.speedAvg !== undefined && data.speedAvg !== null && !isNaN(data.speedAvg)) {
-        document.getElementById('speed-avg').textContent = data.speedAvg.toFixed(1);
+        const speedAvgElement = document.getElementById('speed-avg');
+        if (speedAvgElement) {
+            speedAvgElement.textContent = data.speedAvg.toFixed(1);
+        }
     } else {
-        document.getElementById('speed-avg').textContent = 'N/A';
+        const speedAvgElement = document.getElementById('speed-avg');
+        if (speedAvgElement) {
+            speedAvgElement.textContent = 'N/A';
+        }
     }
+    
     // Pass max and avg to the gauge update function, use 0 if displaySpeed is null
-    updateSpeedGauge(displaySpeed !== null ? displaySpeed : 0, data.speedMax, data.speedAvg);
+    console.log('[DEBUG] Calling updateSpeedGauge with:', displaySpeed !== null ? displaySpeed : 0, data.speedMax, data.speedAvg);
+    
+    // Check if the function exists before calling it
+    if (typeof updateSpeedGauge === 'function') {
+        updateSpeedGauge(displaySpeed !== null ? displaySpeed : 0, data.speedMax, data.speedAvg);
+    } else {
+        console.error('[DEBUG] updateSpeedGauge function not found!');
+    }
 
     // Show satellite count in the top right of the speed widget
     if (data.gpsSatellites !== undefined) {
@@ -223,32 +274,46 @@ function updateDashboardOriginal(data) {
     
     // Update wind data
     const windSpeedElement = document.getElementById('wind-speed-value');
-    if (data.windSpeed !== undefined && data.windSpeed !== null && !isNaN(data.windSpeed)) {
-        windSpeedElement.textContent = data.windSpeed.toFixed(1);
+    if (windSpeedElement) {
+        if (data.windSpeed !== undefined && data.windSpeed !== null && !isNaN(data.windSpeed)) {
+            windSpeedElement.textContent = data.windSpeed.toFixed(1);
+        } else {
+            windSpeedElement.textContent = 'N/A';
+        }
     } else {
-        windSpeedElement.textContent = 'N/A';
+        console.error('[DEBUG] wind-speed-value element not found!');
     }
+    
     // Update true wind data if available
-    if (data.trueWindSpeed !== undefined && data.trueWindSpeed !== null && !isNaN(data.trueWindSpeed)) {
-        const trueWindSpeedElement = document.getElementById('true-wind-speed-value');
-        trueWindSpeedElement.textContent = data.trueWindSpeed.toFixed(1);
+    const trueWindSpeedElement = document.getElementById('true-wind-speed-value');
+    if (trueWindSpeedElement) {
+        if (data.trueWindSpeed !== undefined && data.trueWindSpeed !== null && !isNaN(data.trueWindSpeed)) {
+            trueWindSpeedElement.textContent = data.trueWindSpeed.toFixed(1);
+        } else {
+            trueWindSpeedElement.textContent = 'N/A';
+        }
     } else {
-        const trueWindSpeedElement = document.getElementById('true-wind-speed-value');
-        trueWindSpeedElement.textContent = 'N/A';
+        console.error('[DEBUG] true-wind-speed-value element not found!');
     }
     // Set dead wind angle from ESP32 if present
     if (typeof data.deadWindAngle === 'number' && !isNaN(data.deadWindAngle)) {
-        window.setDeadWindAngleFromESP(data.deadWindAngle);
+        if (typeof window.setDeadWindAngleFromESP === 'function') {
+            window.setDeadWindAngleFromESP(data.deadWindAngle);
+        }
     }
     // Pass wind speed and max/avg values to the update function, including true wind data
-    updateWindDirection(
-        data.windDirection,
-        data.windSpeed,
-        data.windSpeedMax,
-        data.windSpeedAvg,
-        data.trueWindSpeed,
-        data.trueWindDirection
-    );
+    if (typeof updateWindDirection === 'function') {
+        updateWindDirection(
+            data.windDirection,
+            data.windSpeed,
+            data.windSpeedMax,
+            data.windSpeedAvg,
+            data.trueWindSpeed,
+            data.trueWindDirection
+        );
+    } else {
+        console.error('[DEBUG] updateWindDirection function not found!');
+    }
     
     // Update tilt data
     // No more tilt-value element, handled by updateTiltGauge

@@ -1,6 +1,20 @@
 # Luna Sailing Dashboard
 
-A sailing vessel monitoring system built with ESP32, providing real-time data on vessel speed, wind conditions, and tilt angle.
+A sailing vessel monitoring system built with ESP32, providing real-time data on vessel speed, wind conditions, and tilt angle through a modern web application that connects via Bluetooth Low Energy (BLE).
+
+## 🚨 Architecture Update
+
+**This project has been migrated from WiFi Access Point to BLE (Bluetooth Low Energy) connectivity:**
+
+- **OLD:** ESP32 hosted WiFi Access Point + WebSocket server + web files on SPIFFS
+- **NEW:** ESP32 BLE server + externally hosted web app + Web Bluetooth API connection
+
+**Key Changes:**
+- Web application is now hosted externally (GitHub Pages, Netlify, etc.) over HTTPS
+- ESP32 no longer needs to host web files or run a WiFi Access Point
+- Connection is via Bluetooth Low Energy using Web Bluetooth API
+- Significantly reduced memory usage and improved power efficiency
+- Browser support limited to Chrome, Edge, Opera (no Safari/iOS support)
 
 ## Features
 
@@ -12,10 +26,13 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
   - Installable on mobile devices
   - Works offline (interface only)
   - Responsive design for all screen sizes
-- WiFi Access Point for direct connection
-  - Configurable network name and password through dashboard settings
-  - Secure WPA2 encryption
-- Real-time data updates via WebSockets
+  - Hosted externally (GitHub Pages or any HTTPS hosting)
+- Bluetooth Low Energy (BLE) connectivity:
+  - Direct connection between web app and ESP32
+  - No WiFi network required
+  - Low power consumption
+  - Secure pairing
+- Real-time data updates via BLE notifications
 - Data visualization with gauges and charts
 
 ## Hardware Components
@@ -97,20 +114,18 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
    - Through PlatformIO Home:
      - Click on the PlatformIO icon in the sidebar
      - Go to "Libraries" and search for each library:
-       - AsyncTCP
-       - ESPAsyncWebServer
        - ArduinoJson
        - Adafruit ADXL345
        - TinyGPS++
+       - ModbusMaster
      - Click "Add to Project" and select your project
    
    - Or through the CLI:
      ```bash
-     pio pkg install --library "me-no-dev/AsyncTCP"
-     pio pkg install --library "me-no-dev/ESPAsyncWebServer"
      pio pkg install --library "bblanchon/ArduinoJson"
      pio pkg install --library "adafruit/Adafruit ADXL345"
      pio pkg install --library "mikalhart/TinyGPSPlus"
+     pio pkg install --library "4-20ma/ModbusMaster"
      ```
 
 4. **Build the firmware**
@@ -133,113 +148,116 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
      - Release the BOOT button after the upload begins
    - Wait for the upload to complete (you should see "Success" in the terminal)
 
-7. **Upload the web application files to ESP32**
-   - In VS Code, select "Project Tasks" > "Upload Filesystem Image" or use the VS Code task
-   - This will upload all files in the `/data/www` directory to the ESP32's SPIFFS filesystem
-   - Wait for the upload to complete
-
-8. **Restart the ESP32**
+7. **Restart the ESP32**
    - Press the RST (Reset) button on the ESP32 or
    - Disconnect and reconnect the USB cable
 
 ### Connecting to the Dashboard
 
-#### Initial Connection
+#### Web Application Access
+
+The Luna Sailing Dashboard web application is hosted externally (not on the ESP32) to provide better performance and reliability. You can access it at:
+
+**Live Dashboard:** [https://yourusername.github.io/luna-dashboard](https://yourusername.github.io/luna-dashboard)
+
+*Note: Replace the URL above with your actual hosted dashboard URL*
+
+#### Connecting via Bluetooth Low Energy (BLE)
 
 1. **Power on the ESP32**
    - If using USB: Connect to a computer or power bank
    - If using external power: Connect to the boat's power supply
 
 2. **Wait for system initialization**
-   - The ESP32 needs about 10-15 seconds to boot up and start the WiFi Access Point
-   - If you've enabled status LEDs in the firmware, wait for the indicator showing the system is ready
+   - The ESP32 needs about 10-15 seconds to boot up and start the BLE server
+   - The ESP32 will advertise as "Luna_Sailing" and be discoverable by BLE devices
 
-3. **Connect to the "Luna_Sailing" WiFi network**
-   
-   **Important Security Note**: The default network is **open (no password)** for initial setup convenience. You should configure a password through the dashboard settings as soon as possible.
-   
-   **On iPhone/iPad:**
-   - Go to Settings > Wi-Fi
-   - Wait for "Luna_Sailing" to appear in the list of available networks
-   - Tap on "Luna_Sailing" to connect
-   - No password required (default: open network)
-   - If a "No Internet Connection" warning appears, tap "Use Without Internet"
-   - If the network doesn't appear, pull down on the screen to refresh the network list
-   
-   **On Android:**
-   - Go to Settings > Connections > Wi-Fi (or Settings > Wi-Fi, depending on your device)
-   - Wait for "Luna_Sailing" to appear in the list of available networks
-   - Tap on "Luna_Sailing" to connect
-   - No password required (default: open network)
-   - If a "This Wi-Fi network has no internet access" message appears, tap "Yes" or "Connect anyway"
-   - Some Android devices may automatically switch back to mobile data; if this happens, you may need to disable mobile data temporarily
-   
-   **On Windows:**
-   - Click on the Wi-Fi icon in the taskbar
-   - Select "Luna_Sailing" from the list of available networks
-   - Click "Connect"
-   - No password required (default: open network)
-   - If prompted that "There's no internet access", select "Yes" to connect anyway
-   - Windows may show a "No internet access" message in the Wi-Fi icon - this is normal
-   
-   **On macOS:**
-   - Click on the Wi-Fi icon in the menu bar
-   - Select "Luna_Sailing" from the dropdown list
-   - No password required (default: open network)
-   - If a warning about no internet access appears, click "Join" or "Continue"
-   - macOS may automatically reconnect to other known networks; if this happens, click the Wi-Fi icon and manually select "Luna_Sailing" again
+3. **Access the web dashboard**
+   - Open a BLE-compatible browser (Chrome, Edge, or Opera on desktop/Android)
+   - Navigate to the dashboard URL (hosted externally)
+   - The dashboard must be served over HTTPS for Web Bluetooth API to work
 
-4. **Open the dashboard**
-   - Open your web browser and navigate to `http://192.168.4.1`
-   - For easier access, you can bookmark this address or add it to your home screen (see "Installing as a PWA" below)
-   - If the page doesn't load, try:
-     - Refreshing the browser
-     - Making sure you're still connected to the "Luna_Sailing" network
-     - Checking that you entered the correct address (`http://192.168.4.1`, not https)
-     - Waiting a few more seconds for the ESP32 to fully initialize
+4. **Connect to the ESP32**
+   - Click the "Connect to Luna Sailing" button in the dashboard
+   - Your browser will show a device selection dialog
+   - Select "Luna_Sailing" from the list of available devices
+   - Click "Pair" or "Connect"
+   - The connection status will change to "Connected via BLE"
 
 5. **Verify the connection**
-   - Once connected, you should see the dashboard with real-time data
+   - Once connected, you should see real-time data updating in the dashboard
    - Check that the data is updating (approximately once per second)
-   - If using simulated data, you'll see the values changing randomly
-   - If using real sensors, check that the values respond to actual changes in movement, wind, etc.
+   - Satellite count should be visible if GPS is connected
+   - Sensor values should respond to actual changes in movement, wind, etc.
 
-6. **Configure WiFi Settings (Recommended)**
-   - For security, you should configure a WiFi password as soon as possible
-   - Navigate to the Settings panel by clicking the gear icon in the top-right corner
-   - Find the "WiFi Access Point" section
-   - Enter your desired network name (SSID) and a secure password
-   - Click "Apply WiFi Settings" to save and restart with new credentials
-   - The ESP32 will restart and create a new WiFi network with your settings
-   - Reconnect to the new network using your configured credentials
+#### Browser Compatibility
+
+**Supported Browsers with Web Bluetooth API:**
+- **Chrome** (Desktop: Windows, macOS, Linux; Mobile: Android)
+- **Edge** (Desktop: Windows, macOS; Mobile: Android)
+- **Opera** (Desktop: Windows, macOS, Linux; Mobile: Android)
+
+**Not Supported:**
+- Safari (iOS/macOS) - Does not support Web Bluetooth API
+- Firefox - Limited or no Web Bluetooth support
+- Most iOS browsers - iOS restricts Web Bluetooth API
+
+**Recommended Setup:**
+- Android device with Chrome browser
+- Windows/macOS/Linux desktop with Chrome or Edge
+- Ensure the dashboard is served over HTTPS
 
 #### Troubleshooting Connection Issues
 
-- **Can't find the WiFi network**
-  - Make sure the ESP32 is powered on
+- **Can't find the Luna_Sailing BLE device**
+  - Make sure the ESP32 is powered on and fully booted (wait 15-20 seconds)
   - Try restarting the ESP32 by pressing the reset button
-  - Move closer to the ESP32 - the range is typically 10-30 meters in open space
-  - Check if your device's WiFi is turned on
+  - Move closer to the ESP32 - BLE range is typically 10-30 meters in open space
+  - Ensure you're using a supported browser (Chrome, Edge, or Opera)
+  - Check that Bluetooth is enabled on your device
 
-- **Connected to WiFi but can't access the dashboard**
-  - Verify you're navigating to `http://192.168.4.1` (not https)
-  - Try clearing your browser cache
-  - Try a different browser
-  - Restart the ESP32
+- **Browser shows "Bluetooth not supported" error**
+  - Make sure you're using Chrome, Edge, or Opera (not Safari or Firefox)
+  - Ensure the dashboard is served over HTTPS (required for Web Bluetooth API)
+  - Try updating your browser to the latest version
+  - On Android, ensure location services are enabled (required for BLE scanning)
 
-- **Dashboard loads but no data appears**
-  - Check the WebSocket connection (a message will appear if disconnected)
-  - Refresh the page
-  - If using real sensors, verify they are properly connected
-  - Check the serial monitor output for any error messages
+- **Dashboard loads but BLE connection fails**
+  - Check that your device's Bluetooth is turned on
+  - Try clearing your browser cache and cookies
+  - Restart your browser completely
+  - Try connecting from a different device
+  - Check the browser console (F12) for error messages
+
+- **Connected but no data appears**
+  - Check the BLE connection status indicator in the dashboard
+  - Refresh the page and try reconnecting
+  - If using real sensors, verify they are properly connected to the ESP32
+  - Check the ESP32 serial monitor output for any error messages
+  - Try restarting the ESP32
+
+- **iOS/Safari compatibility issues**
+  - Unfortunately, iOS Safari does not support Web Bluetooth API
+  - Use an Android device or desktop browser instead
+  - Consider using a third-party iOS browser that might support Web Bluetooth (limited options)
+
+- **Data updates are slow or intermittent**
+  - This may be due to BLE connection quality or interference
+  - Move closer to the ESP32
+  - Remove sources of 2.4GHz interference (WiFi, microwaves, etc.)
+  - Try restarting both the ESP32 and reconnecting from the browser
 
 ### Installing as a PWA
 
-The Luna Sailing Dashboard is designed as a Progressive Web App (PWA), which means you can install it on your device for easier access and a more app-like experience. Once installed, you can launch it directly from your home screen without opening a browser and typing the address.
+The Luna Sailing Dashboard is designed as a Progressive Web App (PWA), which means you can install it on your device for easier access and a more app-like experience. Once installed, you can launch it directly from your home screen without opening a browser and navigating to the URL.
+
+**Important:** The PWA must be served over HTTPS to enable installation and Web Bluetooth API functionality.
 
 #### On iPhone/iPad (Safari)
 
-1. Open the dashboard in Safari (navigate to `http://192.168.4.1`)
+**Note:** While you can install the PWA on iOS, Web Bluetooth is not supported in Safari, so you'll need to use an Android device or desktop browser for BLE connectivity.
+
+1. Open the dashboard URL in Safari (the externally hosted HTTPS version)
 2. Tap the Share button (rectangle with an arrow pointing up) at the bottom of the screen
 3. Scroll down and tap "Add to Home Screen"
 4. You can rename the app if you wish
@@ -530,14 +548,15 @@ The Luna Sailing Dashboard includes a hardware-based factory reset feature that 
 
 ### Project Structure
 
-- `/src`: Main C++ code for ESP32
-  - Contains WiFi management and settings handling
-- `/data/www`: Web dashboard files
-  - `/css`: Stylesheets (including settings panel styling)
-  - `/js`: JavaScript files (including WiFi configuration logic)
+- `/src`: Main C++ code for ESP32 (BLE server and sensor management)
+- `/data/www`: Web dashboard files (legacy - now hosted externally)
+  - `/css`: Stylesheets
+  - `/js`: JavaScript files (including BLE connection logic)
   - `/images`: Icons and graphics
 - `/include`: Header files
 - `/lib`: Libraries
+
+**Note:** The `/data/www` folder contains the web application files for reference and local development, but in the new architecture, these files should be hosted externally (e.g., GitHub Pages) rather than uploaded to the ESP32's filesystem.
 
 ### Building and Uploading
 
@@ -601,8 +620,9 @@ The Luna Sailing Dashboard is designed to operate efficiently on battery power, 
 ### Power Requirements
 
 - **ESP32 Power Consumption**:
-  - Normal operation (WiFi AP active): ~160-180mA @ 5V (~0.9W)
+  - Normal operation (BLE active): ~80-120mA @ 5V (~0.4-0.6W)
   - Deep sleep mode: ~10μA @ 5V (negligible)
+  - **Significant improvement**: BLE uses ~50% less power than WiFi Access Point mode
   
 - **Sensor Power Requirements**:
   - GPS Module: ~50mA @ 3.3V
@@ -610,8 +630,8 @@ The Luna Sailing Dashboard is designed to operate efficiently on battery power, 
   - Wind Sensor: Varies by model, typically 100-300mA @ 5-12V
   
 - **Total System**:
-  - Typical consumption: ~250-350mA @ 5V (1.25-1.75W)
-  - This means a 10Ah power bank can power the system for approximately 20-30 hours
+  - Typical consumption: ~180-270mA @ 5V (0.9-1.35W)
+  - This means a 10Ah power bank can power the system for approximately 30-40 hours
 
 ### Battery Connection Options
 

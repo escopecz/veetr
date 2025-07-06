@@ -13,7 +13,7 @@
 // Debug flags - uncomment for verbose output
 // #define DEBUG_BLE_DATA
 // #define DEBUG_WIND_SENSOR
-#define DEBUG_GPS         // Temporarily enable GPS debugging
+// #define DEBUG_GPS
 // #define DEBUG_ACCEL
 
 // Persistent storage for settings
