@@ -26,20 +26,20 @@ export default function Dashboard() {
           />
         </div>
         <div className="dashboard-cards-area">
-          <SpeedCard 
-            speed={sailingData.gpsSpeed > 0.5 ? sailingData.gpsSpeed : sailingData.speed}
-            satellites={sailingData.gpsSatellites}
-          />
           <WindCard
             windSpeed={sailingData.windSpeed}
             title="Apparent Wind"
           />
+          <ApparentAngleCard angle={sailingData.windDirection} />
           <WindCard
             windSpeed={sailingData.trueWindSpeed}
             title="True Wind"
           />
-          <ApparentAngleCard angle={sailingData.windDirection} />
           <TrueWindAngleCard twa={sailingData.trueWindDirection} />
+          <SpeedCard 
+            speed={sailingData.gpsSpeed > 0.5 ? sailingData.gpsSpeed : sailingData.speed}
+            satellites={sailingData.gpsSatellites}
+          />
           <TiltCard
             tilt={sailingData.tilt}
             portMax={sailingData.tiltPortMax}

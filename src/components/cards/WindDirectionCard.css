@@ -5,12 +5,10 @@
   min-height: 0;
   min-width: 0;
   margin: 0;
-  background: rgba(255, 255, 255, 0.05);
   position: relative;
   overflow: hidden;
   padding: 0;
   box-sizing: border-box;
-  background-color: rgba(255, 255, 255, 0.05);
 }
 
 @media (orientation: landscape) {
@@ -39,15 +37,7 @@
 }
 
 .wind-direction-card::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-  animation: rotate 30s linear infinite;
-  z-index: 0;
+  display: none;
 }
 
 @keyframes rotate {
@@ -82,9 +72,7 @@
   justify-content: space-around;
   margin-top: 0.1rem;
   padding: 0.3rem;
-  background: rgba(255, 255, 255, 0.15);
   border-radius: 8px;
-  backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
