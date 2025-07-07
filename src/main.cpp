@@ -5,10 +5,7 @@
 #include <TinyGPS++.h>
 #include <Wire.h>
 #include <Adafruit_ADXL345_U.h>
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
+#include <NimBLEDevice.h>
 
 // Debug flags - uncomment for verbose output
 // #define DEBUG_BLE_DATA
@@ -26,12 +23,13 @@ int deadWindAngle = 40; // default
 #define SENSOR_DATA_UUID    "87654321-4321-4321-4321-cba987654321"
 #define COMMAND_UUID        "11111111-2222-3333-4444-555555555555"
 
-BLEServer* pServer = NULL;
-BLECharacteristic* pSensorDataCharacteristic = NULL;
-BLECharacteristic* pCommandCharacteristic = NULL;
+NimBLEServer* pServer = NULL;
+NimBLECharacteristic* pSensorDataCharacteristic = NULL;
+NimBLECharacteristic* pCommandCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 int bleRSSI = 0; // BLE signal strength
+uint16_t connectedDeviceCount = 0; // Track number of connected devices
 
 // ADXL345 Accelerometer (I2C)
 #define ADXL345_SDA 18
@@ -56,21 +54,25 @@ HardwareSerial gpsSerial(GPS_UART);
 TinyGPSPlus gps;
 
 // BLE Server Callbacks
-class MyServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) {
+class MyServerCallbacks: public NimBLEServerCallbacks {
+    void onConnect(NimBLEServer* pServer) {
+      connectedDeviceCount++;
       deviceConnected = true;
-      Serial.println("BLE Client connected");
+      Serial.printf("BLE Client connected (total: %d)\n", connectedDeviceCount);
     };
 
-    void onDisconnect(BLEServer* pServer) {
-      deviceConnected = false;
-      bleRSSI = 0; // Reset RSSI when disconnected
-      Serial.println("BLE Client disconnected");
+    void onDisconnect(NimBLEServer* pServer) {
+      connectedDeviceCount--;
+      if (connectedDeviceCount == 0) {
+        deviceConnected = false;
+        bleRSSI = 0; // Reset RSSI when all devices disconnected
+      }
+      Serial.printf("BLE Client disconnected (remaining: %d)\n", connectedDeviceCount);
     }
 };
 
-class CommandCallbacks: public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic *pCharacteristic) {
+class CommandCallbacks: public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic *pCharacteristic) {
       std::string value = pCharacteristic->getValue();
       
       if (value.length() > 0) {
@@ -110,16 +112,17 @@ class CommandCallbacks: public BLECharacteristicCallbacks {
 
 // Function to read BLE connection RSSI
 void updateBLERSSI() {
-  if (deviceConnected) {
-    // Note: Getting RSSI from BLE server connection is complex with ESP32 Arduino library
-    // For now, we'll indicate connection strength based on connection status
-    // A more complete implementation would require lower-level ESP-IDF programming
-    bleRSSI = -50; // Default "good" signal strength when connected
+  if (deviceConnected && pServer) {
+    // For now, set a placeholder value when connected
+    // NimBLE RSSI reading requires more complex implementation
+    // This will be improved in future versions
+    bleRSSI = -50; // Placeholder indicating good connection
     
     #ifdef DEBUG_BLE_DATA
     static unsigned long lastRSSIDebug = 0;
     if (millis() - lastRSSIDebug > 10000) { // Debug every 10 seconds
-      Serial.printf("[BLE] Connection active, RSSI estimated: %d dBm\n", bleRSSI);
+      std::vector<uint16_t> connIds = pServer->getPeerDevices();
+      Serial.printf("[BLE] %d devices connected (RSSI placeholder: %d dBm)\n", connIds.size(), bleRSSI);
       lastRSSIDebug = millis();
     }
     #endif
@@ -215,47 +218,50 @@ bool isGPSDataValid();
 
 // BLE Setup Function
 void setupBLE() {
-  // Create the BLE Device with minimal configuration
-  BLEDevice::init("Luna_Sailing");
+  // Initialize NimBLE
+  NimBLEDevice::init("Luna_Sailing");
   
-  // Set TX power to minimum for power saving
-  BLEDevice::setPower(ESP_PWR_LVL_N12);
-
+  // Set TX power for balance between range and power consumption
+  NimBLEDevice::setPower(ESP_PWR_LVL_P3); // +3dBm for better range
+  
+  // Configure for multiple connections - set in platformio.ini instead
+  // NimBLE supports multiple connections by default
+  
   // Create the BLE Server
-  pServer = BLEDevice::createServer();
+  pServer = NimBLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
 
   // Create the BLE Service
-  BLEService *pService = pServer->createService(SERVICE_UUID);
+  NimBLEService *pService = pServer->createService(SERVICE_UUID);
 
-  // Create BLE Characteristics with minimal properties
+  // Create BLE Characteristics
   
-  // Sensor Data Characteristic (notify only)
+  // Sensor Data Characteristic (notify + read for better compatibility)
   pSensorDataCharacteristic = pService->createCharacteristic(
                       SENSOR_DATA_UUID,
-                      BLECharacteristic::PROPERTY_NOTIFY
+                      NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
                     );
-  pSensorDataCharacteristic->addDescriptor(new BLE2902());
-
+  
   // Command Characteristic (write only)
   pCommandCharacteristic = pService->createCharacteristic(
                       COMMAND_UUID,
-                      BLECharacteristic::PROPERTY_WRITE
+                      NIMBLE_PROPERTY::WRITE
                     );
   pCommandCharacteristic->setCallbacks(new CommandCallbacks());
 
   // Start the service
   pService->start();
 
-  // Start advertising with minimal configuration
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  // Start advertising
+  NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
-  pAdvertising->setScanResponse(false);
-  pAdvertising->setMinPreferred(0x06);  // 7.5ms intervals for faster connection
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);  // 7.5ms intervals
   pAdvertising->setMaxPreferred(0x12);  // 22.5ms intervals
-  BLEDevice::startAdvertising();
+  pAdvertising->start();
   
-  Serial.println("BLE Server started, waiting for client connections...");
+  Serial.println("NimBLE Server started, waiting for client connections...");
+  Serial.println("Multiple connections supported");
 }
 
 // Update BLE with current sensor data
@@ -263,23 +269,35 @@ void updateBLEData() {
   if (deviceConnected && pSensorDataCharacteristic) {
     String jsonData = getSensorDataJson();
     
-    #ifdef DEBUG_BLE_DATA
-    Serial.print("[BLE] JSON size: ");
-    Serial.print(jsonData.length());
-    Serial.print(" bytes: ");
-    Serial.println(jsonData);
-    #endif
+    // Check if JSON is valid and not too large for BLE
+    const int MAX_BLE_PACKET_SIZE = 244; // Conservative BLE MTU limit
     
-    // Limit JSON size for BLE MTU (usually 244 bytes max)
-    if (jsonData.length() > 240) {
-      #ifdef DEBUG_BLE_DATA
-      Serial.println("[BLE] Warning: Data too large, truncating");
-      #endif
-      jsonData = jsonData.substring(0, 240);
+    if (jsonData.length() > MAX_BLE_PACKET_SIZE) {
+      Serial.printf("[BLE] ERROR: JSON too large (%d bytes, max %d)\n", jsonData.length(), MAX_BLE_PACKET_SIZE);
+      return; // Don't send invalid data
     }
     
-    pSensorDataCharacteristic->setValue(jsonData.c_str());
-    pSensorDataCharacteristic->notify();
+    // Validate JSON format
+    if (!jsonData.startsWith("{") || !jsonData.endsWith("}")) {
+      Serial.println("[BLE] ERROR: Invalid JSON format");
+      return;
+    }
+    
+    #ifdef DEBUG_BLE_DATA
+    Serial.printf("[BLE] Sending %d bytes to %d devices: %s\n", 
+                  jsonData.length(), connectedDeviceCount, jsonData.c_str());
+    #endif
+    
+    // Send to all connected devices
+    // Double-check connection state before sending
+    if (pServer->getConnectedCount() > 0) {
+      // Create byte array to avoid string encoding issues
+      std::vector<uint8_t> data(jsonData.begin(), jsonData.end());
+      pSensorDataCharacteristic->setValue(data);
+      pSensorDataCharacteristic->notify();
+    } else {
+      Serial.println("[BLE] No connected devices found, skipping transmission");
+    }
   }
 }
 
@@ -353,8 +371,8 @@ void loop() {
     // Handle BLE disconnection/reconnection
     if (!deviceConnected && oldDeviceConnected) {
         delay(500); // give the bluetooth stack the chance to get things ready
-        pServer->startAdvertising(); // restart advertising
-        Serial.println("BLE: Reconnecting...");
+        NimBLEDevice::startAdvertising(); // restart advertising
+        Serial.println("BLE: Restarting advertising...");
         oldDeviceConnected = deviceConnected;
     }
     // connecting
@@ -369,7 +387,10 @@ void loop() {
     static unsigned long lastStatusTime = 0;
     if (millis() - lastStatusTime > 5000) {
       Serial.print("Status: ");
-      if (deviceConnected) Serial.print("BLE✓ ");
+      if (deviceConnected) {
+        Serial.printf("BLE✓(%d) ", connectedDeviceCount);
+        if (bleRSSI != 0) Serial.printf("RSSI:%ddBm ", bleRSSI);
+      }
       if (!isnan(currentData.speed) && currentData.speed > 0) 
         Serial.printf("Spd:%.1fkt ", currentData.speed);
       if (!isnan(currentData.windSpeed)) 
@@ -582,25 +603,21 @@ void updateHistory() {
 
 // Generate JSON string with current sensor data (compact format)
 String getSensorDataJson() {
-  DynamicJsonDocument doc(300); // Reduced even further
+  DynamicJsonDocument doc(200); // Reduced to be extra safe for BLE MTU
   
-  // Use even shorter keys and remove some less critical data
+  // Core data only - keep it minimal
   doc["spd"] = isnan(currentData.speed) ? 0 : currentData.speed;
   doc["wSpd"] = isnan(currentData.windSpeed) ? 0 : currentData.windSpeed;
   doc["wDir"] = currentData.windDirection;
-  doc["twSpd"] = isnan(currentData.trueWindSpeed) ? 0 : currentData.trueWindSpeed;
-  doc["twDir"] = isnan(currentData.trueWindDirection) ? 0 : currentData.trueWindDirection;
   doc["tilt"] = isnan(currentData.tilt) ? 0 : currentData.tilt;
   doc["gSpd"] = (gpsDataValid && gps.speed.isValid() && gps.satellites.value() >= 5) ? gps.speed.knots() : 0.0;
   doc["gSat"] = (gps.charsProcessed() > 10 && gps.satellites.isValid()) ? gps.satellites.value() : 0;
-  doc["bleRSSI"] = bleRSSI; // BLE signal strength in dBm
+  doc["bleRSSI"] = bleRSSI;
   
-  // Optional: Add max values only if space allows
-  if (doc.memoryUsage() < 200) {
-    doc["spdMax"] = currentData.speedMax;
-    doc["wSpdMax"] = currentData.windSpeedMax;
-    doc["tiltPMax"] = currentData.tiltPortMax;
-    doc["tiltSMax"] = currentData.tiltStarboardMax;
+  // Only add max values if we have room (check actual memory usage)
+  if (doc.memoryUsage() < 150) {
+    doc["spdMax"] = isnan(currentData.speedMax) ? 0 : currentData.speedMax;
+    doc["wSpdMax"] = isnan(currentData.windSpeedMax) ? 0 : currentData.windSpeedMax;
   }
   
   String output;
