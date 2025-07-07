@@ -7,6 +7,7 @@
 .status-indicator {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   font-size: 0.9rem;
 }
@@ -72,21 +73,21 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.3rem;
   width: 100%;
 }
 
 .connection-status-info {
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.1rem;
   text-align: center;
   width: 100%;
 }
 
 .connection-status-btn {
-  width: 100%;
+  width: auto;
   max-width: 100%;
   min-width: 0;
-  margin: 0;
+  margin: 0 auto;
   display: block;
   background: rgba(255,255,255,0.10);
   backdrop-filter: blur(10px);
@@ -95,14 +96,14 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   transition: background 0.2s, box-shadow 0.2s;
   font-weight: 600;
-  font-size: 1.05em;
-  border-radius: 8px;
-  padding: 0.6em 0.2em;
-  min-height: 44px;
-  cursor: pointer;
-  overflow: hidden;
+  font-size: 0.85em;
+  border-radius: 4px;
+  padding: 0.2em 0.6em;
   text-overflow: ellipsis;
+  overflow: hidden;
   white-space: nowrap;
+  min-height: auto;
+  cursor: pointer;
 }
 
 .connection-status-btn:hover, .connection-status-btn:focus {
@@ -156,4 +157,55 @@
     background: rgba(255, 255, 255, 0.15);
     transform: scale(0.98);
   }
+}
+
+/* Signal Strength Indicator */
+.signal-strength {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+.signal-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 12px;
+}
+
+.signal-bar {
+  width: 3px;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 1px;
+  transition: background-color 0.3s ease;
+}
+
+.signal-bar:nth-child(1) {
+  height: 3px;
+}
+
+.signal-bar:nth-child(2) {
+  height: 6px;
+}
+
+.signal-bar:nth-child(3) {
+  height: 9px;
+}
+
+.signal-bar:nth-child(4) {
+  height: 12px;
+}
+
+.signal-bar.active {
+  background-color: #10b981;
+}
+
+.signal-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  text-transform: capitalize;
 }

@@ -18,6 +18,15 @@ export default function ConnectionStatus() {
     return 'disconnected'
   }
 
+  const getSignalBars = () => {
+    if (!state.isConnected || state.rssi === null) return 0
+    if (state.rssi >= -50) return 4 // Excellent
+    if (state.rssi >= -60) return 3 // Good
+    if (state.rssi >= -70) return 2 // Fair
+    if (state.rssi >= -80) return 1 // Poor
+    return 0 // Very poor
+  }
+
   const handleButtonClick = () => {
     if (state.isConnected) {
       disconnect()
@@ -33,12 +42,26 @@ export default function ConnectionStatus() {
           <span className="status-dot"></span>
           <span className="status-text">{getStatusText()}</span>
         </div>
+        {state.isConnected && state.rssi !== null && (
+          <div className="signal-strength">
+            <div className="signal-bars">
+              {[1, 2, 3, 4].map(bar => (
+                <div
+                  key={bar}
+                  className={`signal-bar ${bar <= getSignalBars() ? 'active' : ''}`}
+                />
+              ))}
+            </div>
+            <span className="signal-text">
+              {state.rssi}dBm ({state.signalQuality})
+            </span>
+          </div>
+        )}
       </div>
       <button 
         className="connection-status-btn"
         onClick={handleButtonClick}
         disabled={state.isConnecting}
-        style={{ minWidth: 0, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '1em', padding: '0.6em 0.2em' }}
       >
         {state.isConnected ? 'Disconnect' : 'Connect'}
       </button>

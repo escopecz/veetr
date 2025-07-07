@@ -30,6 +30,8 @@ export interface BLEState {
   sensorDataCharacteristic: BluetoothRemoteGATTCharacteristic | null
   commandCharacteristic: BluetoothRemoteGATTCharacteristic | null
   error: string | null
+  rssi: number | null
+  signalQuality: 'excellent' | 'good' | 'fair' | 'poor' | 'unknown'
   sailingData: SailingData
 }
 
@@ -48,6 +50,7 @@ type BLEAction =
   | { type: 'CONNECT_ERROR'; payload: string }
   | { type: 'DISCONNECT' }
   | { type: 'UPDATE_DATA'; payload: Partial<SailingData> }
+  | { type: 'UPDATE_RSSI'; payload: number }
 
 // Initial state
 const initialState: BLEState = {
@@ -58,6 +61,8 @@ const initialState: BLEState = {
   sensorDataCharacteristic: null,
   commandCharacteristic: null,
   error: null,
+  rssi: null,
+  signalQuality: 'unknown',
   sailingData: {
     speed: 0,
     speedMax: 0,
@@ -77,6 +82,15 @@ const initialState: BLEState = {
     gpsSpeed: 0,
     gpsSatellites: 0
   }
+}
+
+// Helper function to determine signal quality from RSSI
+function getSignalQuality(rssi: number): 'excellent' | 'good' | 'fair' | 'poor' | 'unknown' {
+  if (rssi >= -50) return 'excellent'
+  if (rssi >= -60) return 'good'
+  if (rssi >= -70) return 'fair'
+  if (rssi >= -80) return 'poor'
+  return 'poor'
 }
 
 // Reducer
@@ -105,12 +119,20 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
         device: null,
         server: null,
         sensorDataCharacteristic: null,
-        commandCharacteristic: null
+        commandCharacteristic: null,
+        rssi: null,
+        signalQuality: 'unknown'
       }
     case 'UPDATE_DATA':
       return {
         ...state,
         sailingData: { ...state.sailingData, ...action.payload }
+      }
+    case 'UPDATE_RSSI':
+      return {
+        ...state,
+        rssi: action.payload,
+        signalQuality: getSignalQuality(action.payload)
       }
     default:
       return state
@@ -167,6 +189,8 @@ export function BLEProvider({ children }: { children: ReactNode }) {
         type: 'CONNECT_SUCCESS',
         payload: { device, server, sensorDataCharacteristic, commandCharacteristic }
       })
+
+      // RSSI now comes from ESP32 data stream, no need for periodic monitoring
 
     } catch (error) {
       dispatch({ 
@@ -231,6 +255,11 @@ export function BLEProvider({ children }: { children: ReactNode }) {
       }
 
       dispatch({ type: 'UPDATE_DATA', payload: mappedData })
+
+      // Update RSSI if included in sensor data
+      if (data.bleRSSI !== undefined) {
+        dispatch({ type: 'UPDATE_RSSI', payload: data.bleRSSI })
+      }
 
     } catch (error) {
       console.error('Error parsing BLE sensor data:', error)
