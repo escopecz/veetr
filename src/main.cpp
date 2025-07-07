@@ -8,7 +8,7 @@
 #include <NimBLEDevice.h>
 
 // Debug flags - uncomment for verbose output
-// #define DEBUG_BLE_DATA
+#define DEBUG_BLE_DATA
 // #define DEBUG_WIND_SENSOR
 // #define DEBUG_GPS
 // #define DEBUG_ACCEL
@@ -35,6 +35,7 @@ uint16_t connectedDeviceCount = 0; // Track number of connected devices
 #define ADXL345_SDA 18
 #define ADXL345_SCL 19
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
+bool accelAvailable = false; // Track if accelerometer is working
 #define RS485_DE 14
 #define RS485_RX 25
 #define RS485_TX 26
@@ -101,11 +102,17 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
           
           if (action == "resetHeelAngle") {
             // Reset heel angle by saving current tilt as delta
-            sensors_event_t event;
-            if (accel.getEvent(&event)) {
-              heelAngleDelta = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
-              preferences.putFloat("delta", heelAngleDelta);
-              Serial.println("Heel angle reset");
+            if (accelAvailable) {
+              sensors_event_t event;
+              if (accel.getEvent(&event)) {
+                heelAngleDelta = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
+                preferences.putFloat("delta", heelAngleDelta);
+                Serial.println("Heel angle reset");
+              } else {
+                Serial.println("Heel angle reset failed - can't read accelerometer");
+              }
+            } else {
+              Serial.println("Heel angle reset failed - accelerometer not available");
             }
           }
           else if (action == "regattaSetPort") {
@@ -253,11 +260,6 @@ void setupBLE() {
   // Set TX power for balance between range and power consumption
   NimBLEDevice::setPower(ESP_PWR_LVL_P3); // +3dBm for better range
   
-  // Set security parameters for multiple connections
-  NimBLEDevice::setSecurityAuth(false, false, true);
-  NimBLEDevice::setSecurityPasskey(123456);
-  NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-  
   // Create the BLE Server with connection callbacks
   pServer = NimBLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
@@ -315,8 +317,8 @@ void updateBLEData() {
     }
     
     #ifdef DEBUG_BLE_DATA
-    Serial.printf("[BLE] Sending %d bytes to %d devices: %s\n", 
-                  jsonData.length(), connectedDeviceCount, jsonData.c_str());
+    Serial.printf("[BLE] %lu: Sending %d bytes to %d devices: %s\n", 
+                  millis(), jsonData.length(), connectedDeviceCount, jsonData.c_str());
     #endif
     
     // Send to all connected devices
@@ -341,13 +343,39 @@ void setup() {
   Serial.println(heelAngleDelta);
   Serial.print("[Boot] Loaded deadWindAngle from NVS: ");
   Serial.println(deadWindAngle);
-  // Initialize I2C for ADXL345
+  // Initialize I2C for ADXL345 with detection
   Wire.begin(ADXL345_SDA, ADXL345_SCL);
-  if (!accel.begin()) {
-    Serial.println("No ADXL345 detected, check wiring!");
+  Wire.setTimeout(100); // Set I2C timeout to 100ms to prevent long blocking
+  
+  Serial.print("Testing ADXL345 connection... ");
+  if (accel.begin()) {
+    // Test if we can actually read data (not all zeros)
+    sensors_event_t testEvent;
+    delay(50); // Give sensor time to initialize
+    
+    if (accel.getEvent(&testEvent)) {
+      // Check if we get real data (not all zeros)
+      if (testEvent.acceleration.x != 0 || testEvent.acceleration.y != 0 || testEvent.acceleration.z != 0) {
+        accelAvailable = true;
+        accel.setRange(ADXL345_RANGE_16_G);
+        Serial.println("Connected and working!");
+      } else {
+        accelAvailable = false;
+        Serial.println("Detected but returning all zeros - check wiring/power");
+      }
+    } else {
+      accelAvailable = false;
+      Serial.println("Detected but can't read data - check wiring");
+    }
   } else {
-    Serial.println("ADXL345 accelerometer initialized");
-    accel.setRange(ADXL345_RANGE_16_G);
+    accelAvailable = false;
+    Serial.println("Not detected - check wiring/address");
+  }
+  
+  if (accelAvailable) {
+    Serial.println("ADXL345 accelerometer enabled");
+  } else {
+    Serial.println("ADXL345 accelerometer disabled - tilt will be set to 0");
   }
   // Initialize serial communication
   Serial.begin(115200);
@@ -560,54 +588,66 @@ void readSensors() {
     currentData.trueWindDirection = NAN;
   }
   
-  // Read tilt from ADXL345
-  sensors_event_t event;
-  if (accel.getEvent(&event)) {
-    #ifdef DEBUG_ACCEL
-    Serial.print("[ADXL345] X: "); Serial.print(event.acceleration.x);
-    Serial.print(" Y: "); Serial.print(event.acceleration.y);
-    Serial.print(" Z: "); Serial.print(event.acceleration.z);
-    #endif
-    // If all axes are zero, likely a wiring or address issue
-    if (event.acceleration.x == 0 && event.acceleration.y == 0 && event.acceleration.z == 0) {
-      // Only show error once every 10 seconds to avoid spam
-      static unsigned long lastI2CErrorTime = 0;
-      if (millis() - lastI2CErrorTime > 10000) {
-        Serial.println("[ADXL345] All axes zero! Check wiring or I2C address.");
-        lastI2CErrorTime = millis();
-      }
-      currentData.tilt = NAN;
-      currentData.tiltPortMax = NAN;
-      currentData.tiltStarboardMax = NAN;
-    } else {
-      // Calculate heel/tilt angle (degrees)
-      // Assume Y axis is port-starboard, Z is up
-      float tilt = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
-      float zeroedTilt = tilt - heelAngleDelta;
-      currentData.tilt = zeroedTilt;
-      // Track max port/starboard heel
-      if (tilt < 0) {
-        // Port
-        if (isnan(currentData.tiltPortMax) || tilt < currentData.tiltPortMax) {
-          currentData.tiltPortMax = tilt;
+  // Read tilt from ADXL345 (only if available)
+  if (accelAvailable) {
+    static unsigned long lastAccelRead = 0;
+    const unsigned long ACCEL_READ_INTERVAL = 100; // Read accelerometer every 100ms max
+    
+    if (millis() - lastAccelRead >= ACCEL_READ_INTERVAL) {
+      lastAccelRead = millis();
+      
+      sensors_event_t event;
+      if (accel.getEvent(&event)) {
+        #ifdef DEBUG_ACCEL
+        Serial.print("[ADXL345] X: "); Serial.print(event.acceleration.x);
+        Serial.print(" Y: "); Serial.print(event.acceleration.y);
+        Serial.print(" Z: "); Serial.print(event.acceleration.z);
+        #endif
+        
+        // Check for valid data (not all zeros)
+        if (event.acceleration.x != 0 || event.acceleration.y != 0 || event.acceleration.z != 0) {
+          // Calculate heel/tilt angle (degrees)
+          // Assume Y axis is port-starboard, Z is up
+          float tilt = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
+          float zeroedTilt = tilt - heelAngleDelta;
+          currentData.tilt = zeroedTilt;
+          
+          // Track max port/starboard heel
+          if (tilt < 0) {
+            // Port
+            if (isnan(currentData.tiltPortMax) || tilt < currentData.tiltPortMax) {
+              currentData.tiltPortMax = tilt;
+            }
+          } else {
+            // Starboard
+            if (isnan(currentData.tiltStarboardMax) || tilt > currentData.tiltStarboardMax) {
+              currentData.tiltStarboardMax = tilt;
+            }
+          }
+        } else {
+          // All zeros - sensor may have failed
+          static unsigned long lastZeroWarning = 0;
+          if (millis() - lastZeroWarning > 30000) { // Warn every 30 seconds
+            Serial.println("[ADXL345] Warning: All axes returning zero");
+            lastZeroWarning = millis();
+          }
+          // Keep previous tilt value
         }
       } else {
-        // Starboard
-        if (isnan(currentData.tiltStarboardMax) || tilt > currentData.tiltStarboardMax) {
-          currentData.tiltStarboardMax = tilt;
+        // I2C read failed - sensor may have disconnected
+        static unsigned long lastReadError = 0;
+        if (millis() - lastReadError > 30000) { // Warn every 30 seconds
+          Serial.println("[ADXL345] Warning: I2C read failed - sensor disconnected?");
+          lastReadError = millis();
         }
+        // Keep previous tilt value
       }
     }
   } else {
-    // Only show error once every 10 seconds to avoid spam
-    static unsigned long lastAccelErrorTime = 0;
-    if (millis() - lastAccelErrorTime > 10000) {
-      Serial.println("[ADXL345] Sensor not detected");
-      lastAccelErrorTime = millis();
-    }
-    currentData.tilt = NAN;
-    currentData.tiltPortMax = NAN;
-    currentData.tiltStarboardMax = NAN;
+    // Accelerometer not available - set tilt to 0
+    currentData.tilt = 0.0;
+    currentData.tiltPortMax = 0.0;
+    currentData.tiltStarboardMax = 0.0;
   }
 }
 
