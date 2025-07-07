@@ -261,32 +261,32 @@ export function BLEProvider({ children }: { children: ReactNode }) {
 
       const data = JSON.parse(value)
       
-      // Map compact keys to full names
+      // Map standard keys to internal data structure
       const mappedData: Partial<SailingData> = {
-        speed: data.spd || 0,
-        speedMax: data.spdMax || 0,
-        speedAvg: data.spdAvg || 0,
-        windSpeed: data.wSpd || 0,
-        windSpeedMax: data.wSpdMax || 0,
-        windSpeedAvg: data.wSpdAvg || 0,
-        windDirection: data.wDir || 0,
-        trueWindSpeed: data.twSpd || 0,
-        trueWindSpeedMax: data.twSpdMax || 0,
-        trueWindSpeedAvg: data.twSpdAvg || 0,
-        trueWindDirection: data.twDir || 0,
-        tilt: data.tilt || 0,
-        tiltPortMax: data.tiltPMax || 0,
-        tiltStarboardMax: data.tiltSMax || 0,
+        speed: data.SOG || 0,            // Speed Over Ground
+        speedMax: data.SOGMax || 0,
+        speedAvg: data.SOGAvg || 0,
+        windSpeed: data.AWS || 0,        // Apparent Wind Speed
+        windSpeedMax: data.AWSMax || 0,
+        windSpeedAvg: data.AWSAvg || 0,
+        windDirection: data.AWD || 0,    // Apparent Wind Direction
+        trueWindSpeed: data.TWS || 0,    // True Wind Speed
+        trueWindSpeedMax: data.TWSMax || 0,
+        trueWindSpeedAvg: data.TWSAvg || 0,
+        trueWindDirection: data.TWD || 0, // True Wind Direction
+        tilt: data.heel || 0,            // Heel angle
+        tiltPortMax: data.heelPortMax || 0,
+        tiltStarboardMax: data.heelStarboardMax || 0,
         deadWindAngle: data.deadWind || 40,
-        gpsSpeed: data.gSpd || 0,
-        gpsSatellites: data.gSat || 0
+        gpsSpeed: data.SOG || 0,         // GPS Speed (same as SOG)
+        gpsSatellites: data.satellites || 0
       }
 
       dispatch({ type: 'UPDATE_DATA', payload: mappedData })
 
       // Update RSSI if included in sensor data
-      if (data.bleRSSI !== undefined) {
-        dispatch({ type: 'UPDATE_RSSI', payload: data.bleRSSI })
+      if (data.rssi !== undefined) {
+        dispatch({ type: 'UPDATE_RSSI', payload: data.rssi })
       }
 
       // Update last message timestamp
