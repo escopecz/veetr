@@ -242,6 +242,7 @@ void updateHistory();
 String getSensorDataJson();
 void setupBLE();
 void updateBLEData();
+float filterGPSSpeed(float rawSpeed, int satellites, float hdop);
 
 // Wind Sensor Functions
 void setTransmit(bool tx);
@@ -303,7 +304,7 @@ void updateBLEData() {
     String jsonData = getSensorDataJson();
     
     // Check if JSON is valid and not too large for BLE
-    const int MAX_BLE_PACKET_SIZE = 244; // Conservative BLE MTU limit
+    const int MAX_BLE_PACKET_SIZE = 300; // Increased for marine standard JSON
     
     if (jsonData.length() > MAX_BLE_PACKET_SIZE) {
       Serial.printf("[BLE] ERROR: JSON too large (%d bytes, max %d)\n", jsonData.length(), MAX_BLE_PACKET_SIZE);
@@ -466,6 +467,85 @@ void loop() {
   }
 }
 
+// GPS speed filtering variables
+const int GPS_SPEED_FILTER_SIZE = 8;  // Increased for better averaging
+static float gpsSpeedBuffer[GPS_SPEED_FILTER_SIZE];
+static int gpsSpeedIndex = 0;
+static bool gpsSpeedBufferFull = false;
+static float lastValidSpeed = 0.0;
+
+// Function to apply moving average filter to GPS speed
+float filterGPSSpeed(float rawSpeed, int satellites, float hdop) {
+  // Enhanced GPS quality check - stricter requirements
+  bool goodGPSQuality = (satellites >= 6 && hdop <= 2.0);
+  
+  // If GPS quality is poor, don't trust speed readings
+  if (!goodGPSQuality) {
+    return 0.0;
+  }
+  
+  // Add raw speed to circular buffer
+  gpsSpeedBuffer[gpsSpeedIndex] = rawSpeed;
+  gpsSpeedIndex = (gpsSpeedIndex + 1) % GPS_SPEED_FILTER_SIZE;
+  
+  if (!gpsSpeedBufferFull && gpsSpeedIndex == 0) {
+    gpsSpeedBufferFull = true;
+  }
+  
+  // Calculate moving average
+  float sum = 0.0;
+  int count = gpsSpeedBufferFull ? GPS_SPEED_FILTER_SIZE : gpsSpeedIndex;
+  
+  for (int i = 0; i < count; i++) {
+    sum += gpsSpeedBuffer[i];
+  }
+  
+  float averageSpeed = sum / count;
+  
+  // Calculate standard deviation to detect noise
+  float variance = 0.0;
+  if (count > 1) {
+    for (int i = 0; i < count; i++) {
+      float diff = gpsSpeedBuffer[i] - averageSpeed;
+      variance += diff * diff;
+    }
+    variance /= count;
+  }
+  float stdDev = sqrt(variance);
+  
+  // If standard deviation is high, readings are noisy - likely stationary
+  const float MAX_STDDEV_STATIONARY = 0.2; // knots
+  if (stdDev > MAX_STDDEV_STATIONARY && averageSpeed < 1.0) {
+    return 0.0; // High variance at low speed = GPS noise
+  }
+  
+  // Apply aggressive noise threshold with hysteresis
+  const float NOISE_THRESHOLD = 0.15;  // knots - much more aggressive
+  const float MOVING_THRESHOLD = 1.2;   // knots - higher threshold to start moving
+  
+  // If we were previously stationary (lastValidSpeed close to 0)
+  if (lastValidSpeed < NOISE_THRESHOLD) {
+    // Need sustained higher speed AND low variance to register movement
+    if (averageSpeed >= MOVING_THRESHOLD && stdDev < 0.3) {
+      lastValidSpeed = averageSpeed;
+      return averageSpeed;
+    } else {
+      // Still stationary - apply very strong filtering
+      return 0.0;
+    }
+  } else {
+    // We were previously moving - use lower threshold to stop, but still be conservative
+    if (averageSpeed >= 0.4 && stdDev < 0.5) { // Need consistent speed to stay "moving"
+      lastValidSpeed = averageSpeed;
+      return averageSpeed;
+    } else {
+      // Dropping below threshold or too much variance - now stationary
+      lastValidSpeed = 0.0;
+      return 0.0;
+    }
+  }
+}
+
 // Set up WiFi Access Point
 // Read sensor data
 void readSensors() {
@@ -480,12 +560,29 @@ void readSensors() {
     trueWindSpeedCount++;
     currentData.trueWindSpeedAvg = trueWindSpeedSum / trueWindSpeedCount;
   }
+  
   // Read GPS data first
   bool gpsDataValid = readGPS();
   
-  // Only use GPS speed if we have valid, recent data with good satellite count
-  if (gpsDataValid && gps.speed.isValid() && gps.satellites.value() >= 5) {
-    currentData.speed = gps.speed.knots();
+  // Apply enhanced GPS speed filtering
+  if (gpsDataValid && gps.speed.isValid()) {
+    float rawSpeed = gps.speed.knots();
+    int satellites = gps.satellites.isValid() ? gps.satellites.value() : 0;
+    float hdop = gps.hdop.isValid() ? gps.hdop.hdop() : 99.9;
+    
+    // Use enhanced filtering with moving average and quality assessment
+    currentData.speed = filterGPSSpeed(rawSpeed, satellites, hdop);
+    
+    #ifdef DEBUG_GPS
+    Serial.printf("[GPS Filter] Raw: %.2f, Filtered: %.2f, Sats: %d, HDOP: %.1f\n", 
+                  rawSpeed, currentData.speed, satellites, hdop);
+    #endif
+    
+    // Additional debug for stationary filtering (always show when speed > 0.5 knots raw)
+    if (rawSpeed > 0.5) {
+      Serial.printf("[GPS Debug] Raw: %.3f kt, Filtered: %.3f kt, Sats: %d, HDOP: %.2f\n", 
+                    rawSpeed, currentData.speed, satellites, hdop);
+    }
   } else {
     currentData.speed = 0.0;
   }
@@ -660,29 +757,53 @@ void updateHistory() {
   dataHistory.push_back(currentData);
 }
 
-// Generate JSON string with current sensor data (compact format)
+// Generate JSON string with current sensor data using marine standard terminology
 String getSensorDataJson() {
-  DynamicJsonDocument doc(200); // Reduced to be extra safe for BLE MTU
+  DynamicJsonDocument doc(300); // Increased size to accommodate marine standard fields
   
-  // Core data only - keep it minimal
-  doc["spd"] = isnan(currentData.speed) ? 0 : currentData.speed;
-  doc["wSpd"] = isnan(currentData.windSpeed) ? 0 : currentData.windSpeed;
+  // Always present GPS fields (marine standard)
+  doc["SOG"] = isnan(currentData.speed) ? 0.0 : currentData.speed; // Speed Over Ground
   
-  // Only include wind direction if we have valid data (0-359 degrees)
+  // GPS coordinates and course
+  if (gps.location.isValid()) {
+    doc["lat"] = gps.location.lat();
+    doc["lon"] = gps.location.lng();
+  } else {
+    doc["lat"] = 0.0;
+    doc["lon"] = 0.0;
+  }
+  
+  if (gps.course.isValid()) {
+    doc["COG"] = gps.course.deg(); // Course Over Ground
+  } else {
+    doc["COG"] = 0.0;
+  }
+  
+  // GPS quality indicators
+  doc["satellites"] = (gps.charsProcessed() > 10 && gps.satellites.isValid()) ? gps.satellites.value() : 0;
+  
+  if (gps.hdop.isValid()) {
+    doc["hdop"] = gps.hdop.hdop();
+  } else {
+    doc["hdop"] = 99.9; // Invalid HDOP value
+  }
+  
+  // Wind data - only include if sensor is connected and working
+  if (!isnan(currentData.windSpeed)) {
+    doc["AWS"] = currentData.windSpeed; // Apparent Wind Speed
+  }
+  
   if (currentData.windDirection >= 0 && currentData.windDirection <= 359) {
-    doc["wDir"] = currentData.windDirection;
+    doc["AWD"] = currentData.windDirection; // Apparent Wind Direction
   }
   
-  doc["tilt"] = isnan(currentData.tilt) ? 0 : currentData.tilt;
-  doc["gSpd"] = (gpsDataValid && gps.speed.isValid() && gps.satellites.value() >= 5) ? gps.speed.knots() : 0.0;
-  doc["gSat"] = (gps.charsProcessed() > 10 && gps.satellites.isValid()) ? gps.satellites.value() : 0;
-  doc["bleRSSI"] = bleRSSI;
-  
-  // Only add max values if we have room (check actual memory usage)
-  if (doc.memoryUsage() < 150) {
-    doc["spdMax"] = isnan(currentData.speedMax) ? 0 : currentData.speedMax;
-    doc["wSpdMax"] = isnan(currentData.windSpeedMax) ? 0 : currentData.windSpeedMax;
+  // Heel angle - only include if accelerometer is available
+  if (accelAvailable && !isnan(currentData.tilt)) {
+    doc["heel"] = currentData.tilt; // Vessel heel angle
   }
+  
+  // BLE connection quality
+  doc["rssi"] = bleRSSI;
   
   String output;
   serializeJson(doc, output);

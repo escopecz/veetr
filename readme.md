@@ -12,16 +12,20 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
 **Key Changes:**
 - Web application is now hosted externally (GitHub Pages, Netlify, etc.) over HTTPS
 - ESP32 no longer needs to host web files or run a WiFi Access Point
-- Connection is via Bluetooth Low Energy using Web Bluetooth API
+- Connection is via Bluetooth Low Energy using Web Bluetooth API with NimBLE-Arduino
 - Significantly reduced memory usage and improved power efficiency
 - Browser support limited to Chrome, Edge, Opera (no Safari/iOS support)
+- Standardized JSON API with marine terminology (SOG, AWS, TWS, etc.)
+- Robust sensor error handling - system continues to operate even if sensors fail
 
 ## Features
 
 - Real-time monitoring of sailing data:
-  - Vessel speed (via GPS)
-  - Wind speed and direction (via ultrasonic sensor)
-  - Vessel heel/tilt angle (via accelerometer)
+  - Vessel speed over ground (SOG) via GPS with noise filtering
+  - Wind speed and direction (AWS/AWD) via ultrasonic sensor
+  - Vessel heel/tilt angle via accelerometer (when available)
+  - GPS position and satellite information
+  - BLE connection strength (RSSI)
 - Progressive Web App (PWA) dashboard:
   - Installable on mobile devices
   - Works offline (interface only)
@@ -32,8 +36,114 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
   - No WiFi network required
   - Low power consumption
   - Secure pairing
-- Real-time data updates via BLE notifications
+  - Multi-client support
+- Real-time data updates via BLE notifications (1Hz)
 - Data visualization with gauges and charts
+- Robust sensor error handling - system continues operating even if sensors fail
+
+## BLE JSON API
+
+The Luna Sailing Dashboard transmits data via BLE notifications using a standardized JSON format with marine terminology. Data is sent approximately every 1 second to all connected BLE clients.
+
+### BLE Service and Characteristics
+
+- **Service UUID:** `12345678-1234-5678-9abc-def123456789`
+- **Characteristic UUID:** `87654321-4321-8765-cba9-fedcba987654`
+- **Properties:** Read, Notify
+- **Data Format:** JSON string encoded as UTF-8
+
+### JSON Data Structure
+
+```json
+{
+  "SOG": 4.2,
+  "COG": 185.5,
+  "lat": 37.7749,
+  "lon": -122.4194,
+  "satellites": 8,
+  "hdop": 1.2,
+  "AWS": 12.5,
+  "AWD": 045,
+  "heel": -5.2,
+  "rssi": -65
+}
+```
+
+### Field Definitions
+
+| Field | Type | Unit | Description | Marine Standard |
+|-------|------|------|-------------|-----------------|
+| `SOG` | float | knots | Speed Over Ground from GPS | ✓ |
+| `COG` | float | degrees | Course Over Ground from GPS (0-360°) | ✓ |
+| `lat` | float | decimal degrees | GPS Latitude (WGS84) | ✓ |
+| `lon` | float | decimal degrees | GPS Longitude (WGS84) | ✓ |
+| `satellites` | integer | count | Number of GPS satellites in use | ✓ |
+| `hdop` | float | dimensionless | Horizontal Dilution of Precision | ✓ |
+| `AWS` | float | knots | Apparent Wind Speed | ✓ |
+| `AWD` | integer | degrees | Apparent Wind Direction (0-360°) | ✓ |
+| `heel` | float | degrees | Vessel heel angle (+ = starboard, - = port) | ✓ |
+| `rssi` | integer | dBm | BLE signal strength (more negative = weaker) | - |
+
+### Field Behavior
+
+**Always Present:**
+- `SOG`, `COG`, `lat`, `lon`, `satellites`, `hdop` - GPS data (0 values if no GPS fix)
+- `rssi` - BLE signal strength
+
+**Conditionally Present:**
+- `AWS` - Only present if wind sensor is connected and working
+- `AWD` - Only present if wind sensor is connected and working  
+- `heel` - Only present if accelerometer (ADXL345) is detected and working
+
+### GPS Speed Filtering
+
+The system includes intelligent GPS speed filtering to distinguish real vessel movement from GPS noise:
+
+- **Moving Average Filter:** Uses an 8-sample moving average to smooth out erratic readings
+- **Variance Detection:** Calculates standard deviation to detect noisy/inconsistent readings
+- **GPS Quality Assessment:** Requires ≥6 satellites and HDOP ≤ 2.0 for reliable readings
+- **Aggressive Hysteresis Filtering:** Uses different thresholds for starting/stopping movement detection
+  - **Stationary → Moving:** Requires ≥1.2 knots sustained speed with low variance to register movement
+  - **Moving → Stationary:** Drops to 0 when speed falls below 0.4 knots or variance is too high
+- **Noise Rejection:** Filters out GPS drift and noise when anchored or docked
+- **Variance Filtering:** Rejects speed readings when standard deviation indicates GPS instability
+
+### Error Handling
+
+The system is designed to be robust against sensor failures:
+
+- **Missing GPS:** System continues to operate, GPS fields show default values
+- **Missing Wind Sensor:** Wind fields (`AWS`, `AWD`) are omitted from JSON
+- **Missing Accelerometer:** Heel field is omitted from JSON
+- **Sensor Failures:** Individual sensor failures don't affect other sensors or BLE transmission
+- **BLE Reliability:** JSON is transmitted every 1 second regardless of sensor status
+
+### Example Client Code (JavaScript)
+
+```javascript
+// Connect to Luna Sailing BLE device
+const device = await navigator.bluetooth.requestDevice({
+  filters: [{ name: 'Luna_Sailing' }],
+  optionalServices: ['12345678-1234-5678-9abc-def123456789']
+});
+
+const server = await device.gatt.connect();
+const service = await server.getPrimaryService('12345678-1234-5678-9abc-def123456789');
+const characteristic = await service.getCharacteristic('87654321-4321-8765-cba9-fedcba987654');
+
+// Listen for notifications
+characteristic.addEventListener('characteristicvaluechanged', (event) => {
+  const value = event.target.value;
+  const jsonString = new TextDecoder().decode(value);
+  const data = JSON.parse(jsonString);
+  
+  console.log('Speed:', data.SOG, 'knots');
+  console.log('Wind Speed:', data.AWS, 'knots');
+  console.log('Heel:', data.heel, 'degrees');
+});
+
+await characteristic.startNotifications();
+```
 
 ## Hardware Components
 
@@ -267,7 +377,7 @@ The Luna Sailing Dashboard is designed as a Progressive Web App (PWA), which mea
 
 #### On Android (Chrome)
 
-1. Open the dashboard in Chrome (navigate to `http://192.168.4.1`)
+1. Open the dashboard in Chrome (navigate to your hosted dashboard URL)
 2. Tap the three-dot menu button in the top-right corner
 3. Select "Add to Home screen" or "Install app" (the wording may vary)
 4. If prompted, confirm by tapping "Add" or "Install"
@@ -276,7 +386,7 @@ The Luna Sailing Dashboard is designed as a Progressive Web App (PWA), which mea
 
 #### On Windows (Chrome/Edge)
 
-1. Open the dashboard in Chrome or Edge (navigate to `http://192.168.4.1`)
+1. Open the dashboard in Chrome or Edge (navigate to your hosted dashboard URL)
 2. Look for the install icon in the address bar (a computer with a down arrow) or the three-dot menu
 3. Click "Install Luna Sailing" or "Install app"
 4. Confirm by clicking "Install" in the popup
@@ -285,7 +395,7 @@ The Luna Sailing Dashboard is designed as a Progressive Web App (PWA), which mea
 
 #### On macOS (Chrome)
 
-1. Open the dashboard in Chrome (navigate to `http://192.168.4.1`)
+1. Open the dashboard in Chrome (navigate to your hosted dashboard URL)
 2. Click the three-dot menu in the top-right corner
 3. Select "Install Luna Sailing..." or "Create shortcut..."
 4. Choose whether to open as a window or tab
@@ -296,8 +406,9 @@ The Luna Sailing Dashboard is designed as a Progressive Web App (PWA), which mea
 
 - **Easier Access**: Launch directly from your home screen without typing the URL
 - **Full-Screen Experience**: No browser interface elements taking up space
-- **Offline Interface**: The basic dashboard UI remains accessible even without connection (though live data requires connection)
-- **Automatic Reconnection**: The app will attempt to reconnect to the ESP32 when the connection is available
+- **Offline Interface**: The basic dashboard UI remains accessible even without connection (though live data requires BLE connection)
+- **Automatic Reconnection**: The app will attempt to reconnect to the ESP32 when BLE connection is available
+- **Better Performance**: Installed PWAs often have better performance than browser tabs
 
 #### Troubleshooting PWA Installation
 
@@ -305,165 +416,150 @@ The Luna Sailing Dashboard is designed as a Progressive Web App (PWA), which mea
   - Make sure you've fully loaded the dashboard page
   - Try refreshing the page
   - Some browsers may require you to visit the site more than once before offering installation
+  - Ensure the site is served over HTTPS
   
 - **App not working after installation**:
-  - Make sure you're connected to the "Luna_Sailing" WiFi network
-  - Try uninstalling and reinstalling the app
+  - Make sure the ESP32 is powered on and BLE is advertising
+  - Try connecting to the ESP32 via BLE from the installed app
+  - Check that Bluetooth is enabled on your device
   
 - **App showing offline mode**:
-  - This is normal if you're not connected to the ESP32's WiFi
-  - Connect to the "Luna_Sailing" network and reload the app
+  - This is normal if you're not connected to the ESP32 via BLE
+  - The app interface remains available, but live data requires BLE connection
+  - Connect to the ESP32 via BLE to start receiving data
 
-### Configuring WiFi Settings
+### BLE Connection and Pairing
 
-The Luna Sailing Dashboard allows you to change the WiFi Access Point settings directly through the web interface, making it easy to customize your network name and password without modifying code.
+The Luna Sailing Dashboard uses Bluetooth Low Energy (BLE) for communication between the ESP32 and client devices. The system is designed to be robust and supports multiple simultaneous connections.
 
-#### Accessing WiFi Settings
+#### BLE Service Information
 
-1. **Connect to the dashboard** using the WiFi network (default: "Luna_Sailing" with no password - open network)
-2. **Navigate to Settings** by clicking the gear icon in the top-right corner of the dashboard
-3. **Scroll to the WiFi Access Point section** in the settings panel
+- **Device Name:** `Luna_Sailing`
+- **Service UUID:** `12345678-1234-5678-9abc-def123456789`
+- **Characteristic UUID:** `87654321-4321-8765-cba9-fedcba987654`
+- **Data Rate:** ~1 Hz (every 1000ms)
+- **Data Format:** JSON string with marine terminology
 
-#### Changing WiFi Credentials
+#### Initial Connection Process
 
-1. **Network Name (SSID)**:
-   - Enter your desired network name (1-32 characters)
-   - Avoid special characters that might cause compatibility issues
-   - Consider using a name that identifies your vessel or purpose
+1. **Power on the ESP32**
+   - Connect to power source (USB or external power)
+   - Wait 10-15 seconds for full system initialization
+   - The ESP32 will start advertising as "Luna_Sailing"
 
-2. **Password**:
-   - Enter a secure password (8-63 characters for WPA2 security)
-   - Use a mix of letters, numbers, and symbols for better security
-   - Avoid dictionary words or easily guessable passwords
+2. **Verify BLE Advertising**
+   - The ESP32 automatically starts BLE advertising on boot
+   - Device becomes discoverable to nearby BLE clients
+   - Range: typically 10-30 meters in open space
 
-3. **Apply Settings**:
-   - Click the "Apply WiFi Settings" button
-   - Review the security warning dialog that appears
-   - Confirm your changes by clicking "Confirm"
+3. **Connect from Client Device**
+   - Use a BLE-compatible browser or application
+   - Search for "Luna_Sailing" in available BLE devices
+   - Select device and confirm pairing
+   - Connection establishment takes 2-5 seconds
 
-#### What Happens During WiFi Update
+#### Sensor Initialization Status
 
-1. **Validation**: The system validates your input for proper length and format
-2. **Confirmation**: A dialog explains what will happen and asks for confirmation
-3. **Settings Storage**: New credentials are saved to the ESP32's flash memory
-4. **Network Restart**: The ESP32 restarts its WiFi Access Point with new settings
-5. **Client Notification**: Connected devices receive a notification about the restart
-6. **Automatic Disconnection**: All devices will be disconnected from the old network
+The system performs sensor detection during startup:
 
-#### Reconnecting After WiFi Changes
+- **GPS Module:** Always initialized (may take 30-90 seconds for first satellite fix)
+- **Wind Sensor:** Automatically detected via RS485 communication
+- **Accelerometer:** Detected via I2C bus scan at startup
+- **Missing Sensors:** System continues operation with available sensors only
 
-After applying new WiFi settings:
+#### Data Transmission
 
-1. **Wait for restart**: Allow 10-15 seconds for the ESP32 to restart with new settings
-2. **Disconnect from old network**: Your device will automatically disconnect from the old network
-3. **Connect to new network**: 
-   - Look for the new network name in your WiFi settings
-   - Connect using the new password you configured
-4. **Navigate to dashboard**: Open your browser and go to `http://192.168.4.1`
-5. **Verify connection**: Ensure the dashboard loads and data is updating
+Once connected, the ESP32 automatically sends JSON data every 1 second:
 
-#### Security Considerations
+- **Reliable Timing:** 1Hz transmission regardless of sensor status
+- **Error Resilience:** Failed sensors don't interrupt data flow
+- **Multi-Client:** Supports multiple simultaneous BLE connections
+- **Low Latency:** Minimal delay between sensor reading and transmission
 
-- **Default Security**: The system starts with an **open WiFi network (no password)** for initial setup convenience
-- **Immediate Configuration Recommended**: Change to a secure password as soon as possible after initial setup
-- **Password Strength**: Use strong passwords to prevent unauthorized access to your sailing data
-- **Network Visibility**: WiFi networks are visible to anyone in range - choose appropriate names
-- **Regular Updates**: Consider changing passwords periodically, especially if multiple people have access
-- **Guest Access**: You can create simpler passwords for temporary guests and change them later
+#### BLE Connection Management
 
-#### Troubleshooting WiFi Settings
+**Automatic Reconnection:**
+- Client applications should implement automatic reconnection
+- ESP32 continues advertising after disconnections
+- Previous pairing information is remembered
 
-**Settings not applying**:
-- Ensure both SSID and password meet the length requirements
-- Check that you confirmed the changes in the dialog
-- Try refreshing the page and attempting again
+**Connection Stability:**
+- Move closer to ESP32 if connection is unstable
+- Avoid obstacles and interference sources
+- Battery level affects BLE transmission power
 
-**Can't reconnect after changing settings**:
-- Wait a full 30 seconds for the ESP32 to fully restart
-- Check your device's WiFi settings to ensure you're connecting to the correct network
-- Verify you're using the new password, not the old one
-- Try "forgetting" the old network on your device if it keeps trying to connect with old credentials
+**Multi-Device Support:**
+- Multiple phones/tablets can connect simultaneously
+- Each client receives independent data stream
+- No limit on number of concurrent connections (within BLE stack limits)
 
-**Lost access to settings**:
-- If you can't remember the new credentials, you can:
-  1. **Use Factory Reset**: Hold the BOOT button on the ESP32 for 5 seconds to reset to defaults
-  2. **View via Serial Monitor**: Connect the ESP32 to your computer via USB and use the serial monitor to view the current credentials at startup
-  3. **Reflash Firmware**: Upload fresh firmware to reset to default credentials
+### BLE Troubleshooting
 
-**Settings reverting to defaults**:
-- This may indicate a problem with flash memory storage
-- Try power cycling the ESP32 completely (disconnect power for 10 seconds)
-- If the problem persists, consider reflashing the firmware
+#### Common BLE Connection Issues
 
-#### Default Credentials
+- **Can't find the Luna_Sailing BLE device**
+  - Make sure the ESP32 is powered on and fully booted (wait 15-20 seconds)
+  - Try restarting the ESP32 by pressing the reset button
+  - Move closer to the ESP32 - BLE range is typically 10-30 meters in open space
+  - Ensure you're using a supported browser (Chrome, Edge, or Opera)
+  - Check that Bluetooth is enabled on your device
 
-If you need to reset to factory defaults:
-- **Default SSID**: `Luna_Sailing`
-- **Default Password**: None (open network)
+- **Browser shows "Bluetooth not supported" error**
+  - Make sure you're using Chrome, Edge, or Opera (not Safari or Firefox)
+  - Ensure the dashboard is served over HTTPS (required for Web Bluetooth API)
+  - Try updating your browser to the latest version
+  - On Android, ensure location services are enabled (required for BLE scanning)
 
-These defaults are restored when:
-- Fresh firmware is uploaded without previous settings
-- Flash memory is cleared or corrupted
-- Factory reset is performed using the BOOT button (hold for 5 seconds)
+- **Dashboard loads but BLE connection fails**
+  - Check that your device's Bluetooth is turned on
+  - Try clearing your browser cache and cookies
+  - Restart your browser completely
+  - Try connecting from a different device
+  - Check the browser console (F12) for error messages
 
-**Note**: Factory reset functionality is now implemented using the ESP32's BOOT button. Hold the BOOT button for 5 seconds to reset all settings to defaults.
+- **Connected but no data appears**
+  - Check the BLE connection status indicator in the dashboard
+  - Refresh the page and try reconnecting
+  - If using real sensors, verify they are properly connected to the ESP32
+  - Check the ESP32 serial monitor output for any error messages
+  - Try restarting the ESP32
 
-### Factory Reset
+- **iOS/Safari compatibility issues**
+  - Unfortunately, iOS Safari does not support Web Bluetooth API
+  - Use an Android device or desktop browser instead
+  - Consider using a third-party iOS browser that might support Web Bluetooth (limited options)
 
-The Luna Sailing Dashboard includes a hardware-based factory reset feature that can restore all settings to their default values without requiring firmware reflashing or computer connection.
+- **Data updates are slow or intermittent**
+  - This may be due to BLE connection quality or interference
+  - Move closer to the ESP32
+  - Remove sources of 2.4GHz interference (WiFi, microwaves, etc.)
+  - Try restarting both the ESP32 and reconnecting from the browser
 
-#### How to Perform Factory Reset
+#### Sensor-Specific Troubleshooting
 
-1. **Locate the BOOT Button**
-   - Find the BOOT button on your ESP32 development board
-   - This is usually labeled "BOOT" and is typically the smaller button (not the RESET button)
-   - On most ESP32 DEVKIT boards, it's located near the USB connector
+- **GPS shows no satellites or zero speed**
+  - Ensure GPS antenna has clear view of sky
+  - Move away from buildings, trees, or other obstructions
+  - GPS requires 30-90 seconds for initial satellite acquisition
+  - Check that GPS module is properly connected to pins 16/17
 
-2. **Perform the Reset**
-   - **Press and hold** the BOOT button
-   - **Keep holding** for exactly **5 seconds**
-   - The built-in LED will start blinking to indicate the button press is detected
-   - The LED will blink faster as you approach the 5-second mark
-   - **Release** the button after 5 seconds
+- **Wind data not appearing in JSON**
+  - Verify wind sensor is connected to RS485 converter
+  - Check RS485 converter connections to ESP32 pins 25/26
+  - Ensure wind sensor has proper power supply (typically 12V)
+  - Wind sensor data only appears in JSON when sensor is detected and working
 
-3. **Visual Feedback**
-   - **Initial press**: LED turns on solid
-   - **During hold**: LED blinks progressively faster
-   - **Factory reset triggered**: LED flashes rapidly 10 times
-   - **Reset complete**: LED turns off
+- **Heel angle not appearing in JSON**
+  - Verify ADXL345 accelerometer is connected to I2C pins 21/22
+  - Check that accelerometer has proper power supply (3.3V)
+  - Heel data only appears in JSON when accelerometer is detected at startup
+  - If accelerometer fails after startup, heel data will stop appearing
 
-4. **What Gets Reset**
-   - **WiFi Settings**: Network name returns to "Luna_Sailing", password removed (open network)
-   - **Network Security**: Returns to open network (no password required)
-   - **Sensor Data**: All historical data and maximum values cleared
-   - **Dashboard Settings**: All customizations reset to defaults
-
-#### After Factory Reset
-
-1. **Automatic WiFi Restart**: The ESP32 will automatically restart its WiFi with default settings
-2. **Reconnection Required**: 
-   - Disconnect from the current WiFi network
-   - Look for "Luna_Sailing" network (open, no password)
-   - Connect to the new network
-   - Navigate to `http://192.168.4.1`
-3. **Security Setup**: Immediately configure a secure password through the dashboard settings
-4. **Data Collection**: Sensor data collection will resume with fresh/cleared history
-
-#### When to Use Factory Reset
-
-- **Lost WiFi Password**: Can't remember the WiFi credentials you set
-- **Network Issues**: WiFi settings got corrupted or causing connection problems
-- **Starting Fresh**: Want to clear all data and start with default settings
-- **Device Handover**: Preparing the device for someone else to use
-- **Troubleshooting**: Eliminating custom settings as a source of problems
-
-#### Troubleshooting Factory Reset
-
-- **Button not responding**: Make sure you're pressing the BOOT button, not the RESET button
-- **LED not blinking**: Check that the ESP32 is powered on and the firmware is running
-- **Reset not completing**: Ensure you hold the button for the full 5 seconds
-- **Still can't connect**: Try power cycling the ESP32 after the reset
-- **Settings not cleared**: If problems persist, consider reflashing the firmware
+- **JSON missing expected fields**
+  - This is normal behavior - fields are omitted if sensors are not available
+  - Only GPS fields (SOG, COG, lat, lon, satellites, hdop) and RSSI are always present
+  - Wind fields (AWS, AWD) only appear when wind sensor is connected
+  - Heel field only appears when accelerometer is detected and working
 
 ## Development
 
@@ -548,15 +644,22 @@ The Luna Sailing Dashboard includes a hardware-based factory reset feature that 
 
 ### Project Structure
 
-- `/src`: Main C++ code for ESP32 (BLE server and sensor management)
+- `/src`: Main C++ code for ESP32 (BLE server using NimBLE-Arduino and sensor management)
 - `/data/www`: Web dashboard files (legacy - now hosted externally)
   - `/css`: Stylesheets
   - `/js`: JavaScript files (including BLE connection logic)
   - `/images`: Icons and graphics
-- `/include`: Header files
+- `/include`: Header files and sensor documentation
 - `/lib`: Libraries
+- `/platformio.ini`: Build configuration with NimBLE-Arduino library
 
-**Note:** The `/data/www` folder contains the web application files for reference and local development, but in the new architecture, these files should be hosted externally (e.g., GitHub Pages) rather than uploaded to the ESP32's filesystem.
+**Note:** The `/data/www` folder contains the web application files for reference and local development, but in the new BLE architecture, these files should be hosted externally (e.g., GitHub Pages) rather than uploaded to the ESP32's filesystem.
+
+**Key Code Files:**
+- `src/main.cpp`: Main ESP32 firmware with BLE server, sensor management, and JSON API
+- Uses NimBLE-Arduino for efficient BLE communication
+- Implements robust error handling for missing or failed sensors
+- Provides standardized marine JSON API over BLE notifications
 
 ### Building and Uploading
 
@@ -615,59 +718,104 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Power Management and Battery Operation
 
-The Luna Sailing Dashboard is designed to operate efficiently on battery power, making it suitable for extended use on sailing vessels without constant shore power.
+The Luna Sailing Dashboard is designed to operate efficiently on battery power, making it suitable for extended use on sailing vessels without constant shore power. The migration to BLE significantly improves power efficiency over the previous WiFi-based design.
 
 ### Power Requirements
 
-- **ESP32 Power Consumption**:
-  - Normal operation (BLE active): ~80-120mA @ 5V (~0.4-0.6W)
+- **ESP32 Power Consumption (BLE Mode)**:
+  - Normal operation (BLE active): ~60-80mA @ 5V (~0.3-0.4W)
   - Deep sleep mode: ~10μA @ 5V (negligible)
-  - **Significant improvement**: BLE uses ~50% less power than WiFi Access Point mode
+  - **BLE Advantage**: Uses ~50% less power than WiFi Access Point mode
+  - **NimBLE Efficiency**: NimBLE-Arduino library provides additional power savings
   
 - **Sensor Power Requirements**:
   - GPS Module: ~50mA @ 3.3V
-  - Accelerometer: ~0.1mA @ 3.3V
+  - Accelerometer: ~0.1mA @ 3.3V (when present)
   - Wind Sensor: Varies by model, typically 100-300mA @ 5-12V
   
 - **Total System**:
-  - Typical consumption: ~180-270mA @ 5V (0.9-1.35W)
-  - This means a 10Ah power bank can power the system for approximately 30-40 hours
+  - Typical consumption: ~140-180mA @ 5V (0.7-0.9W)
+  - With 10Ah power bank: approximately 40-50 hours of operation
+  - **Significant improvement** over WiFi-based design
 
 ### Battery Connection Options
 
 1. **Direct USB Power Bank**:
-   - Simplest solution
-   - Connect a standard USB power bank to the ESP32's micro-USB port
+   - Simplest solution for mobile/temporary installations
+   - Connect standard USB power bank to ESP32's micro-USB port
    - No additional components required
+   - Recommended capacity: 10Ah or higher for multi-day operation
 
-2. **Boat 12V System**:
-   - Requires a 12V to 5V voltage regulator/converter
+2. **Boat 12V System Integration**:
+   - Requires 12V to 5V voltage regulator/converter
    - Recommended: Buck converter with at least 1A output capacity
-   - Connect the output to the ESP32's 5V and GND pins (not via USB)
-   - Consider adding a power switch and fuse for safety
+   - Connect output to ESP32's 5V and GND pins (not via USB)
+   - Add power switch and fuse for safety
+   - Enables permanent installation with boat's electrical system
 
 3. **Solar Power Option**:
    - Small 5W-10W solar panel
-   - Solar charge controller
-   - 3.7V LiPo battery (2000mAh or larger)
+   - Solar charge controller (MPPT preferred)
+   - 3.7V LiPo battery (3000mAh or larger recommended)
    - LiPo to 5V boost converter
-   - This setup can provide continuous operation in sunny conditions
+   - Can provide continuous operation in sunny conditions
+   - Ideal for remote installations or extended cruising
+
+### Power-Saving Features
+
+1. **BLE Power Efficiency**:
+   - NimBLE-Arduino library optimized for low power consumption
+   - Automatic connection interval management
+   - Efficient multi-client support without power penalty
+   - No WiFi radio power consumption
+
+2. **Sensor Error Handling**:
+   - Failed sensors don't cause power-consuming retry loops
+   - I2C and RS485 timeouts prevent blocking operations
+   - Graceful degradation maintains power efficiency
+
+3. **Optimized Update Intervals**:
+   - 1Hz data transmission balances responsiveness with power efficiency
+   - GPS and sensor polling optimized for power consumption
+   - No continuous polling of failed sensors
+
+### Power Monitoring
+
+The system provides power-related information:
+
+- **BLE RSSI**: Indicates signal strength, which correlates with power consumption
+- **Sensor Status**: Missing sensors automatically reduce power consumption
+- **Connection Status**: Monitor multiple BLE connections for power impact
+
+### Battery Life Estimates
+
+**With 10Ah USB Power Bank:**
+- GPS + BLE only: ~50-60 hours
+- GPS + BLE + Accelerometer: ~45-55 hours  
+- GPS + BLE + Wind Sensor: ~30-40 hours
+- All sensors active: ~25-35 hours
+
+**With 12V Boat System:**
+- Continuous operation with proper sizing
+- Recommended: 5A circuit breaker
+- Typical load: 0.5-1A @ 12V including sensors
 
 ### Power-Saving Tips
 
-1. **Reduce WiFi Transmit Power**:
-   - In `src/main.cpp`, add: `WiFi.setTxPower(WIFI_POWER_7dBm);` 
-   - This reduces range but saves significant power
+1. **Optimize Connection Intervals**:
+   - Modern BLE clients can negotiate efficient connection intervals
+   - Lower connection intervals increase power consumption
+   - 1Hz data rate is optimal balance of responsiveness and efficiency
 
-2. **Optimize Sensor Polling Rates**:
-   - Increase the interval between sensor readings
-   - GPS updates every 5 seconds instead of every second
-   - Wind sensor updates every 2-3 seconds
+2. **Sensor Configuration**:
+   - Disable unused sensors to save power
+   - Wind sensor is typically the highest power consumer
+   - GPS power consumption is relatively constant
 
-3. **Use the Settings Interface**:
-   - The dashboard includes power management settings
-   - You can adjust update frequencies and sleep timeouts from the UI
-   - Enable "Low Power Mode" for extended operation
+3. **Installation Considerations**:
+   - Good BLE signal strength reduces power consumption
+   - Avoid obstacles between ESP32 and client devices
+   - Consider ESP32 placement for optimal antenna performance
 
 ## Acknowledgments
 

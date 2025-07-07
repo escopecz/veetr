@@ -4,9 +4,24 @@
 **ALWAYS READ THE README.MD FILE FIRST** - It contains comprehensive setup instructions, documentation, and usage guidelines for this project. Use it as your primary reference when working on this project.
 
 ## About this project
-This is a PlatformIO project named "Luna" focused on embedded systems development.
+This is a PlatformIO project named "Luna" focused on embedded systems development for marine applications.
 
-The project is aimed to provide sailors on a small sailing racing vessel information about vessel speed via GPS, wind speed, wind direction and vessel tilt using an ESP32 controller with connected sensors, presented via a Progressive Web App (PWA) dashboard.
+The project provides sailors on small racing vessels with real-time information about vessel performance including:
+- Speed Over Ground (SOG) via GPS with intelligent noise filtering
+- Apparent Wind Speed (AWS) and Direction (AWD) via ultrasonic sensor
+- Vessel heel/tilt angle via accelerometer
+- GPS position and satellite status
+- BLE connection quality (RSSI)
+
+**Architecture:** ESP32 with BLE connectivity using NimBLE-Arduino library, serving standardized JSON data to external web applications.
+
+**Key Features:**
+- Bluetooth Low Energy (BLE) server with multi-client support
+- Robust sensor error handling - system continues operation even if sensors fail
+- Standardized marine JSON API with proper terminology (SOG, AWS, AWD, etc.)
+- 1Hz data transmission with reliable timing
+- Power efficient design for extended battery operation
+- Progressive Web App (PWA) dashboard hosted externally over HTTPS
 
 ## Hardware Dependencies
 
@@ -165,22 +180,41 @@ The project is aimed to provide sailors on a small sailing racing vessel informa
 
 ## Software Architecture Reference
 
-The detailed software architecture can be found in the readme.md file. Below is a concise overview for reference:
+The software architecture has been migrated from WiFi Access Point to BLE connectivity:
+
+### Current Architecture (BLE-based)
+- **ESP32:** BLE server using NimBLE-Arduino library
+- **Connectivity:** Bluetooth Low Energy with multi-client support
+- **Data Format:** Standardized JSON with marine terminology
+- **Web App:** Externally hosted (GitHub Pages/Netlify) over HTTPS
+- **Client Connection:** Web Bluetooth API for direct ESP32 connection
 
 ### Communication Flow
-1. **GPS Module** → UART (GPIO 16/17) → ESP32
-2. **ADXL345 Accelerometer** → I2C (GPIO 21/22) → ESP32
-3. **Wind Sensor** → RS485 → RS485 Transceiver → UART (GPIO 25/26) → ESP32
+1. **GPS Module** → UART (GPIO 16/17) → ESP32 → JSON over BLE
+2. **ADXL345 Accelerometer** → I2C (GPIO 21/22) → ESP32 → JSON over BLE
+3. **Wind Sensor** → RS485 → RS485 Transceiver → UART (GPIO 25/26) → ESP32 → JSON over BLE
 
-### Web Server Implementation
-- ESP32 WiFi in Access Point (AP) mode with SSID "Luna_Sailing"
-- AsyncWebServer for serving the PWA dashboard
-- WebSocket server for real-time data updates
+### BLE Service Configuration
+- **Service UUID:** 12345678-1234-1234-1234-123456789abc
+- **Characteristic UUID:** 87654321-4321-4321-4321-cba987654321
+- **Data Rate:** 1Hz (1000ms intervals)
+- **Data Format:** JSON string with standardized marine fields
 
-### Web Dashboard Architecture
-- PWA with offline capabilities and installability
-- Real-time data visualization with gauges and charts
-- Responsive design for all device sizes
+### JSON API Fields
+- **Always Present:** SOG, COG, lat, lon, satellites, hdop, rssi
+- **Conditional:** AWS, AWD (wind sensor), heel (accelerometer)
+- **Marine Standards:** Uses proper marine terminology and units
+
+### Error Handling
+- **Sensor Failures:** Individual sensors can fail without affecting system
+- **Missing Sensors:** Detected at startup, graceful degradation
+- **I2C/RS485 Errors:** Timeouts prevent blocking, warnings logged periodically
+- **BLE Reliability:** Data transmission continues regardless of sensor status
+
+### Power Management
+- **BLE Efficiency:** ~50% less power than WiFi approach
+- **NimBLE Library:** Optimized for low power consumption
+- **Sensor Management:** Failed sensors don't consume retry power
 
 ## Coding Preferences
 - Prefer C++ style with modern C++11 and newer features
@@ -189,19 +223,50 @@ The detailed software architecture can be found in the readme.md file. Below is 
 - Implement robust error handling for sensor failures
 - Use appropriate low-power techniques for battery efficiency
 - Prefer non-blocking code to maintain system responsiveness
+- **BLE Focus:** Use NimBLE-Arduino for efficient BLE communication
+- **Marine Standards:** Use proper marine terminology in JSON API (SOG, AWS, AWD, etc.)
+- **Sensor Robustness:** Handle missing/failed sensors gracefully
+- **Error Handling:** Prevent sensor failures from blocking main loop timing
 
 ## Problem-Solving Approach
 When generating code for this project, consider:
-- Power efficiency for battery-operated devices
+- Power efficiency for battery-operated marine devices
 - Memory constraints of embedded systems
-- Real-time performance requirements
-- Error handling for sensor failures
+- Real-time performance requirements (1Hz data transmission)
+- Error handling for sensor failures without blocking main loop
 - Environmental challenges of marine applications
 - Interference mitigation for reliable sensor readings
-- Prefer running VS Code commands to build the project over CLI
-- With the changes also consider updating the readme as a documentation so it is always up to date with the code.
+- **BLE Connectivity:** Optimize for low-latency, multi-client BLE communication
+- **Marine Environment:** Consider power consumption, waterproofing, and reliability
+- **Sensor Integration:** Handle missing sensors gracefully, maintain JSON API consistency
+- Prefer running VS Code tasks over CLI commands for building
+- **Documentation:** Update README.md when making significant changes to maintain accuracy
 
 ## Other Information
-This is an embedded systems project that requires careful consideration of hardware limitations and real-time constraints. The system is designed to be reliable in marine environments, with consideration for power efficiency, waterproofing, and robustness.
+This is an embedded systems project for marine applications that requires careful consideration of:
 
-Refer to the README.md file for comprehensive implementation details, file organization, and dashboard features.
+**Hardware Constraints:**
+- ESP32 memory limitations and real-time performance requirements
+- Battery power efficiency for extended operation
+- Environmental challenges of marine conditions
+
+**Software Architecture:**
+- **BLE Communication:** Uses NimBLE-Arduino for efficient, low-power BLE server
+- **JSON API:** Standardized marine terminology with conditional field presence
+- **Error Resilience:** Robust sensor error handling without system interruption
+- **Multi-Client Support:** Simultaneous BLE connections to multiple devices
+
+**Current Status:**
+- Migrated from WiFi Access Point to BLE connectivity
+- Implements standardized JSON API with marine conventions
+- Robust sensor error handling with graceful degradation
+- Power-optimized for extended battery operation
+- 1Hz reliable data transmission regardless of sensor status
+
+**Key Libraries:**
+- NimBLE-Arduino for BLE communication
+- ArduinoJson for JSON serialization
+- TinyGPS++ for GPS parsing
+- Adafruit_ADXL345 for accelerometer
+
+Refer to the README.md file for comprehensive implementation details, BLE JSON API documentation, and setup instructions.
