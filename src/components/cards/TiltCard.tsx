@@ -8,7 +8,7 @@ interface TiltCardProps {
 }
 
 export default function TiltCard({ tilt }: TiltCardProps) {
-  const displayTilt = Math.abs(tilt).toFixed(1)
+  const displayTilt = Math.abs(tilt).toFixed(0)
   return (
     <div className="card tilt-card">
       <div className="card-value">
