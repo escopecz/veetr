@@ -45,7 +45,12 @@ export default function Dashboard() {
             portMax={sailingData.tiltPortMax}
             starboardMax={sailingData.tiltStarboardMax}
           />
-          <SatellitesCard satellites={sailingData.gpsSatellites} />
+          <SatellitesCard 
+            satellites={sailingData.gpsSatellites}
+            hdop={sailingData.hdop}
+            lat={sailingData.lat}
+            lon={sailingData.lon}
+          />
           <div className="card">
             <ConnectionStatus />
           </div>

@@ -19,6 +19,9 @@ export interface SailingData {
   deadWindAngle: number
   gpsSpeed: number
   gpsSatellites: number
+  hdop: number
+  lat: number
+  lon: number
 }
 
 // BLE connection state
@@ -83,7 +86,10 @@ const initialState: BLEState = {
     tiltStarboardMax: 0,
     deadWindAngle: 40,
     gpsSpeed: 0,
-    gpsSatellites: 0
+    gpsSatellites: 0,
+    hdop: 0,
+    lat: 0,
+    lon: 0
   }
 }
 
@@ -143,7 +149,10 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
           tiltStarboardMax: 0,
           deadWindAngle: 40,
           gpsSpeed: 0,
-          gpsSatellites: 0
+          gpsSatellites: 0,
+          hdop: 0,
+          lat: 0,
+          lon: 0
         }
       }
     case 'UPDATE_DATA':
@@ -279,7 +288,10 @@ export function BLEProvider({ children }: { children: ReactNode }) {
         tiltStarboardMax: data.heelStarboardMax || 0,
         deadWindAngle: data.deadWind || 40,
         gpsSpeed: data.SOG || 0,         // GPS Speed (same as SOG)
-        gpsSatellites: data.satellites || 0
+        gpsSatellites: data.satellites || 0,
+        hdop: data.hdop || 0,            // Horizontal Dilution of Precision
+        lat: data.lat || 0,              // Latitude
+        lon: data.lon || 0               // Longitude
       }
 
       dispatch({ type: 'UPDATE_DATA', payload: mappedData })
