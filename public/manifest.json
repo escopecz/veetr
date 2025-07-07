@@ -1,0 +1,16 @@
+{
+  "name": "Luna Sailing Dashboard",
+  "short_name": "Luna Sailing",
+  "description": "Real-time sailing dashboard with BLE connectivity",
+  "start_url": "/sailing-dashboard/",
+  "display": "standalone",
+  "background_color": "#0a4a7c",
+  "theme_color": "#0a4a7c",
+  "icons": [
+    {
+      "src": "/sailing-dashboard/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

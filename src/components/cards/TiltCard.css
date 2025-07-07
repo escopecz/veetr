@@ -1,0 +1,39 @@
+/* Apparent Angle Card styling (reuse TiltCard styles for compactness) */
+
+}
+
+/* Responsive adjustments for TiltCard */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .tilt-card {
+    min-height: 0;
+  }
+  /* ...existing code... */
+}
+
+@media (max-width: 767px) and (min-width: 600px) {
+  .tilt-card {
+    min-height: 0;
+  }
+  /* ...existing code... */
+}
+
+@media (max-width: 599px) and (min-width: 400px) {
+  .tilt-card {
+    min-height: 0;
+  }
+  /* ...existing code... */
+}
+
+@media (max-width: 399px) {
+  .tilt-card {
+    min-height: 0;
+  }
+  /* ...existing code... */
+}
+
+@media (max-width: 319px) {
+  .tilt-card {
+    min-height: 0;
+  }
+  /* ...existing code... */
+}

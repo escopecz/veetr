@@ -1,0 +1,159 @@
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+}
+
+.status-indicator.disconnected .status-dot {
+  background-color: #ef4444;
+}
+
+.status-indicator.connecting .status-dot {
+  background-color: #f59e0b;
+  animation: pulse 1.5s infinite;
+}
+
+.status-indicator.connected .status-dot {
+  background-color: #10b981;
+}
+
+.status-indicator.error .status-dot {
+  background-color: #ef4444;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.connect-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.connect-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.connect-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Stack status and button vertically and center them in the card */
+.connection-status-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.connection-status-info {
+  margin-bottom: 0.2rem;
+  text-align: center;
+  width: 100%;
+}
+
+.connection-status-btn {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  display: block;
+  background: rgba(255,255,255,0.10);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: background 0.2s, box-shadow 0.2s;
+  font-weight: 600;
+  font-size: 1.05em;
+  border-radius: 8px;
+  padding: 0.6em 0.2em;
+  min-height: 44px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connection-status-btn:hover, .connection-status-btn:focus {
+  background: rgba(255,255,255,0.18);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  outline: none;
+}
+
+@media (max-width: 768px) {
+  .connection-status {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .status-indicator {
+    font-size: 0.85rem;
+  }
+  
+  .connect-button {
+    font-size: 0.85rem;
+    padding: 0.6rem 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .connection-status {
+    width: 100%;
+  }
+  
+  .status-indicator {
+    font-size: 0.8rem;
+    text-align: center;
+  }
+  
+  .connect-button {
+    font-size: 0.8rem;
+    padding: 0.7rem 1.5rem;
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .connect-button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .connect-button:active {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(0.98);
+  }
+}
