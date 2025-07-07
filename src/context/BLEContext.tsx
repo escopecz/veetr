@@ -125,7 +125,26 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
         commandCharacteristic: null,
         rssi: null,
         signalQuality: 'unknown',
-        lastMessageTime: null
+        lastMessageTime: null,
+        sailingData: {
+          speed: 0,
+          speedMax: 0,
+          speedAvg: 0,
+          windSpeed: 0,
+          windSpeedMax: 0,
+          windSpeedAvg: 0,
+          windDirection: 0,
+          trueWindSpeed: 0,
+          trueWindSpeedMax: 0,
+          trueWindSpeedAvg: 0,
+          trueWindDirection: 0,
+          tilt: 0,
+          tiltPortMax: 0,
+          tiltStarboardMax: 0,
+          deadWindAngle: 40,
+          gpsSpeed: 0,
+          gpsSatellites: 0
+        }
       }
     case 'UPDATE_DATA':
       return {
