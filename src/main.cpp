@@ -59,6 +59,12 @@ class MyServerCallbacks: public NimBLEServerCallbacks {
       connectedDeviceCount++;
       deviceConnected = true;
       Serial.printf("BLE Client connected (total: %d)\n", connectedDeviceCount);
+      
+      // Continue advertising if we haven't reached max connections
+      if (connectedDeviceCount < CONFIG_BT_NIMBLE_MAX_CONNECTIONS) {
+        NimBLEDevice::startAdvertising();
+        Serial.println("Continuing advertising for additional connections...");
+      }
     };
 
     void onDisconnect(NimBLEServer* pServer) {
@@ -68,6 +74,11 @@ class MyServerCallbacks: public NimBLEServerCallbacks {
         bleRSSI = 0; // Reset RSSI when all devices disconnected
       }
       Serial.printf("BLE Client disconnected (remaining: %d)\n", connectedDeviceCount);
+      
+      // Restart advertising when a device disconnects
+      delay(500);
+      NimBLEDevice::startAdvertising();
+      Serial.println("Restarting advertising...");
     }
 };
 
@@ -113,19 +124,37 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
 // Function to read BLE connection RSSI
 void updateBLERSSI() {
   if (deviceConnected && pServer) {
-    // For now, set a placeholder value when connected
-    // NimBLE RSSI reading requires more complex implementation
-    // This will be improved in future versions
-    bleRSSI = -50; // Placeholder indicating good connection
-    
-    #ifdef DEBUG_BLE_DATA
-    static unsigned long lastRSSIDebug = 0;
-    if (millis() - lastRSSIDebug > 10000) { // Debug every 10 seconds
-      std::vector<uint16_t> connIds = pServer->getPeerDevices();
-      Serial.printf("[BLE] %d devices connected (RSSI placeholder: %d dBm)\n", connIds.size(), bleRSSI);
-      lastRSSIDebug = millis();
+    // Get the actual RSSI from connected devices
+    std::vector<uint16_t> connIds = pServer->getPeerDevices();
+    if (!connIds.empty()) {
+      // Use NimBLE API to get RSSI for the first connected device
+      uint16_t connHandle = connIds[0];
+      
+      // Call the NimBLE function to read RSSI
+      int8_t rssi = 0;
+      if (ble_gap_conn_rssi(connHandle, &rssi) == 0) {
+        bleRSSI = rssi;
+      } else {
+        bleRSSI = -50; // Fallback if RSSI read fails
+      }
+      
+      #ifdef DEBUG_BLE_DATA
+      static unsigned long lastRSSIDebug = 0;
+      if (millis() - lastRSSIDebug > 10000) { // Debug every 10 seconds
+        Serial.printf("[BLE] %d devices connected, RSSI: %d dBm\n", connIds.size(), bleRSSI);
+        // Show RSSI for all connected devices
+        for (uint16_t connId : connIds) {
+          int8_t deviceRSSI = 0;
+          if (ble_gap_conn_rssi(connId, &deviceRSSI) == 0) {
+            Serial.printf("  Device %d: %d dBm\n", connId, deviceRSSI);
+          }
+        }
+        lastRSSIDebug = millis();
+      }
+      #endif
+    } else {
+      bleRSSI = 0; // No valid connection IDs
     }
-    #endif
   } else {
     bleRSSI = 0; // No connection
   }
@@ -224,10 +253,12 @@ void setupBLE() {
   // Set TX power for balance between range and power consumption
   NimBLEDevice::setPower(ESP_PWR_LVL_P3); // +3dBm for better range
   
-  // Configure for multiple connections - set in platformio.ini instead
-  // NimBLE supports multiple connections by default
+  // Set security parameters for multiple connections
+  NimBLEDevice::setSecurityAuth(false, false, true);
+  NimBLEDevice::setSecurityPasskey(123456);
+  NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
   
-  // Create the BLE Server
+  // Create the BLE Server with connection callbacks
   pServer = NimBLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
 
@@ -252,7 +283,7 @@ void setupBLE() {
   // Start the service
   pService->start();
 
-  // Start advertising
+  // Start advertising with settings to support multiple connections
   NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true);
@@ -261,7 +292,7 @@ void setupBLE() {
   pAdvertising->start();
   
   Serial.println("NimBLE Server started, waiting for client connections...");
-  Serial.println("Multiple connections supported");
+  Serial.printf("Multiple connections supported (max %d)\n", CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
 }
 
 // Update BLE with current sensor data
@@ -367,18 +398,6 @@ void loop() {
     
     // Update BLE clients with sensor data
     updateBLEData();
-    
-    // Handle BLE disconnection/reconnection
-    if (!deviceConnected && oldDeviceConnected) {
-        delay(500); // give the bluetooth stack the chance to get things ready
-        NimBLEDevice::startAdvertising(); // restart advertising
-        Serial.println("BLE: Restarting advertising...");
-        oldDeviceConnected = deviceConnected;
-    }
-    // connecting
-    if (deviceConnected && !oldDeviceConnected) {
-        oldDeviceConnected = deviceConnected;
-    };
     
     // Set next update time
     nextUpdate = millis() + refreshRate;
