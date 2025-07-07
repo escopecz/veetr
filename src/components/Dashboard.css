@@ -126,7 +126,6 @@
   justify-items: stretch;
 }
 
-
 .card.wind-direction-card {
   background: transparent;
   backdrop-filter: none;
@@ -151,19 +150,6 @@
   justify-content: center;
 }
 
-/* Removed legacy 3-column grid media queries for new split layout */
-
-/* Mobile Landscape (480px - 599px) - REMOVED conflicting 3-column override */
-
-/* Mobile Landscape (600px - 767px) */
-
-
-/* Mobile Portrait (320px - 599px) - 2-column grid for right/left cards */
-
-
-
-
-/* Card base styles - Ultra compact for sailing conditions */
 .card {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
@@ -226,7 +212,7 @@
   font-weight: 600;
   align-self: flex-start;
   line-height: 1;
-  margin-top: 0.25em;
+  margin-top: 0.45em;
 }
 
 /* Tablet and larger screens - increased font sizes for readability */

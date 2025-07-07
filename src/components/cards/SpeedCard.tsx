@@ -6,7 +6,7 @@ interface SpeedCardProps {
 }
 
 export default function SpeedCard({ speed }: SpeedCardProps) {
-  const displaySpeed = speed >= 0.5 ? speed.toFixed(1) : 'N/A'
+  const displaySpeed = speed.toFixed(1)
 
   return (
     <div className="card speed-card">

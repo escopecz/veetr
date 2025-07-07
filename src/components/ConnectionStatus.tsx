@@ -1,8 +1,19 @@
 import { useBLE } from '../context/BLEContext'
+import { useState, useEffect } from 'react'
 import './ConnectionStatus.css'
 
 export default function ConnectionStatus() {
   const { state, connect, disconnect } = useBLE()
+  const [currentTime, setCurrentTime] = useState(Date.now())
+
+  // Update current time every second to refresh the "last message" display
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now())
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   const getStatusText = () => {
     if (state.isConnecting) return 'Connecting...'
@@ -25,6 +36,16 @@ export default function ConnectionStatus() {
     if (state.rssi >= -70) return 2 // Fair
     if (state.rssi >= -80) return 1 // Poor
     return 0 // Very poor
+  }
+
+  const getTimeSinceLastMessage = () => {
+    if (!state.lastMessageTime) return 'Never'
+    const diff = Math.floor((currentTime - state.lastMessageTime) / 1000)
+    // Ensure we never show negative values (can happen due to timing precision)
+    const safeDiff = Math.max(0, diff)
+    if (safeDiff < 60) return `${safeDiff}s ago`
+    if (safeDiff < 3600) return `${Math.floor(safeDiff / 60)}m ago`
+    return `${Math.floor(safeDiff / 3600)}h ago`
   }
 
   const handleButtonClick = () => {
@@ -55,6 +76,11 @@ export default function ConnectionStatus() {
             <span className="signal-text">
               {state.rssi}dBm ({state.signalQuality})
             </span>
+          </div>
+        )}
+        {state.isConnected && (
+          <div className="last-message-time">
+            Updated: {getTimeSinceLastMessage()}
           </div>
         )}
       </div>

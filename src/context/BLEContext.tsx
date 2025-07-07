@@ -32,6 +32,7 @@ export interface BLEState {
   error: string | null
   rssi: number | null
   signalQuality: 'excellent' | 'good' | 'fair' | 'poor' | 'unknown'
+  lastMessageTime: number | null
   sailingData: SailingData
 }
 
@@ -51,6 +52,7 @@ type BLEAction =
   | { type: 'DISCONNECT' }
   | { type: 'UPDATE_DATA'; payload: Partial<SailingData> }
   | { type: 'UPDATE_RSSI'; payload: number }
+  | { type: 'UPDATE_LAST_MESSAGE_TIME'; payload: number }
 
 // Initial state
 const initialState: BLEState = {
@@ -63,6 +65,7 @@ const initialState: BLEState = {
   error: null,
   rssi: null,
   signalQuality: 'unknown',
+  lastMessageTime: null,
   sailingData: {
     speed: 0,
     speedMax: 0,
@@ -121,7 +124,8 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
         sensorDataCharacteristic: null,
         commandCharacteristic: null,
         rssi: null,
-        signalQuality: 'unknown'
+        signalQuality: 'unknown',
+        lastMessageTime: null
       }
     case 'UPDATE_DATA':
       return {
@@ -133,6 +137,11 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
         ...state,
         rssi: action.payload,
         signalQuality: getSignalQuality(action.payload)
+      }
+    case 'UPDATE_LAST_MESSAGE_TIME':
+      return {
+        ...state,
+        lastMessageTime: action.payload
       }
     default:
       return state
@@ -260,6 +269,9 @@ export function BLEProvider({ children }: { children: ReactNode }) {
       if (data.bleRSSI !== undefined) {
         dispatch({ type: 'UPDATE_RSSI', payload: data.bleRSSI })
       }
+
+      // Update last message timestamp
+      dispatch({ type: 'UPDATE_LAST_MESSAGE_TIME', payload: Date.now() })
 
     } catch (error) {
       console.error('Error parsing BLE sensor data:', error)
