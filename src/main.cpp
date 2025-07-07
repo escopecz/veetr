@@ -520,7 +520,7 @@ void readSensors() {
     #endif
   } else {
     currentData.windSpeed = NAN;
-    currentData.windDirection = -1;
+    currentData.windDirection = -999; // Use clearly invalid value (not -1 which could be valid)
     // Only show error once every 10 seconds to avoid spam
     static unsigned long lastErrorTime = 0;
     if (millis() - lastErrorTime > 10000) {
@@ -574,7 +574,7 @@ void readSensors() {
   
   // Calculate true wind: if speed is very low, set true wind = apparent wind
   const float SPEED_THRESHOLD = 0.5; // knots
-  if (!isnan(currentData.windSpeed) && currentData.windDirection >= 0) {
+  if (!isnan(currentData.windSpeed) && currentData.windDirection >= 0 && currentData.windDirection <= 359) {
     if (!isnan(currentData.speed) && currentData.speed >= SPEED_THRESHOLD) {
       calculateTrueWind(currentData.speed, currentData.windSpeed, currentData.windDirection,
                         currentData.trueWindSpeed, currentData.trueWindDirection);
@@ -667,7 +667,12 @@ String getSensorDataJson() {
   // Core data only - keep it minimal
   doc["spd"] = isnan(currentData.speed) ? 0 : currentData.speed;
   doc["wSpd"] = isnan(currentData.windSpeed) ? 0 : currentData.windSpeed;
-  doc["wDir"] = currentData.windDirection;
+  
+  // Only include wind direction if we have valid data (0-359 degrees)
+  if (currentData.windDirection >= 0 && currentData.windDirection <= 359) {
+    doc["wDir"] = currentData.windDirection;
+  }
+  
   doc["tilt"] = isnan(currentData.tilt) ? 0 : currentData.tilt;
   doc["gSpd"] = (gpsDataValid && gps.speed.isValid() && gps.satellites.value() >= 5) ? gps.speed.knots() : 0.0;
   doc["gSat"] = (gps.charsProcessed() > 10 && gps.satellites.isValid()) ? gps.satellites.value() : 0;
