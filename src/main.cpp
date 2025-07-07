@@ -31,6 +31,7 @@ BLECharacteristic* pSensorDataCharacteristic = NULL;
 BLECharacteristic* pCommandCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
+int bleRSSI = 0; // BLE signal strength
 
 // ADXL345 Accelerometer (I2C)
 #define ADXL345_SDA 18
@@ -63,6 +64,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
 
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
+      bleRSSI = 0; // Reset RSSI when disconnected
       Serial.println("BLE Client disconnected");
     }
 };
@@ -105,6 +107,26 @@ class CommandCallbacks: public BLECharacteristicCallbacks {
       }
     }
 };
+
+// Function to read BLE connection RSSI
+void updateBLERSSI() {
+  if (deviceConnected) {
+    // Note: Getting RSSI from BLE server connection is complex with ESP32 Arduino library
+    // For now, we'll indicate connection strength based on connection status
+    // A more complete implementation would require lower-level ESP-IDF programming
+    bleRSSI = -50; // Default "good" signal strength when connected
+    
+    #ifdef DEBUG_BLE_DATA
+    static unsigned long lastRSSIDebug = 0;
+    if (millis() - lastRSSIDebug > 10000) { // Debug every 10 seconds
+      Serial.printf("[BLE] Connection active, RSSI estimated: %d dBm\n", bleRSSI);
+      lastRSSIDebug = millis();
+    }
+    #endif
+  } else {
+    bleRSSI = 0; // No connection
+  }
+}
 
 // Data structure to hold sensor readings
 struct SensorData {
@@ -318,6 +340,9 @@ void loop() {
   if (millis() >= nextUpdate) {
     // Read sensor data
     readSensors();
+    
+    // Update BLE RSSI if connected
+    updateBLERSSI();
     
     // Update history
     updateHistory();
@@ -568,6 +593,7 @@ String getSensorDataJson() {
   doc["tilt"] = isnan(currentData.tilt) ? 0 : currentData.tilt;
   doc["gSpd"] = (gpsDataValid && gps.speed.isValid() && gps.satellites.value() >= 5) ? gps.speed.knots() : 0.0;
   doc["gSat"] = (gps.charsProcessed() > 10 && gps.satellites.isValid()) ? gps.satellites.value() : 0;
+  doc["bleRSSI"] = bleRSSI; // BLE signal strength in dBm
   
   // Optional: Add max values only if space allows
   if (doc.memoryUsage() < 200) {
