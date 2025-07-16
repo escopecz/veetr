@@ -17,6 +17,7 @@
 Preferences preferences;
 float heelAngleDelta = 0.0f;
 int deadWindAngle = 40; // default
+String boatName = "My Boat"; // default boat name
 
 // BLE Configuration
 #define SERVICE_UUID        "12345678-1234-1234-1234-123456789abc"
@@ -53,6 +54,9 @@ const uint8_t windSensorQuery[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x
 // GPS Module
 HardwareSerial gpsSerial(GPS_UART);
 TinyGPSPlus gps;
+
+// Function prototypes (declared early for use in callbacks)
+void setupBLE();
 
 // BLE Server Callbacks
 class MyServerCallbacks: public NimBLEServerCallbacks {
@@ -122,6 +126,40 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
           else if (action == "regattaSetStarboard") {
             Serial.println("Regatta starboard line set");
             // TODO: Implement regatta line setting logic
+          }
+          else if (action == "setBoatName") {
+            String newBoatName = doc["boatName"];
+            if (newBoatName.length() > 0 && newBoatName.length() <= 20) {
+              // Basic validation: remove leading/trailing spaces and validate characters
+              newBoatName.trim();
+              
+              // Check for invalid characters that could break JSON or BLE
+              bool validName = true;
+              for (int i = 0; i < newBoatName.length(); i++) {
+                char c = newBoatName[i];
+                if (c == '"' || c == '\\' || c < 32 || c > 126) {
+                  validName = false;
+                  break;
+                }
+              }
+              
+              if (validName && newBoatName.length() > 0) {
+                boatName = newBoatName;
+                preferences.putString("boatName", boatName);
+                Serial.printf("Boat name set to: '%s'\n", boatName.c_str());
+                
+                // Restart BLE advertising with new name
+                NimBLEDevice::stopAdvertising();
+                NimBLEDevice::deinit();
+                delay(500);
+                setupBLE();
+                Serial.println("BLE restarted with new boat name");
+              } else {
+                Serial.println("Invalid boat name - no quotes, backslashes, or control characters allowed");
+              }
+            } else {
+              Serial.println("Invalid boat name - must be 1-20 characters");
+            }
           }
         }
       }
@@ -242,8 +280,8 @@ bool isGPSDataValid();
 
 // BLE Setup Function
 void setupBLE() {
-  // Initialize NimBLE
-  NimBLEDevice::init("Luna_Sailing");
+  // Initialize NimBLE with boat name
+  NimBLEDevice::init(boatName.c_str());
   
   // Set TX power for balance between range and power consumption
   NimBLEDevice::setPower(ESP_PWR_LVL_P3); // +3dBm for better range
@@ -281,7 +319,7 @@ void setupBLE() {
   pAdvertising->setMaxPreferred(0x12);  // 22.5ms intervals
   pAdvertising->start();
   
-  Serial.println("NimBLE Server started, waiting for client connections...");
+  Serial.printf("NimBLE Server started as '%s', waiting for client connections...\n", boatName.c_str());
   Serial.printf("Multiple connections supported (max %d)\n", CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
 }
 
@@ -327,10 +365,13 @@ void setup() {
   preferences.begin("settings", false);
   heelAngleDelta = preferences.getFloat("delta", 0.0f);
   deadWindAngle = preferences.getInt("deadWindAngle", 40);
+  boatName = preferences.getString("boatName", "Luna_Sailing");
   Serial.print("[Boot] Loaded heelAngleDelta from NVS: ");
   Serial.println(heelAngleDelta);
   Serial.print("[Boot] Loaded deadWindAngle from NVS: ");
   Serial.println(deadWindAngle);
+  Serial.print("[Boot] Loaded boatName from NVS: ");
+  Serial.println(boatName);
   // Initialize I2C for ADXL345 with detection
   Wire.begin(ADXL345_SDA, ADXL345_SCL);
   Wire.setTimeout(100); // Set I2C timeout to 100ms to prevent long blocking
@@ -822,6 +863,9 @@ String getSensorDataJson() {
   
   // BLE connection quality
   doc["rssi"] = bleRSSI;
+  
+  // Boat identification
+  doc["boatName"] = boatName;
   
   String output;
   serializeJson(doc, output);
