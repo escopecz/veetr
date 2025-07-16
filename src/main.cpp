@@ -218,10 +218,6 @@ SensorData currentData = {0};
 // GPS status
 bool gpsDataValid = false;
 
-// History buffer for chart data
-const int HISTORY_LENGTH = 60; // 1 minute at 1Hz
-std::vector<SensorData> dataHistory;
-
 // Refresh rate in milliseconds
 int refreshRate = 1000;
 
@@ -230,7 +226,6 @@ unsigned long nextUpdate = 0;
 
 // Function prototypes
 void readSensors();
-void updateHistory();
 String getSensorDataJson();
 void setupBLE();
 void updateBLEData();
@@ -387,11 +382,7 @@ void setup() {
   setTransmit(false);
   Serial.println("RS485 wind sensor initialized");
   
-  // Initialize sensor data and history
-  // Pre-populate history with zero values
-  for (int i = 0; i < HISTORY_LENGTH; i++) {
-    dataHistory.push_back(currentData);
-  }
+  // Initialize sensor data
   
   Serial.println("Setup complete");
 }
@@ -404,9 +395,6 @@ void loop() {
     
     // Update BLE RSSI if connected
     updateBLERSSI();
-    
-    // Update history
-    updateHistory();
     
     // Update BLE clients with sensor data
     updateBLEData();
@@ -785,15 +773,6 @@ void readSensors() {
     // Accelerometer not available - set tilt to 0
     currentData.tilt = 0.0;
   }
-}
-
-// Update history buffer with current data
-void updateHistory() {
-  // Remove oldest entry and add new one
-  if (dataHistory.size() >= HISTORY_LENGTH) {
-    dataHistory.erase(dataHistory.begin());
-  }
-  dataHistory.push_back(currentData);
 }
 
 // Generate JSON string with current sensor data using marine standard terminology
