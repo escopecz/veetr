@@ -170,19 +170,11 @@ void updateBLERSSI() {
 // Data structure to hold sensor readings
 struct SensorData {
   float speed;          // Vessel speed in knots
-  float speedMax;       // Maximum recorded speed
-  float speedAvg;       // Average speed
   float windSpeed;      // Apparent wind speed in knots
-  float windSpeedMax;   // Maximum recorded apparent wind speed
-  float windSpeedAvg;   // Average apparent wind speed
   int windDirection;    // Apparent wind direction in degrees (0-359)
   float trueWindSpeed;  // True wind speed in knots
-  float trueWindSpeedMax; // Maximum recorded true wind speed
-  float trueWindSpeedAvg; // Average true wind speed
   float trueWindDirection; // True wind direction in degrees (0-359)
   float tilt;           // Vessel heel/tilt angle in degrees
-  float tiltPortMax;    // Maximum port tilt
-  float tiltStarboardMax; // Maximum starboard tilt
 };
 
 // Function to calculate true wind from apparent wind
@@ -396,15 +388,6 @@ void setup() {
   Serial.println("RS485 wind sensor initialized");
   
   // Initialize sensor data and history
-  currentData.speedMax = 0;
-  currentData.speedAvg = 0;
-  currentData.windSpeedMax = 0;
-  currentData.windSpeedAvg = 0;
-  currentData.trueWindSpeedMax = 0;
-  currentData.trueWindSpeedAvg = 0;
-  currentData.tiltPortMax = 0;
-  currentData.tiltStarboardMax = 0;
-  
   // Pre-populate history with zero values
   for (int i = 0; i < HISTORY_LENGTH; i++) {
     dataHistory.push_back(currentData);
@@ -652,18 +635,6 @@ float filterGPSSpeed(float rawSpeed, int satellites, float hdop) {
 // Set up WiFi Access Point
 // Read sensor data
 void readSensors() {
-  // Update max and average true wind speed only if valid
-  static float trueWindSpeedSum = 0;
-  static int trueWindSpeedCount = 0;
-  if (!isnan(currentData.trueWindSpeed)) {
-    if (currentData.trueWindSpeed > currentData.trueWindSpeedMax) {
-      currentData.trueWindSpeedMax = currentData.trueWindSpeed;
-    }
-    trueWindSpeedSum += currentData.trueWindSpeed;
-    trueWindSpeedCount++;
-    currentData.trueWindSpeedAvg = trueWindSpeedSum / trueWindSpeedCount;
-  }
-  
   // Read GPS data first
   bool gpsDataValid = readGPS();
   
@@ -692,18 +663,6 @@ void readSensors() {
     }
   } else {
     currentData.speed = 0.0;
-  }
-
-  // Update max and average speed only if valid
-  if (!isnan(currentData.speed)) {
-    if (currentData.speed > currentData.speedMax) {
-      currentData.speedMax = currentData.speed;
-    }
-    static float speedSum = 0;
-    static int speedCount = 0;
-    speedSum += currentData.speed;
-    speedCount++;
-    currentData.speedAvg = speedSum / speedCount;
   }
 
   // Read wind sensor only, no fallback to simulated data
@@ -764,18 +723,6 @@ void readSensors() {
   //   Serial.write(c);
   // }
   
-  // Update max and average wind speed only if valid
-  if (!isnan(currentData.windSpeed)) {
-    if (currentData.windSpeed > currentData.windSpeedMax) {
-      currentData.windSpeedMax = currentData.windSpeed;
-    }
-    static float windSpeedSum = 0;
-    static int windSpeedCount = 0;
-    windSpeedSum += currentData.windSpeed;
-    windSpeedCount++;
-    currentData.windSpeedAvg = windSpeedSum / windSpeedCount;
-  }
-  
   // Calculate true wind: if speed is very low, set true wind = apparent wind
   const float SPEED_THRESHOLD = 0.5; // knots
   if (!isnan(currentData.windSpeed) && currentData.windDirection >= 0 && currentData.windDirection <= 359) {
@@ -815,19 +762,6 @@ void readSensors() {
           float tilt = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
           float zeroedTilt = tilt - heelAngleDelta;
           currentData.tilt = zeroedTilt;
-          
-          // Track max port/starboard heel
-          if (tilt < 0) {
-            // Port
-            if (isnan(currentData.tiltPortMax) || tilt < currentData.tiltPortMax) {
-              currentData.tiltPortMax = tilt;
-            }
-          } else {
-            // Starboard
-            if (isnan(currentData.tiltStarboardMax) || tilt > currentData.tiltStarboardMax) {
-              currentData.tiltStarboardMax = tilt;
-            }
-          }
         } else {
           // All zeros - sensor may have failed
           static unsigned long lastZeroWarning = 0;
@@ -850,8 +784,6 @@ void readSensors() {
   } else {
     // Accelerometer not available - set tilt to 0
     currentData.tilt = 0.0;
-    currentData.tiltPortMax = 0.0;
-    currentData.tiltStarboardMax = 0.0;
   }
 }
 
