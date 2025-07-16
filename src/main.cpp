@@ -467,82 +467,185 @@ void loop() {
   }
 }
 
-// GPS speed filtering variables
-const int GPS_SPEED_FILTER_SIZE = 8;  // Increased for better averaging
-static float gpsSpeedBuffer[GPS_SPEED_FILTER_SIZE];
-static int gpsSpeedIndex = 0;
-static bool gpsSpeedBufferFull = false;
+// GPS track-based filtering variables
+const int GPS_TRACK_BUFFER_SIZE = 10;  // Track last 10 positions
+struct GPSPoint {
+  double lat;
+  double lon;
+  float speed;
+  unsigned long timestamp;
+  bool valid;
+};
+
+static GPSPoint gpsTrackBuffer[GPS_TRACK_BUFFER_SIZE];
+static int gpsTrackIndex = 0;
+static bool gpsTrackBufferFull = false;
 static float lastValidSpeed = 0.0;
 
-// Function to apply moving average filter to GPS speed
+// Calculate distance between two GPS points in meters
+float calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+  const float R = 6371000; // Earth's radius in meters
+  float dLat = (lat2 - lat1) * PI / 180.0;
+  float dLon = (lon2 - lon1) * PI / 180.0;
+  float a = sin(dLat/2) * sin(dLat/2) +
+            cos(lat1 * PI / 180.0) * cos(lat2 * PI / 180.0) *
+            sin(dLon/2) * sin(dLon/2);
+  float c = 2 * atan2(sqrt(a), sqrt(1-a));
+  return R * c;
+}
+
+// Calculate bearing between two GPS points in degrees
+float calculateBearing(double lat1, double lon1, double lat2, double lon2) {
+  float dLon = (lon2 - lon1) * PI / 180.0;
+  float y = sin(dLon) * cos(lat2 * PI / 180.0);
+  float x = cos(lat1 * PI / 180.0) * sin(lat2 * PI / 180.0) -
+            sin(lat1 * PI / 180.0) * cos(lat2 * PI / 180.0) * cos(dLon);
+  float bearing = atan2(y, x) * 180.0 / PI;
+  return fmod(bearing + 360.0, 360.0);
+}
+
+// Analyze GPS track to determine if movement is real
+bool isMovementConsistent() {
+  if (!gpsTrackBufferFull && gpsTrackIndex < 3) {
+    return false; // Need at least 3 points
+  }
+  
+  int validPoints = gpsTrackBufferFull ? GPS_TRACK_BUFFER_SIZE : gpsTrackIndex;
+  if (validPoints < 3) return false;
+  
+  // Calculate total distance and bearing changes
+  float totalDistance = 0.0;
+  float totalBearingChange = 0.0;
+  float lastBearing = 0.0;
+  bool firstBearing = true;
+  int consecutivePoints = 0;
+  
+  for (int i = 1; i < validPoints; i++) {
+    int prevIdx = (gpsTrackIndex - validPoints + i - 1 + GPS_TRACK_BUFFER_SIZE) % GPS_TRACK_BUFFER_SIZE;
+    int currIdx = (gpsTrackIndex - validPoints + i + GPS_TRACK_BUFFER_SIZE) % GPS_TRACK_BUFFER_SIZE;
+    
+    if (!gpsTrackBuffer[prevIdx].valid || !gpsTrackBuffer[currIdx].valid) continue;
+    
+    float distance = calculateDistance(
+      gpsTrackBuffer[prevIdx].lat, gpsTrackBuffer[prevIdx].lon,
+      gpsTrackBuffer[currIdx].lat, gpsTrackBuffer[currIdx].lon
+    );
+    
+    totalDistance += distance;
+    consecutivePoints++;
+    
+    if (distance > 2.0) { // Only calculate bearing for significant movement
+      float bearing = calculateBearing(
+        gpsTrackBuffer[prevIdx].lat, gpsTrackBuffer[prevIdx].lon,
+        gpsTrackBuffer[currIdx].lat, gpsTrackBuffer[currIdx].lon
+      );
+      
+      if (!firstBearing) {
+        float bearingDiff = fabs(bearing - lastBearing);
+        if (bearingDiff > 180) bearingDiff = 360 - bearingDiff;
+        totalBearingChange += bearingDiff;
+      }
+      
+      lastBearing = bearing;
+      firstBearing = false;
+    }
+  }
+  
+  if (consecutivePoints < 2) return false;
+  
+  // Calculate average distance per sample
+  float avgDistance = totalDistance / consecutivePoints;
+  
+  // If we're moving very little, check for GPS noise pattern
+  if (avgDistance < 3.0) { // Less than 3 meters per sample = likely stationary
+    return false;
+  }
+  
+  // If we're moving significantly, check for consistent track
+  if (avgDistance > 5.0) { // More than 5 meters per sample = likely real movement
+    // Check if bearing changes are reasonable (not jumping around randomly)
+    float avgBearingChange = totalBearingChange / max(1, consecutivePoints - 1);
+    
+    // Allow for reasonable course changes in sailing
+    if (avgBearingChange < 45.0) { // Less than 45° average change = consistent track
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Track-based GPS speed filtering
 float filterGPSSpeed(float rawSpeed, int satellites, float hdop) {
-  // Enhanced GPS quality check - stricter requirements
-  bool goodGPSQuality = (satellites >= 6 && hdop <= 2.0);
+  // Basic GPS quality check - less strict than before
+  bool goodGPSQuality = (satellites >= 4 && hdop <= 3.0);
   
-  // If GPS quality is poor, don't trust speed readings
+  // If GPS quality is very poor, don't trust readings
   if (!goodGPSQuality) {
-    return 0.0;
+    return lastValidSpeed * 0.95; // Gradually decay speed if no GPS
   }
   
-  // Add raw speed to circular buffer
-  gpsSpeedBuffer[gpsSpeedIndex] = rawSpeed;
-  gpsSpeedIndex = (gpsSpeedIndex + 1) % GPS_SPEED_FILTER_SIZE;
+  // Store current GPS point in track buffer
+  GPSPoint currentPoint;
+  currentPoint.lat = gps.location.lat();
+  currentPoint.lon = gps.location.lng();
+  currentPoint.speed = rawSpeed;
+  currentPoint.timestamp = millis();
+  currentPoint.valid = gps.location.isValid();
   
-  if (!gpsSpeedBufferFull && gpsSpeedIndex == 0) {
-    gpsSpeedBufferFull = true;
+  gpsTrackBuffer[gpsTrackIndex] = currentPoint;
+  gpsTrackIndex = (gpsTrackIndex + 1) % GPS_TRACK_BUFFER_SIZE;
+  
+  if (!gpsTrackBufferFull && gpsTrackIndex == 0) {
+    gpsTrackBufferFull = true;
   }
   
-  // Calculate moving average
-  float sum = 0.0;
-  int count = gpsSpeedBufferFull ? GPS_SPEED_FILTER_SIZE : gpsSpeedIndex;
+  // Basic speed smoothing with smaller window
+  const int SPEED_SMOOTH_SIZE = 3;
+  float speedSum = 0.0;
+  int speedCount = 0;
   
-  for (int i = 0; i < count; i++) {
-    sum += gpsSpeedBuffer[i];
-  }
-  
-  float averageSpeed = sum / count;
-  
-  // Calculate standard deviation to detect noise
-  float variance = 0.0;
-  if (count > 1) {
-    for (int i = 0; i < count; i++) {
-      float diff = gpsSpeedBuffer[i] - averageSpeed;
-      variance += diff * diff;
+  for (int i = 0; i < SPEED_SMOOTH_SIZE && i < (gpsTrackBufferFull ? GPS_TRACK_BUFFER_SIZE : gpsTrackIndex); i++) {
+    int idx = (gpsTrackIndex - 1 - i + GPS_TRACK_BUFFER_SIZE) % GPS_TRACK_BUFFER_SIZE;
+    if (gpsTrackBuffer[idx].valid) {
+      speedSum += gpsTrackBuffer[idx].speed;
+      speedCount++;
     }
-    variance /= count;
-  }
-  float stdDev = sqrt(variance);
-  
-  // If standard deviation is high, readings are noisy - likely stationary
-  const float MAX_STDDEV_STATIONARY = 0.2; // knots
-  if (stdDev > MAX_STDDEV_STATIONARY && averageSpeed < 1.0) {
-    return 0.0; // High variance at low speed = GPS noise
   }
   
-  // Apply aggressive noise threshold with hysteresis
-  const float NOISE_THRESHOLD = 0.15;  // knots - much more aggressive
-  const float MOVING_THRESHOLD = 1.2;   // knots - higher threshold to start moving
+  float smoothedSpeed = speedCount > 0 ? speedSum / speedCount : rawSpeed;
   
-  // If we were previously stationary (lastValidSpeed close to 0)
-  if (lastValidSpeed < NOISE_THRESHOLD) {
-    // Need sustained higher speed AND low variance to register movement
-    if (averageSpeed >= MOVING_THRESHOLD && stdDev < 0.3) {
-      lastValidSpeed = averageSpeed;
-      return averageSpeed;
+  // Very conservative noise filtering for low speeds
+  const float NOISE_THRESHOLD = 0.08; // Much lower threshold - 0.08 knots
+  
+  if (smoothedSpeed < NOISE_THRESHOLD) {
+    // Check if we have consistent track indicating real movement
+    if (isMovementConsistent()) {
+      // GPS track shows real movement, trust the speed even if low
+      lastValidSpeed = smoothedSpeed;
+      return smoothedSpeed;
     } else {
-      // Still stationary - apply very strong filtering
-      return 0.0;
-    }
-  } else {
-    // We were previously moving - use lower threshold to stop, but still be conservative
-    if (averageSpeed >= 0.4 && stdDev < 0.5) { // Need consistent speed to stay "moving"
-      lastValidSpeed = averageSpeed;
-      return averageSpeed;
-    } else {
-      // Dropping below threshold or too much variance - now stationary
+      // No consistent track, likely stationary
       lastValidSpeed = 0.0;
       return 0.0;
     }
+  }
+  
+  // For higher speeds, use lighter filtering
+  const float HYSTERESIS_FACTOR = 0.1; // 10% hysteresis
+  
+  if (lastValidSpeed < NOISE_THRESHOLD) {
+    // Was stationary, need slightly higher speed to register movement
+    if (smoothedSpeed > (NOISE_THRESHOLD + HYSTERESIS_FACTOR)) {
+      lastValidSpeed = smoothedSpeed;
+      return smoothedSpeed;
+    } else {
+      return 0.0;
+    }
+  } else {
+    // Was moving, use current speed with minimal filtering
+    lastValidSpeed = smoothedSpeed;
+    return smoothedSpeed;
   }
 }
 
@@ -564,24 +667,28 @@ void readSensors() {
   // Read GPS data first
   bool gpsDataValid = readGPS();
   
-  // Apply enhanced GPS speed filtering
+  // Apply track-based GPS speed filtering
   if (gpsDataValid && gps.speed.isValid()) {
+    static unsigned long lastGPSDebugTime = 0;
+    
     float rawSpeed = gps.speed.knots();
     int satellites = gps.satellites.isValid() ? gps.satellites.value() : 0;
     float hdop = gps.hdop.isValid() ? gps.hdop.hdop() : 99.9;
     
-    // Use enhanced filtering with moving average and quality assessment
+    // Use track-based filtering that considers GPS position changes
     currentData.speed = filterGPSSpeed(rawSpeed, satellites, hdop);
     
     #ifdef DEBUG_GPS
-    Serial.printf("[GPS Filter] Raw: %.2f, Filtered: %.2f, Sats: %d, HDOP: %.1f\n", 
-                  rawSpeed, currentData.speed, satellites, hdop);
+    Serial.printf("[GPS Filter] Raw: %.2f, Filtered: %.2f, Sats: %d, HDOP: %.1f, Track: %s\n", 
+                  rawSpeed, currentData.speed, satellites, hdop,
+                  isMovementConsistent() ? "MOVING" : "STATIONARY");
     #endif
     
-    // Additional debug for stationary filtering (always show when speed > 0.5 knots raw)
-    if (rawSpeed > 0.5) {
-      Serial.printf("[GPS Debug] Raw: %.3f kt, Filtered: %.3f kt, Sats: %d, HDOP: %.2f\n", 
-                    rawSpeed, currentData.speed, satellites, hdop);
+    // Additional debug for movement detection (always show when speed > 0.3 knots raw)
+    if (rawSpeed > 0.3) {
+      Serial.printf("[GPS Track] Raw: %.3f kt, Filtered: %.3f kt, Movement: %s\n", 
+                    rawSpeed, currentData.speed, 
+                    isMovementConsistent() ? "CONSISTENT" : "INCONSISTENT");
     }
   } else {
     currentData.speed = 0.0;

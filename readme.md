@@ -97,16 +97,28 @@ The Luna Sailing Dashboard transmits data via BLE notifications using a standard
 
 ### GPS Speed Filtering
 
-The system includes intelligent GPS speed filtering to distinguish real vessel movement from GPS noise:
+The system includes intelligent GPS speed filtering to distinguish real vessel movement from GPS noise when stationary or docked.
 
-- **Moving Average Filter:** Uses an 8-sample moving average to smooth out erratic readings
-- **Variance Detection:** Calculates standard deviation to detect noisy/inconsistent readings
-- **GPS Quality Assessment:** Requires ≥6 satellites and HDOP ≤ 2.0 for reliable readings
-- **Aggressive Hysteresis Filtering:** Uses different thresholds for starting/stopping movement detection
-  - **Stationary → Moving:** Requires ≥1.2 knots sustained speed with low variance to register movement
-  - **Moving → Stationary:** Drops to 0 when speed falls below 0.4 knots or variance is too high
-- **Noise Rejection:** Filters out GPS drift and noise when anchored or docked
-- **Variance Filtering:** Rejects speed readings when standard deviation indicates GPS instability
+**How it works:**
+1. **Track Analysis:** Collects recent GPS positions and analyzes the vessel's track
+2. **Distance & Bearing:** Calculates actual distance traveled and bearing changes
+3. **Movement Detection:** Distinguishes between real movement and GPS drift/noise
+4. **Quality Check:** Only uses GPS data with ≥6 satellites and HDOP ≤ 2.0
+5. **Hysteresis:** Different thresholds prevent speed "flickering" between 0 and low values
+
+**Key Features:**
+- **Moving Average Filter:** 8-sample moving average smooths erratic readings
+- **Variance Detection:** Rejects readings when GPS signal is unstable
+- **Stationary Detection:** Reports 0 speed when anchored/docked to filter GPS noise
+- **Responsive:** Quickly detects when vessel starts moving after being stationary
+
+**Thresholds:**
+- **Noise Threshold:** 0.08 knots (speeds below this are considered noise)
+- **Start Moving:** ≥0.18 knots (noise threshold + 10% hysteresis)
+- **Stop Moving:** <0.08 knots or inconsistent GPS track indicates stationary state
+
+**Why Start > Stop (Hysteresis):**
+This prevents speed "flickering" between 0 and low values when GPS noise fluctuates around the threshold. The boat must reach a slightly higher speed to register as "moving" than the speed at which it's considered "stopped."
 
 ### Error Handling
 
