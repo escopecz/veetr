@@ -6,10 +6,11 @@
 #include <Wire.h>
 #include <Adafruit_ADXL345_U.h>
 #include <NimBLEDevice.h>
+#include <ModbusMaster.h>
 
 // Debug flags - uncomment for verbose output
 #define DEBUG_BLE_DATA
-// #define DEBUG_WIND_SENSOR
+#define DEBUG_WIND_SENSOR
 // #define DEBUG_GPS
 // #define DEBUG_ACCEL
 
@@ -37,9 +38,11 @@ uint16_t connectedDeviceCount = 0; // Track number of connected devices
 #define ADXL345_SCL 19
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 bool accelAvailable = false; // Track if accelerometer is working
+
+// RS485 Wind Sensor Configuration
 #define RS485_DE 14
-#define RS485_RX 25
-#define RS485_TX 26
+#define RS485_RX 32
+#define RS485_TX 33
 #define RS485_UART 2
 
 // GPS Module Configuration (using UART1)
@@ -49,7 +52,7 @@ bool accelAvailable = false; // Track if accelerometer is working
 
 // RS485 Wind Sensor
 HardwareSerial rs485(RS485_UART);
-const uint8_t windSensorQuery[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B};
+ModbusMaster windSensor;
 
 // GPS Module
 HardwareSerial gpsSerial(GPS_UART);
@@ -57,6 +60,9 @@ TinyGPSPlus gps;
 
 // Function prototypes (declared early for use in callbacks)
 void setupBLE();
+void preTransmission();
+void postTransmission();
+float regsToFloat(uint16_t lowReg, uint16_t highReg);
 
 // BLE Server Callbacks
 class MyServerCallbacks: public NimBLEServerCallbacks {
@@ -205,6 +211,23 @@ void updateBLERSSI() {
   }
 }
 
+// ModbusMaster callback functions for RS485 control
+void preTransmission() { 
+  digitalWrite(RS485_DE, HIGH); 
+}
+
+void postTransmission() { 
+  digitalWrite(RS485_DE, LOW); 
+}
+
+// Convert two Modbus registers (32 bits) to float
+float regsToFloat(uint16_t lowReg, uint16_t highReg) {
+  uint32_t combined = ((uint32_t)highReg << 16) | lowReg;
+  float value;
+  memcpy(&value, &combined, sizeof(value));
+  return value;
+}
+
 // Data structure to hold sensor readings
 struct SensorData {
   float speed;          // Vessel speed in knots
@@ -270,8 +293,6 @@ void updateBLEData();
 float filterGPSSpeed(float rawSpeed, int satellites, float hdop);
 
 // Wind Sensor Functions
-void setTransmit(bool tx);
-uint16_t modbusCRC(const uint8_t *data, uint8_t len);
 bool readWindSensor(float &windSpeed, int &windDirection);
 
 // GPS Functions
@@ -417,11 +438,15 @@ void setup() {
   gpsSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
   Serial.println("GPS module initialized");
   
-  // Initialize RS485 for wind sensor (keeping for backup)
-  rs485.begin(4800, SERIAL_8N1, RS485_RX, RS485_TX);
+  // Initialize RS485 for wind sensor with ModbusMaster
+  rs485.begin(9600, SERIAL_8E1, RS485_RX, RS485_TX);
   pinMode(RS485_DE, OUTPUT);
-  setTransmit(false);
-  Serial.println("RS485 wind sensor initialized");
+  digitalWrite(RS485_DE, LOW);
+  
+  windSensor.begin(1, rs485); // Sensor ID 1
+  windSensor.preTransmission(preTransmission);
+  windSensor.postTransmission(postTransmission);
+  Serial.println("RS485 wind sensor initialized with ModbusMaster");
   
   // Initialize sensor data
   
@@ -694,11 +719,11 @@ void readSensors() {
     currentData.speed = 0.0;
   }
 
-  // Read wind sensor only, no fallback to simulated data
+  // Read wind sensor using ModbusMaster
   float sensorWindSpeed;
   int sensorWindDirection;
   if (readWindSensor(sensorWindSpeed, sensorWindDirection)) {
-    // Convert m/s to knots (1 m/s = 1.944 knots)
+    // Speed is already in m/s from the sensor, convert to knots (1 m/s = 1.944 knots)
     currentData.windSpeed = sensorWindSpeed * 1.944;
     currentData.windDirection = sensorWindDirection;
     #ifdef DEBUG_WIND_SENSOR
@@ -874,71 +899,31 @@ String getSensorDataJson() {
 
 // Wind Sensor Functions
 
-// Set RS485 transmit/receive mode
-void setTransmit(bool tx) { 
-  digitalWrite(RS485_DE, tx ? HIGH : LOW); 
-}
-
-// Calculate Modbus CRC16
-uint16_t modbusCRC(const uint8_t *data, uint8_t len) {
-  uint16_t crc = 0xFFFF;
-  for (uint8_t i = 0; i < len; i++) {
-    crc ^= data[i];
-    for (uint8_t j = 0; j < 8; j++)
-      crc = (crc & 0x01) ? (crc >> 1) ^ 0xA001 : crc >> 1;
-  }
-  return crc;
-}
-
-// Read wind sensor data via RS485
+// Read wind sensor data via RS485 using ModbusMaster
 bool readWindSensor(float &windSpeed, int &windDirection) {
-  // Clear any existing data
-  while (rs485.available()) rs485.read();
-  
-  // Send query
-  setTransmit(true);
-  delayMicroseconds(100);
-  for (uint8_t i = 0; i < 8; i++) rs485.write(windSensorQuery[i]);
-  rs485.flush();
-  delayMicroseconds(100);
-  setTransmit(false);
-  delayMicroseconds(500);
+  uint8_t result = windSensor.readHoldingRegisters(0x0001, 4); // direction + speed (4 regs)
 
-  // Read response
-  uint8_t response[9];
-  uint32_t startTime = millis();
-  uint8_t index = 0;
-  
-  while (index < 9 && millis() - startTime < 1000) {
-    if (rs485.available()) {
-      response[index++] = rs485.read();
-    }
-  }
+  if (result == windSensor.ku8MBSuccess) {
+    uint16_t windDir   = windSensor.getResponseBuffer(0); // direction (0–359)
+    uint16_t speedLow  = windSensor.getResponseBuffer(1); // first half of float
+    uint16_t speedHigh = windSensor.getResponseBuffer(2); // second half of float
 
-  // Validate response
-  if (index == 9 && response[0] == 0x01 && response[1] == 0x03 && response[2] == 0x04) {
-    uint16_t receivedCRC = (response[8] << 8) | response[7];
-    uint16_t calculatedCRC = modbusCRC(response, 7);
+    // Convert registers to float (swapped order for correct endianness)
+    windSpeed = regsToFloat(speedLow, speedHigh);
+    windDirection = windDir;
     
-    if (receivedCRC == calculatedCRC) {
-      // Parse wind data
-      windSpeed = ((response[3] << 8) | response[4]) / 100.0;  // Convert to m/s
-      windDirection = (response[5] << 8) | response[6];        // Direction in degrees
-      return true;
-    } else {
-      #ifdef DEBUG_WIND_SENSOR
-      Serial.println("Wind sensor CRC error");
-      #endif
-    }
+    #ifdef DEBUG_WIND_SENSOR
+    Serial.printf("[Wind Sensor] Raw response: dir=%d, speedLow=0x%04X, speedHigh=0x%04X, speed=%.2f m/s\n", 
+                  windDir, speedLow, speedHigh, windSpeed);
+    #endif
+    
+    return true;
   } else {
     #ifdef DEBUG_WIND_SENSOR
-    Serial.print("Wind sensor invalid response, received ");
-    Serial.print(index);
-    Serial.println(" bytes");
+    Serial.printf("[Wind Sensor] Modbus read error: %d\n", result);
     #endif
+    return false;
   }
-  
-  return false;
 }
 
 // GPS Functions
