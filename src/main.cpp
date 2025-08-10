@@ -18,7 +18,6 @@
 Preferences preferences;
 float heelAngleDelta = 0.0f;
 int deadWindAngle = 40; // default
-String boatName = "My Boat"; // default boat name
 
 // BLE Configuration
 #define SERVICE_UUID        "12345678-1234-1234-1234-123456789abc"
@@ -60,6 +59,7 @@ TinyGPSPlus gps;
 
 // Function prototypes (declared early for use in callbacks)
 void setupBLE();
+void setupBLEServer();
 void preTransmission();
 void postTransmission();
 float regsToFloat(uint16_t lowReg, uint16_t highReg);
@@ -141,39 +141,44 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             Serial.println("Regatta starboard line set");
             // TODO: Implement regatta line setting logic
           }
-          else if (action == "setBoatName") {
-            String newBoatName = doc["boatName"];
-            if (newBoatName.length() > 0 && newBoatName.length() <= 20) {
+          else if (action == "setDeviceName") {
+            String newDeviceName = doc["deviceName"];
+            if (newDeviceName.length() > 0 && newDeviceName.length() <= 20) {
               // Basic validation: remove leading/trailing spaces and validate characters
-              newBoatName.trim();
+              newDeviceName.trim();
               
-              // Check for invalid characters that could break JSON or BLE
+              // Check for invalid characters that could break BLE device name
               bool validName = true;
-              for (int i = 0; i < newBoatName.length(); i++) {
-                char c = newBoatName[i];
-                if (c == '"' || c == '\\' || c < 32 || c > 126) {
+              for (int i = 0; i < newDeviceName.length(); i++) {
+                char c = newDeviceName[i];
+                // Allow alphanumeric, underscore, hyphen, and space for device names
+                if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || 
+                      (c >= '0' && c <= '9') || c == '_' || c == '-' || c == ' ')) {
                   validName = false;
                   break;
                 }
               }
               
-              if (validName && newBoatName.length() > 0) {
-                boatName = newBoatName;
-                preferences.putString("boatName", boatName);
-                Serial.printf("Boat name set to: '%s'\n", boatName.c_str());
+              if (validName && newDeviceName.length() > 0) {
+                // Save new device name to preferences
+                preferences.putString("deviceName", newDeviceName);
+                Serial.printf("Device name saved as: '%s'\n", newDeviceName.c_str());
+                Serial.println("Device name change will take effect after restart");
+                Serial.println("Please disconnect and restart the ESP32 to see the new device name");
                 
-                // Restart BLE advertising with new name
-                NimBLEDevice::stopAdvertising();
-                NimBLEDevice::deinit();
-                delay(500);
-                setupBLE();
-                Serial.println("BLE restarted with new boat name");
+                // Note: We don't restart BLE immediately to avoid disrupting the current connection
+                // The new name will be used on the next boot cycle
               } else {
-                Serial.println("Invalid boat name - no quotes, backslashes, or control characters allowed");
+                Serial.println("Invalid device name - only alphanumeric, underscore, hyphen, and space allowed");
               }
             } else {
-              Serial.println("Invalid boat name - must be 1-20 characters");
+              Serial.println("Invalid device name - must be 1-20 characters");
             }
+          }
+          else if (action == "restartWithNewName") {
+            Serial.println("Restarting ESP32 to apply new device name...");
+            delay(500); // Give time for response to be sent
+            ESP.restart();
           }
         }
       }
@@ -313,12 +318,24 @@ bool isGPSDataValid();
 
 // BLE Setup Function
 void setupBLE() {
-  // Initialize NimBLE with boat name
-  NimBLEDevice::init(boatName.c_str());
+  // Get device name from preferences (separate from boat name in JSON)
+  String deviceName = preferences.getString("deviceName", "Luna_Sailing");
+  
+  // Initialize NimBLE with device name
+  NimBLEDevice::init(deviceName.c_str());
   
   // Set TX power for balance between range and power consumption
   NimBLEDevice::setPower(ESP_PWR_LVL_P3); // +3dBm for better range
   
+  // Setup the BLE server
+  setupBLEServer();
+  
+  Serial.printf("NimBLE Server started as '%s', waiting for client connections...\n", deviceName.c_str());
+  Serial.printf("Multiple connections supported (max %d)\n", CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
+}
+
+// BLE Server Setup Function (without device initialization)
+void setupBLEServer() {
   // Create the BLE Server with connection callbacks
   pServer = NimBLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
@@ -351,9 +368,6 @@ void setupBLE() {
   pAdvertising->setMinPreferred(0x06);  // 7.5ms intervals
   pAdvertising->setMaxPreferred(0x12);  // 22.5ms intervals
   pAdvertising->start();
-  
-  Serial.printf("NimBLE Server started as '%s', waiting for client connections...\n", boatName.c_str());
-  Serial.printf("Multiple connections supported (max %d)\n", CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
 }
 
 // Update BLE with current sensor data
@@ -403,13 +417,13 @@ void setup() {
   preferences.begin("settings", false);
   heelAngleDelta = preferences.getFloat("delta", 0.0f);
   deadWindAngle = preferences.getInt("deadWindAngle", 40);
-  boatName = preferences.getString("boatName", "Luna_Sailing");
+  String deviceName = preferences.getString("deviceName", "Luna_Sailing");
   Serial.print("[Boot] Loaded heelAngleDelta from NVS: ");
   Serial.println(heelAngleDelta);
   Serial.print("[Boot] Loaded deadWindAngle from NVS: ");
   Serial.println(deadWindAngle);
-  Serial.print("[Boot] Loaded boatName from NVS: ");
-  Serial.println(boatName);
+  Serial.print("[Boot] Loaded deviceName from NVS: ");
+  Serial.println(deviceName);
   
   // Initialize I2C for BNO080 with detection
   Wire.begin(BNO080_SDA, BNO080_SCL);
@@ -485,10 +499,6 @@ void setup() {
     Serial.println("BNO080 IMU sensor disabled - tilt will be set to 0");
   }
   
-  // Initialize serial communication
-  Serial.begin(115200);
-  Serial.println("Luna Sailing Dashboard starting...");
-  
   // Scan I2C bus for all devices
   Serial.println("Scanning I2C bus...");
   int devicesFound = 0;
@@ -508,7 +518,7 @@ void setup() {
     Serial.printf("Found %d I2C device(s)\n", devicesFound);
   }
   
-  // Initialize BLE
+  // Initialize BLE with the loaded device name
   setupBLE();
   
   // Initialize GPS module
@@ -1009,8 +1019,9 @@ String getSensorDataJson() {
   // BLE connection quality
   doc["rssi"] = bleRSSI;
   
-  // Boat identification
-  doc["boatName"] = boatName;
+  // Device identification (BLE device name)
+  String deviceName = preferences.getString("deviceName", "Luna_Sailing");
+  doc["deviceName"] = deviceName;
   
   String output;
   serializeJson(doc, output);

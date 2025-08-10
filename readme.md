@@ -70,7 +70,7 @@ The Luna Sailing Dashboard transmits data via BLE notifications using a standard
   "accelY": -0.05,
   "accelZ": 9.81,
   "rssi": -65,
-  "boatName": "Luna_Sailing"
+  "deviceName": "Luna_Port_Side"
 }
 ```
 
@@ -92,14 +92,14 @@ The Luna Sailing Dashboard transmits data via BLE notifications using a standard
 | `accelY` | float | m/s² | Acceleration along Y-axis (port/starboard) | ✓ |
 | `accelZ` | float | m/s² | Acceleration along Z-axis (up/down) | ✓ |
 | `rssi` | integer | dBm | BLE signal strength (more negative = weaker) | - |
-| `boatName` | string | - | Configurable boat identification name | - |
+| `deviceName` | string | - | BLE device name for multi-device identification | - |
 
 ### Field Behavior
 
 **Always Present:**
 - `SOG`, `COG`, `lat`, `lon`, `satellites`, `hdop` - GPS data (0 values if no GPS fix)
 - `rssi` - BLE signal strength
-- `boatName` - Configurable boat identification
+- `deviceName` - BLE device name for multi-device identification
 
 **Conditionally Present:**
 - `AWS` - Only present if wind sensor is connected and working
@@ -143,6 +143,59 @@ The system is designed to be robust against sensor failures:
 - **Sensor Failures:** Individual sensor failures don't affect other sensors or BLE transmission
 - **BLE Reliability:** JSON is transmitted every 1 second regardless of sensor status
 
+### BLE Commands
+
+The Luna Sailing Dashboard supports bidirectional communication via a dedicated command characteristic. This allows web applications to configure device settings and trigger actions remotely.
+
+#### Command Characteristic
+
+- **Characteristic UUID:** `11111111-2222-3333-4444-555555555555`
+- **Properties:** Write
+- **Data Format:** JSON string encoded as UTF-8
+
+#### Available Commands
+
+**1. Reset Heel Angle (Calibration)**
+```json
+{
+  "action": "resetHeelAngle"
+}
+```
+Calibrates the heel angle sensor by setting the current tilt as the new zero point. Useful for adjusting when the boat is level.
+
+**2. Set Device Name**
+```json
+{
+  "action": "setDeviceName",
+  "deviceName": "Luna_Port_Side"
+}
+```
+Sets the BLE device name used for Bluetooth discovery. This is essential for distinguishing between multiple ESP32 devices. Limited to 1-20 characters, alphanumeric, underscore, hyphen, and space only.
+
+**3. Regatta Line Markers (Future)**
+```json
+{
+  "action": "regattaSetPort"
+}
+```
+```json
+{
+  "action": "regattaSetStarboard"
+}
+```
+Placeholder commands for future regatta timing functionality.
+
+#### Multi-Device Management
+
+The device name feature is particularly useful for sailing applications with multiple sensors:
+
+- **Fleet Management:** "Luna_01", "Luna_02", "Luna_03"
+- **Multi-Hull Boats:** "Luna_Port", "Luna_Starboard"
+- **Multiple Locations:** "Luna_Mast", "Luna_Cockpit"
+- **Development/Testing:** "Luna_Dev", "Luna_Prod"
+
+When you change the device name, the ESP32 immediately restarts its BLE advertising with the new name, making it instantly discoverable under the new identifier.
+
 ### Example Client Code (JavaScript)
 
 ```javascript
@@ -154,10 +207,15 @@ const device = await navigator.bluetooth.requestDevice({
 
 const server = await device.gatt.connect();
 const service = await server.getPrimaryService('12345678-1234-5678-9abc-def123456789');
-const characteristic = await service.getCharacteristic('87654321-4321-8765-cba9-fedcba987654');
 
-// Listen for notifications
-characteristic.addEventListener('characteristicvaluechanged', (event) => {
+// Get sensor data characteristic for reading
+const sensorCharacteristic = await service.getCharacteristic('87654321-4321-8765-cba9-fedcba987654');
+
+// Get command characteristic for writing
+const commandCharacteristic = await service.getCharacteristic('11111111-2222-3333-4444-555555555555');
+
+// Listen for sensor data notifications
+sensorCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
   const value = event.target.value;
   const jsonString = new TextDecoder().decode(value);
   const data = JSON.parse(jsonString);
@@ -165,6 +223,7 @@ characteristic.addEventListener('characteristicvaluechanged', (event) => {
   console.log('Speed:', data.SOG, 'knots');
   console.log('Wind Speed:', data.AWS, 'knots');
   console.log('Heel:', data.heel, 'degrees');
+  console.log('Device:', data.deviceName);
   
   // New BNO080 sensor data (if available)
   if (data.heading !== undefined) {
@@ -178,11 +237,37 @@ characteristic.addEventListener('characteristicvaluechanged', (event) => {
       z: data.accelZ
     }, 'm/s²');
   }
-  
-  console.log('Boat:', data.boatName);
 });
 
-await characteristic.startNotifications();
+await sensorCharacteristic.startNotifications();
+
+// Send commands to the device
+async function setDeviceName(newName) {
+  const command = {
+    action: "setDeviceName",
+    deviceName: newName
+  };
+  
+  const encoder = new TextEncoder();
+  const data = encoder.encode(JSON.stringify(command));
+  await commandCharacteristic.writeValue(data);
+  
+  console.log(`Device name set to: ${newName}`);
+}
+
+async function resetHeelAngle() {
+  const command = { action: "resetHeelAngle" };
+  
+  const encoder = new TextEncoder();
+  const data = encoder.encode(JSON.stringify(command));
+  await commandCharacteristic.writeValue(data);
+  
+  console.log('Heel angle reset (calibrated)');
+}
+
+// Example usage
+await setDeviceName('Luna_Port_Side');
+await resetHeelAngle();
 ```
 
 ## Hardware Components
