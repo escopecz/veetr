@@ -727,13 +727,7 @@ void readSensors() {
     currentData.windSpeed = sensorWindSpeed * 1.944;
     currentData.windDirection = sensorWindDirection;
     #ifdef DEBUG_WIND_SENSOR
-    Serial.print("[Wind Sensor] Wind speed: ");
-    Serial.print(sensorWindSpeed, 2);
-    Serial.print(" m/s (");
-    Serial.print(currentData.windSpeed, 2);
-    Serial.print(" knots), Direction: ");
-    Serial.print(sensorWindDirection);
-    Serial.println(" deg");
+    Serial.printf("[Wind Sensor] %.2f m/s (%.1f kt) @ %d°\n", sensorWindSpeed, currentData.windSpeed, sensorWindDirection);
     #endif
   } else {
     currentData.windSpeed = NAN;
@@ -913,8 +907,7 @@ bool readWindSensor(float &windSpeed, int &windDirection) {
     windDirection = windDir;
     
     #ifdef DEBUG_WIND_SENSOR
-    Serial.printf("[Wind Sensor] Raw response: dir=%d, speedLow=0x%04X, speedHigh=0x%04X, speed=%.2f m/s\n", 
-                  windDir, speedLow, speedHigh, windSpeed);
+    Serial.printf("[Wind Sensor] Direction: %d°, Speed: %.2f m/s\n", windDirection, windSpeed);
     #endif
     
     return true;
