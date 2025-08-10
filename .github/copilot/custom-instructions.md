@@ -108,16 +108,18 @@ The project provides sailors on small racing vessels with real-time information 
   - Waterproof: Yes, for outdoor use
   - Mounting: Magnetic base for external attachment
 
-- **GY-291 ADXL345 Digital Three-Axis Acceleration Sensor**
-  - https://www.aliexpress.com/item/1005007921761853.html?spm=a2g0o.order_list.order_list_main.10.21ef18029RavmO
-  - Chip: ADXL345 by Analog Devices
-  - Measurement Range: ±16g
-  - Resolution: 13-bit
-  - Communication Interface: IIC/SPI (dual interface support)
-  - Operating Voltage: 3-5V DC
-  - Functions: Three-axis acceleration and tilt angle detection
-  - Applications: Motion detection, tilt sensing, orientation detection
-  - Size: Compact form factor
+- **GY-BNO080 9-Axis IMU Sensor**
+  - Chip: BNO080 by Hillcrest Labs (now CEVA)
+  - Features: 9-axis IMU with sensor fusion
+  - Sensors: 3-axis accelerometer, 3-axis gyroscope, 3-axis magnetometer
+  - Measurement Range: ±16g (accelerometer), ±2000°/s (gyroscope)
+  - Resolution: 16-bit ADC
+  - Communication Interface: I2C/SPI (using I2C in this project)
+  - Operating Voltage: 3.3V-5V DC
+  - Functions: Quaternion output, Euler angles, linear acceleration, gravity vector
+  - Applications: Precise orientation detection, motion tracking, heading determination
+  - Advantages: Built-in sensor fusion, drift compensation, high accuracy
+  - Size: Compact breakout board form factor
 
 - **3.3V UART to RS485 SP3485 Transceiver Module**
   - https://www.aliexpress.com/item/32688467460.html?spm=a2g0o.order_list.order_list_main.5.21ef18029RavmO
@@ -165,10 +167,10 @@ The project provides sailors on small racing vessels with real-time information 
 | GPS Module (NEO-7M) | IO17 (TX2) | Serial Data Output from ESP32 |
 | GPS Module (NEO-7M) | 3.3V | Power Supply |
 | GPS Module (NEO-7M) | GND | Ground |
-| ADXL345 Accelerometer | IO21 (SDA) | I2C Data |
-| ADXL345 Accelerometer | IO22 (SCL) | I2C Clock |
-| ADXL345 Accelerometer | 3.3V | Power Supply |
-| ADXL345 Accelerometer | GND | Ground |
+| BNO080 IMU Sensor | IO21 (SDA) | I2C Data |
+| BNO080 IMU Sensor | IO22 (SCL) | I2C Clock |
+| BNO080 IMU Sensor | 3.3V | Power Supply |
+| BNO080 IMU Sensor | GND | Ground |
 | RS485 Transceiver | IO25 (TX) | Serial Data Output from ESP32 |
 | RS485 Transceiver | IO26 (RX) | Serial Data Input to ESP32 |
 | RS485 Transceiver | 5V | Power Supply |
@@ -191,7 +193,7 @@ The software architecture has been migrated from WiFi Access Point to BLE connec
 
 ### Communication Flow
 1. **GPS Module** → UART (GPIO 16/17) → ESP32 → JSON over BLE
-2. **ADXL345 Accelerometer** → I2C (GPIO 21/22) → ESP32 → JSON over BLE
+2. **BNO080 IMU Sensor** → I2C (GPIO 21/22) → ESP32 → JSON over BLE
 3. **Wind Sensor** → RS485 → RS485 Transceiver → UART (GPIO 25/26) → ESP32 → JSON over BLE
 
 ### BLE Service Configuration
@@ -202,7 +204,7 @@ The software architecture has been migrated from WiFi Access Point to BLE connec
 
 ### JSON API Fields
 - **Always Present:** SOG, COG, lat, lon, satellites, hdop, rssi
-- **Conditional:** AWS, AWD (wind sensor), heel (accelerometer)
+- **Conditional:** AWS, AWD (wind sensor), heel (BNO080 IMU sensor)
 - **Marine Standards:** Uses proper marine terminology and units
 
 ### Error Handling
@@ -267,6 +269,6 @@ This is an embedded systems project for marine applications that requires carefu
 - NimBLE-Arduino for BLE communication
 - ArduinoJson for JSON serialization
 - TinyGPS++ for GPS parsing
-- Adafruit_ADXL345 for accelerometer
+- SparkFun BNO080 library for IMU sensor
 
 Refer to the README.md file for comprehensive implementation details, BLE JSON API documentation, and setup instructions.

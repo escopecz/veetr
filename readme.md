@@ -23,7 +23,7 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
 - Real-time monitoring of sailing data:
   - Vessel speed over ground (SOG) via GPS with noise filtering
   - Wind speed and direction (AWS/AWD) via ultrasonic sensor
-  - Vessel heel/tilt angle via accelerometer (when available)
+  - Vessel heel/tilt angle via BNO080 IMU sensor (when available)
   - GPS position and satellite information
   - BLE connection strength (RSSI)
 - Progressive Web App (PWA) dashboard:
@@ -93,7 +93,7 @@ The Luna Sailing Dashboard transmits data via BLE notifications using a standard
 **Conditionally Present:**
 - `AWS` - Only present if wind sensor is connected and working
 - `AWD` - Only present if wind sensor is connected and working  
-- `heel` - Only present if accelerometer (ADXL345) is detected and working
+- `heel` - Only present if BNO080 IMU sensor is detected and working
 
 ### GPS Speed Filtering
 
@@ -126,7 +126,7 @@ The system is designed to be robust against sensor failures:
 
 - **Missing GPS:** System continues to operate, GPS fields show default values
 - **Missing Wind Sensor:** Wind fields (`AWS`, `AWD`) are omitted from JSON
-- **Missing Accelerometer:** Heel field is omitted from JSON
+- **Missing IMU Sensor:** Heel field is omitted from JSON
 - **Sensor Failures:** Individual sensor failures don't affect other sensors or BLE transmission
 - **BLE Reliability:** JSON is transmitted every 1 second regardless of sensor status
 
@@ -162,7 +162,7 @@ await characteristic.startNotifications();
 - ESP32 DEVKIT V1 DOIT (main controller)
 - NEO-7M GPS Module with external antenna
 - Ultrasonic Wind Speed and Direction Sensor (RS485)
-- GY-291 ADXL345 Digital Three-Axis Acceleration Sensor
+- GY-BNO080 9-Axis IMU Sensor (I2C)
 - RS485 to UART Converter Module
 
 ## Getting Started
@@ -194,7 +194,7 @@ await characteristic.startNotifications();
      - TX → GPIO 16 (RX2) on ESP32
      - RX → GPIO 17 (TX2) on ESP32
    
-   - **Accelerometer (ADXL345)**
+   - **BNO080 IMU Sensor**
      - VCC → 3.3V on ESP32
      - GND → GND on ESP32
      - SCL → GPIO 22 on ESP32
@@ -237,7 +237,7 @@ await characteristic.startNotifications();
      - Click on the PlatformIO icon in the sidebar
      - Go to "Libraries" and search for each library:
        - ArduinoJson
-       - Adafruit ADXL345
+       - SparkFun BNO080 Cortex Based IMU
        - TinyGPS++
        - ModbusMaster
      - Click "Add to Project" and select your project
@@ -245,7 +245,7 @@ await characteristic.startNotifications();
    - Or through the CLI:
      ```bash
      pio pkg install --library "bblanchon/ArduinoJson"
-     pio pkg install --library "adafruit/Adafruit ADXL345"
+     pio pkg install --library "sparkfun/SparkFun BNO080 Cortex Based IMU"
      pio pkg install --library "mikalhart/TinyGPSPlus"
      pio pkg install --library "4-20ma/ModbusMaster"
      ```
@@ -476,7 +476,7 @@ The system performs sensor detection during startup:
 
 - **GPS Module:** Always initialized (may take 30-90 seconds for first satellite fix)
 - **Wind Sensor:** Automatically detected via RS485 communication
-- **Accelerometer:** Detected via I2C bus scan at startup
+- **IMU Sensor:** Detected via I2C bus scan at startup
 - **Missing Sensors:** System continues operation with available sensors only
 
 #### Data Transmission
@@ -562,16 +562,16 @@ Once connected, the ESP32 automatically sends JSON data every 1 second:
   - Wind sensor data only appears in JSON when sensor is detected and working
 
 - **Heel angle not appearing in JSON**
-  - Verify ADXL345 accelerometer is connected to I2C pins 21/22
-  - Check that accelerometer has proper power supply (3.3V)
-  - Heel data only appears in JSON when accelerometer is detected at startup
-  - If accelerometer fails after startup, heel data will stop appearing
+  - Verify BNO080 IMU sensor is connected to I2C pins 21/22
+  - Check that IMU sensor has proper power supply (3.3V)
+  - Heel data only appears in JSON when IMU sensor is detected at startup
+  - If IMU sensor fails after startup, heel data will stop appearing
 
 - **JSON missing expected fields**
   - This is normal behavior - fields are omitted if sensors are not available
   - Only GPS fields (SOG, COG, lat, lon, satellites, hdop) and RSSI are always present
   - Wind fields (AWS, AWD) only appear when wind sensor is connected
-  - Heel field only appears when accelerometer is detected and working
+  - Heel field only appears when IMU sensor is detected and working
 
 ## Development
 
@@ -596,38 +596,29 @@ Once connected, the ESP32 automatically sends JSON data every 1 second:
      const int GPS_BAUD_RATE = 9600;
      ```
 
-#### Accelerometer (ADXL345)
+#### IMU Sensor (BNO080)
 
 1. **Calibration Process**
-   - The accelerometer needs calibration for accurate tilt measurements
-   - To calibrate:
-     1. Position the ESP32 and accelerometer in a perfectly level position
+   - The BNO080 IMU sensor has built-in calibration algorithms that continuously calibrate the sensor
+   - For manual calibration reset:
+     1. Position the ESP32 and IMU sensor in a perfectly level position
      2. Navigate to the dashboard's Settings tab
-     3. Click "Calibrate Accelerometer"
+     3. Click "Calibrate IMU Sensor"
      4. Wait for the calibration to complete (about 5 seconds)
      5. The calibration values are stored in the ESP32's flash memory
 
-2. **Manual Calibration**
-   - If automatic calibration doesn't provide satisfactory results, you can manually adjust the offset values:
-     ```cpp
-     // In src/sensors/accelerometer.cpp
-     const float X_OFFSET = 0.0;  // Replace with your calibration value
-     const float Y_OFFSET = 0.0;  // Replace with your calibration value
-     const float Z_OFFSET = 0.0;  // Replace with your calibration value
-     ```
+2. **Sensor Fusion Features**
+   - The BNO080 provides automatic sensor fusion combining accelerometer, gyroscope, and magnetometer data
+   - Built-in drift compensation and noise filtering
+   - Quaternion output for precise orientation tracking
+   - No manual calibration typically required for basic tilt measurements
 
 3. **Mounting Considerations**
-   - Mount the accelerometer with the X-axis aligned with the fore-aft axis of the boat
+   - Mount the IMU sensor with the X-axis aligned with the fore-aft axis of the boat
    - The Y-axis should be aligned with the port-starboard axis
    - The Z-axis should be pointing upward
-   - If physical alignment isn't possible, you can adjust the axis orientation in software:
-     ```cpp
-     // In src/sensors/accelerometer.cpp
-     const bool SWAP_X_Y = false;  // Set to true to swap X and Y axes
-     const bool INVERT_X = false;  // Set to true to invert X axis readings
-     const bool INVERT_Y = false;  // Set to true to invert Y axis readings
-     const bool INVERT_Z = false;  // Set to true to invert Z axis readings
-     ```
+   - The BNO080's sensor fusion algorithms can compensate for minor mounting misalignments
+   - For best results, mount rigidly to minimize vibration effects
 
 #### Wind Sensor
 
@@ -742,7 +733,7 @@ The Luna Sailing Dashboard is designed to operate efficiently on battery power, 
   
 - **Sensor Power Requirements**:
   - GPS Module: ~50mA @ 3.3V
-  - Accelerometer: ~0.1mA @ 3.3V (when present)
+  - BNO080 IMU Sensor: ~0.5mA @ 3.3V (when present)
   - Wind Sensor: Varies by model, typically 100-300mA @ 5-12V
   
 - **Total System**:
@@ -803,7 +794,7 @@ The system provides power-related information:
 
 **With 10Ah USB Power Bank:**
 - GPS + BLE only: ~50-60 hours
-- GPS + BLE + Accelerometer: ~45-55 hours  
+- GPS + BLE + IMU Sensor: ~45-55 hours  
 - GPS + BLE + Wind Sensor: ~30-40 hours
 - All sensors active: ~25-35 hours
 
