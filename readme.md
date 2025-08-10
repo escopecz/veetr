@@ -65,7 +65,12 @@ The Luna Sailing Dashboard transmits data via BLE notifications using a standard
   "AWS": 12.5,
   "AWD": 045,
   "heel": -5.2,
-  "rssi": -65
+  "heading": 185.5,
+  "accelX": 0.12,
+  "accelY": -0.05,
+  "accelZ": 9.81,
+  "rssi": -65,
+  "boatName": "Luna_Sailing"
 }
 ```
 
@@ -82,18 +87,26 @@ The Luna Sailing Dashboard transmits data via BLE notifications using a standard
 | `AWS` | float | knots | Apparent Wind Speed | ✓ |
 | `AWD` | integer | degrees | Apparent Wind Direction (0-360°) | ✓ |
 | `heel` | float | degrees | Vessel heel angle (+ = starboard, - = port) | ✓ |
+| `heading` | float | degrees | Compass heading from magnetometer (0-360°) | ✓ |
+| `accelX` | float | m/s² | Acceleration along X-axis (fore/aft) | ✓ |
+| `accelY` | float | m/s² | Acceleration along Y-axis (port/starboard) | ✓ |
+| `accelZ` | float | m/s² | Acceleration along Z-axis (up/down) | ✓ |
 | `rssi` | integer | dBm | BLE signal strength (more negative = weaker) | - |
+| `boatName` | string | - | Configurable boat identification name | - |
 
 ### Field Behavior
 
 **Always Present:**
 - `SOG`, `COG`, `lat`, `lon`, `satellites`, `hdop` - GPS data (0 values if no GPS fix)
 - `rssi` - BLE signal strength
+- `boatName` - Configurable boat identification
 
 **Conditionally Present:**
 - `AWS` - Only present if wind sensor is connected and working
 - `AWD` - Only present if wind sensor is connected and working  
 - `heel` - Only present if BNO080 IMU sensor is detected and working
+- `heading` - Only present if BNO080 magnetometer is working and has valid data
+- `accelX`, `accelY`, `accelZ` - Only present if BNO080 accelerometer is working and has valid data
 
 ### GPS Speed Filtering
 
@@ -152,6 +165,21 @@ characteristic.addEventListener('characteristicvaluechanged', (event) => {
   console.log('Speed:', data.SOG, 'knots');
   console.log('Wind Speed:', data.AWS, 'knots');
   console.log('Heel:', data.heel, 'degrees');
+  
+  // New BNO080 sensor data (if available)
+  if (data.heading !== undefined) {
+    console.log('Compass Heading:', data.heading, 'degrees');
+  }
+  
+  if (data.accelX !== undefined) {
+    console.log('Acceleration:', {
+      x: data.accelX,
+      y: data.accelY, 
+      z: data.accelZ
+    }, 'm/s²');
+  }
+  
+  console.log('Boat:', data.boatName);
 });
 
 await characteristic.startNotifications();

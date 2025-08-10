@@ -4,7 +4,7 @@
 #include <vector>
 #include <TinyGPS++.h>
 #include <Wire.h>
-#include <Adafruit_ADXL345_U.h>
+#include <SparkFun_BNO080_Arduino_Library.h>
 #include <NimBLEDevice.h>
 #include <ModbusMaster.h>
 
@@ -12,7 +12,7 @@
 #define DEBUG_BLE_DATA
 #define DEBUG_WIND_SENSOR
 // #define DEBUG_GPS
-// #define DEBUG_ACCEL
+#define DEBUG_BNO080
 
 // Persistent storage for settings
 Preferences preferences;
@@ -33,11 +33,11 @@ bool oldDeviceConnected = false;
 int bleRSSI = 0; // BLE signal strength
 uint16_t connectedDeviceCount = 0; // Track number of connected devices
 
-// ADXL345 Accelerometer (I2C)
-#define ADXL345_SDA 18
-#define ADXL345_SCL 19
-Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
-bool accelAvailable = false; // Track if accelerometer is working
+// BNO080 IMU Sensor (I2C)
+#define BNO080_SDA 21
+#define BNO080_SCL 22
+BNO080 imu;
+bool imuAvailable = false; // Track if IMU is working
 
 // RS485 Wind Sensor Configuration
 #define RS485_DE 14
@@ -112,17 +112,25 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
           
           if (action == "resetHeelAngle") {
             // Reset heel angle by saving current tilt as delta
-            if (accelAvailable) {
-              sensors_event_t event;
-              if (accel.getEvent(&event)) {
-                heelAngleDelta = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
+            if (imuAvailable) {
+              // Get current rotation vector for calibration
+              if (imu.dataAvailable()) {
+                // Use rotation vector to calculate current heel angle
+                float i = imu.getQuatI();
+                float j = imu.getQuatJ();
+                float k = imu.getQuatK();
+                float real = imu.getQuatReal();
+                
+                // Convert quaternion to heel angle (roll around X-axis)
+                float roll = atan2(2.0f * (real * i + j * k), 1.0f - 2.0f * (i * i + j * j)) * 180.0f / PI;
+                heelAngleDelta = roll;
                 preferences.putFloat("delta", heelAngleDelta);
-                Serial.println("Heel angle reset");
+                Serial.printf("Heel angle reset to %.2f degrees\n", heelAngleDelta);
               } else {
-                Serial.println("Heel angle reset failed - can't read accelerometer");
+                Serial.println("Heel angle reset failed - can't read IMU sensor");
               }
             } else {
-              Serial.println("Heel angle reset failed - accelerometer not available");
+              Serial.println("Heel angle reset failed - IMU sensor not available");
             }
           }
           else if (action == "regattaSetPort") {
@@ -236,6 +244,10 @@ struct SensorData {
   float trueWindSpeed;  // True wind speed in knots
   float trueWindDirection; // True wind direction in degrees (0-359)
   float tilt;           // Vessel heel/tilt angle in degrees
+  float heading;        // Compass heading in degrees (0-359)
+  float accelX;         // Acceleration X-axis in m/s²
+  float accelY;         // Acceleration Y-axis in m/s²
+  float accelZ;         // Acceleration Z-axis in m/s²
 };
 
 // Function to calculate true wind from apparent wind
@@ -382,6 +394,11 @@ void updateBLEData() {
 }
 
 void setup() {
+  // Initialize serial communication first
+  Serial.begin(115200);
+  delay(1000); // Give serial time to initialize
+  Serial.println("\n=== Luna Sailing Dashboard Starting ===");
+  
   // Initialize Preferences for persistent storage
   preferences.begin("settings", false);
   heelAngleDelta = preferences.getFloat("delta", 0.0f);
@@ -393,43 +410,103 @@ void setup() {
   Serial.println(deadWindAngle);
   Serial.print("[Boot] Loaded boatName from NVS: ");
   Serial.println(boatName);
-  // Initialize I2C for ADXL345 with detection
-  Wire.begin(ADXL345_SDA, ADXL345_SCL);
+  
+  // Initialize I2C for BNO080 with detection
+  Wire.begin(BNO080_SDA, BNO080_SCL);
   Wire.setTimeout(100); // Set I2C timeout to 100ms to prevent long blocking
   
-  Serial.print("Testing ADXL345 connection... ");
-  if (accel.begin()) {
-    // Test if we can actually read data (not all zeros)
-    sensors_event_t testEvent;
-    delay(50); // Give sensor time to initialize
+  Serial.print("Testing BNO080 connection... ");
+  Serial.printf("I2C SDA=%d, SCL=%d\n", BNO080_SDA, BNO080_SCL);
+  
+  // Test I2C bus first
+  Wire.beginTransmission(0x4A); // BNO080 default I2C address
+  uint8_t i2cError = Wire.endTransmission();
+  Serial.printf("I2C scan result: %d (0=success, 2=NACK, 4=other error)\n", i2cError);
+  
+  if (imu.begin()) {
+    Serial.println("BNO080 begin() successful, configuring sensor...");
     
-    if (accel.getEvent(&testEvent)) {
-      // Check if we get real data (not all zeros)
-      if (testEvent.acceleration.x != 0 || testEvent.acceleration.y != 0 || testEvent.acceleration.z != 0) {
-        accelAvailable = true;
-        accel.setRange(ADXL345_RANGE_16_G);
-        Serial.println("Connected and working!");
-      } else {
-        accelAvailable = false;
-        Serial.println("Detected but returning all zeros - check wiring/power");
+    // Enable rotation vector for heel angle calculation first
+    imu.enableRotationVector(50); // 50ms = 20Hz update rate
+    Serial.println("Rotation vector configuration sent");
+    
+    // Enable magnetometer for compass heading
+    imu.enableMagnetometer(100); // 100ms = 10Hz update rate
+    Serial.println("Magnetometer configuration sent");
+    
+    // Enable accelerometer for acceleration data
+    imu.enableAccelerometer(50); // 50ms = 20Hz update rate
+    Serial.println("Accelerometer configuration sent");
+    
+    // Give sensor more time to initialize and start providing data
+    Serial.println("Waiting for sensor data...");
+    delay(500); // Longer delay for BNO080 to stabilize
+    
+    // Try multiple times to get data
+    bool dataFound = false;
+    for (int attempt = 0; attempt < 10; attempt++) {
+      if (imu.dataAvailable()) {
+        dataFound = true;
+        Serial.printf("Data available after %d attempts!\n", attempt + 1);
+        break;
       }
+      delay(100); // Wait 100ms between attempts
+      Serial.print(".");
+    }
+    Serial.println();
+    
+    if (dataFound) {
+      imuAvailable = true;
+      Serial.println("BNO080 connected and working!");
+      
+      // Test reading actual data
+      float testI = imu.getQuatI();
+      float testReal = imu.getQuatReal();
+      Serial.printf("Test quaternion read: i=%.3f, real=%.3f\n", testI, testReal);
     } else {
-      accelAvailable = false;
-      Serial.println("Detected but can't read data - check wiring");
+      imuAvailable = false;
+      Serial.println("BNO080 detected but no data available after 10 attempts");
+      Serial.println("Check power supply (3.3V) and wiring connections");
     }
   } else {
-    accelAvailable = false;
+    imuAvailable = false;
     Serial.println("Not detected - check wiring/address");
+    Serial.println("Trying alternative I2C address 0x4B...");
+    
+    // Try alternative address
+    Wire.beginTransmission(0x4B);
+    i2cError = Wire.endTransmission();
+    Serial.printf("I2C scan 0x4B result: %d\n", i2cError);
   }
   
-  if (accelAvailable) {
-    Serial.println("ADXL345 accelerometer enabled");
+  if (imuAvailable) {
+    Serial.println("BNO080 IMU sensor enabled");
   } else {
-    Serial.println("ADXL345 accelerometer disabled - tilt will be set to 0");
+    Serial.println("BNO080 IMU sensor disabled - tilt will be set to 0");
   }
+  
   // Initialize serial communication
   Serial.begin(115200);
   Serial.println("Luna Sailing Dashboard starting...");
+  
+  // Scan I2C bus for all devices
+  Serial.println("Scanning I2C bus...");
+  int devicesFound = 0;
+  for (byte address = 1; address < 127; address++) {
+    Wire.beginTransmission(address);
+    byte error = Wire.endTransmission();
+    
+    if (error == 0) {
+      Serial.printf("I2C device found at address 0x%02X\n", address);
+      devicesFound++;
+    }
+  }
+  
+  if (devicesFound == 0) {
+    Serial.println("No I2C devices found. Check wiring and power.");
+  } else {
+    Serial.printf("Found %d I2C device(s)\n", devicesFound);
+  }
   
   // Initialize BLE
   setupBLE();
@@ -482,6 +559,8 @@ void loop() {
         Serial.printf("Wind:%.1fkt@%d° ", currentData.windSpeed, currentData.windDirection);
       if (!isnan(currentData.tilt)) 
         Serial.printf("Tilt:%.1f° ", currentData.tilt);
+      if (!isnan(currentData.heading)) 
+        Serial.printf("Hdg:%.1f° ", currentData.heading);
       
       // GPS status - only show satellite count if we have actual GPS data
       if (gps.charsProcessed() > 10) {
@@ -787,51 +866,86 @@ void readSensors() {
     currentData.trueWindDirection = NAN;
   }
   
-  // Read tilt from ADXL345 (only if available)
-  if (accelAvailable) {
-    static unsigned long lastAccelRead = 0;
-    const unsigned long ACCEL_READ_INTERVAL = 100; // Read accelerometer every 100ms max
+  // Read tilt from BNO080 (only if available)
+  if (imuAvailable) {
+    static unsigned long lastIMURead = 0;
+    const unsigned long IMU_READ_INTERVAL = 50; // Read IMU every 50ms max (20Hz)
     
-    if (millis() - lastAccelRead >= ACCEL_READ_INTERVAL) {
-      lastAccelRead = millis();
+    if (millis() - lastIMURead >= IMU_READ_INTERVAL) {
+      lastIMURead = millis();
       
-      sensors_event_t event;
-      if (accel.getEvent(&event)) {
-        #ifdef DEBUG_ACCEL
-        Serial.print("[ADXL345] X: "); Serial.print(event.acceleration.x);
-        Serial.print(" Y: "); Serial.print(event.acceleration.y);
-        Serial.print(" Z: "); Serial.print(event.acceleration.z);
+      if (imu.dataAvailable()) {
+        // Get quaternion data for precise orientation
+        float i = imu.getQuatI();
+        float j = imu.getQuatJ();
+        float k = imu.getQuatK();
+        float real = imu.getQuatReal();
+        
+        #ifdef DEBUG_BNO080
+        Serial.printf("[BNO080] Quat: i=%.3f j=%.3f k=%.3f real=%.3f\n", i, j, k, real);
         #endif
         
-        // Check for valid data (not all zeros)
-        if (event.acceleration.x != 0 || event.acceleration.y != 0 || event.acceleration.z != 0) {
-          // Calculate heel/tilt angle (degrees)
-          // Assume Y axis is port-starboard, Z is up
-          float tilt = atan2(event.acceleration.y, event.acceleration.z) * 180.0 / PI;
-          float zeroedTilt = tilt - heelAngleDelta;
-          currentData.tilt = zeroedTilt;
-        } else {
-          // All zeros - sensor may have failed
-          static unsigned long lastZeroWarning = 0;
-          if (millis() - lastZeroWarning > 30000) { // Warn every 30 seconds
-            Serial.println("[ADXL345] Warning: All axes returning zero");
-            lastZeroWarning = millis();
-          }
-          // Keep previous tilt value
+        // Convert quaternion to roll angle (heel angle)
+        // Roll is rotation around X-axis (fore-aft axis of boat)
+        float roll = atan2(2.0f * (real * i + j * k), 1.0f - 2.0f * (i * i + j * j)) * 180.0f / PI;
+        
+        // Apply calibration offset
+        float zeroedTilt = roll - heelAngleDelta;
+        currentData.tilt = zeroedTilt;
+        
+        #ifdef DEBUG_BNO080
+        Serial.printf("[BNO080] Roll: %.2f°, Heel: %.2f°\n", roll, zeroedTilt);
+        #endif
+        
+        // Read magnetometer data if available
+        if (imu.getMagX() != 0 || imu.getMagY() != 0 || imu.getMagZ() != 0) {
+          // Calculate compass heading from magnetometer
+          float magX = imu.getMagX();
+          float magY = imu.getMagY();
+          float magZ = imu.getMagZ();
+          
+          // Calculate heading (yaw) from magnetometer data
+          // This is a simplified calculation - for better accuracy, tilt compensation would be needed
+          float heading = atan2(magY, magX) * 180.0f / PI;
+          if (heading < 0) heading += 360.0f; // Normalize to 0-360
+          
+          currentData.heading = heading;
+          
+          #ifdef DEBUG_BNO080
+          Serial.printf("[BNO080] Mag: X=%.2f Y=%.2f Z=%.2f, Heading=%.1f°\n", magX, magY, magZ, heading);
+          #endif
         }
+        
+        // Read accelerometer data if available
+        if (imu.getAccelX() != 0 || imu.getAccelY() != 0 || imu.getAccelZ() != 0) {
+          // Get acceleration in m/s²
+          currentData.accelX = imu.getAccelX();
+          currentData.accelY = imu.getAccelY();
+          currentData.accelZ = imu.getAccelZ();
+          
+          #ifdef DEBUG_BNO080
+          Serial.printf("[BNO080] Accel: X=%.2f Y=%.2f Z=%.2f m/s²\n", 
+                        currentData.accelX, currentData.accelY, currentData.accelZ);
+          #endif
+        }
+        
       } else {
-        // I2C read failed - sensor may have disconnected
-        static unsigned long lastReadError = 0;
-        if (millis() - lastReadError > 30000) { // Warn every 30 seconds
-          Serial.println("[ADXL345] Warning: I2C read failed - sensor disconnected?");
-          lastReadError = millis();
+        // No new data available
+        static unsigned long lastNoDataWarning = 0;
+        if (millis() - lastNoDataWarning > 30000) { // Warn every 30 seconds
+          Serial.println("[BNO080] Warning: No new data available");
+          lastNoDataWarning = millis();
         }
-        // Keep previous tilt value
+        // Keep previous values
       }
     }
   } else {
-    // Accelerometer not available - set tilt to 0
+    // IMU not available - set all values to 0/NaN
     currentData.tilt = 0.0;
+    currentData.heading = NAN;
+    currentData.accelX = NAN;
+    currentData.accelY = NAN;
+    currentData.accelZ = NAN;
   }
 }
 
@@ -875,9 +989,21 @@ String getSensorDataJson() {
     doc["AWD"] = currentData.windDirection; // Apparent Wind Direction
   }
   
-  // Heel angle - only include if accelerometer is available
-  if (accelAvailable && !isnan(currentData.tilt)) {
+  // Heel angle - only include if IMU is available
+  if (imuAvailable && !isnan(currentData.tilt)) {
     doc["heel"] = currentData.tilt; // Vessel heel angle
+  }
+  
+  // Compass heading - only include if IMU is available and has valid data
+  if (imuAvailable && !isnan(currentData.heading)) {
+    doc["heading"] = currentData.heading; // Compass heading in degrees
+  }
+  
+  // Acceleration data - only include if IMU is available and has valid data
+  if (imuAvailable && !isnan(currentData.accelX)) {
+    doc["accelX"] = currentData.accelX; // Acceleration X-axis in m/s²
+    doc["accelY"] = currentData.accelY; // Acceleration Y-axis in m/s²
+    doc["accelZ"] = currentData.accelZ; // Acceleration Z-axis in m/s²
   }
   
   // BLE connection quality
