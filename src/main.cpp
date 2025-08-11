@@ -10,7 +10,7 @@
 
 // Debug flags - uncomment for verbose output
 #define DEBUG_BLE_DATA
-#define DEBUG_WIND_SENSOR
+// #define DEBUG_WIND_SENSOR
 // #define DEBUG_GPS
 // #define DEBUG_BNO080
 
@@ -59,9 +59,12 @@ TinyGPSPlus gps;
 
 // Function prototypes (declared early for use in callbacks)
 void setupBLE();
+void restartBLE();
 void setupBLEServer();
 void preTransmission();
 void postTransmission();
+void generateRandomBLEAddress();
+void resetBLEForNewName(const String& newName);
 
 // BLE Server Callbacks
 class MyServerCallbacks: public NimBLEServerCallbacks {
@@ -159,14 +162,37 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               }
               
               if (validName && newDeviceName.length() > 0) {
+                // Get current device name for comparison
+                String currentDeviceName = preferences.getString("deviceName", "Luna_Sailing");
+                
                 // Save new device name to preferences
                 preferences.putString("deviceName", newDeviceName);
-                Serial.printf("Device name saved as: '%s'\n", newDeviceName.c_str());
-                Serial.println("Device name change will take effect after restart");
-                Serial.println("Please disconnect and restart the ESP32 to see the new device name");
                 
-                // Note: We don't restart BLE immediately to avoid disrupting the current connection
-                // The new name will be used on the next boot cycle
+                // CRITICAL: Ensure preferences are committed to NVS before restart
+                preferences.end();  // Close preferences to force commit
+                delay(100);         // Give time for flash write
+                preferences.begin("settings", false);  // Reopen preferences
+                
+                // Verify the name was actually saved
+                String savedName = preferences.getString("deviceName", "Luna_Sailing");
+                Serial.printf("Device name changed from '%s' to '%s'\n", currentDeviceName.c_str(), newDeviceName.c_str());
+                Serial.printf("Verified saved name: '%s'\n", savedName.c_str());
+                
+                if (savedName != newDeviceName) {
+                  Serial.println("ERROR: Device name not saved properly to NVS!");
+                  return; // Don't restart if save failed
+                }
+                
+                // Send success response first before restarting
+                Serial.println("Device name saved successfully - ESP32 will restart to apply changes");
+                
+                // Reset BLE with new random address to bypass client cache
+                resetBLEForNewName(newDeviceName);
+                
+                // Restart ESP32 to apply new device name
+                Serial.println("ESP32 will restart in 1 second");
+                delay(200); // Brief delay to ensure BLE response is sent
+                ESP.restart();
               } else {
                 Serial.println("Invalid device name - only alphanumeric, underscore, hyphen, and space allowed");
               }
@@ -307,12 +333,65 @@ bool readWindSensor(float &windSpeed, int &windDirection);
 bool readGPS();
 bool isGPSDataValid();
 
+// Generate random BLE address to help bypass client cache
+void generateRandomBLEAddress() {
+  uint8_t randomAddr[6];
+  
+  // Generate random MAC address
+  esp_fill_random(randomAddr, 6);
+  
+  // Ensure it's a valid random address (first two bits should be '11')
+  randomAddr[5] |= 0xC0;
+  
+  Serial.printf("[BLE] Generated random address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+               randomAddr[5], randomAddr[4], randomAddr[3], 
+               randomAddr[2], randomAddr[1], randomAddr[0]);
+}
+
+// Reset BLE with new name and random address to bypass client cache
+void resetBLEForNewName(const String& newName) {
+  Serial.printf("[BLE] Preparing reset for device name: '%s'\n", newName.c_str());
+  
+  // Generate new random address before restart to help bypass client cache
+  generateRandomBLEAddress();
+  
+  Serial.println("[BLE] ESP32 will restart with new name and random address");
+}
+
 // BLE Setup Function
 void setupBLE() {
-  // Get device name from preferences (separate from boat name in JSON)
+  // Get device name from preferences
   String deviceName = preferences.getString("deviceName", "Luna_Sailing");
+  Serial.printf("[BLE] Initializing as '%s'\n", deviceName.c_str());
   
   // Initialize NimBLE with device name
+  NimBLEDevice::init(deviceName.c_str());
+  
+  // Use random address type to help bypass client cache on name changes
+  NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_RANDOM);
+  
+  // Set TX power for good range
+  NimBLEDevice::setPower(ESP_PWR_LVL_P3); // +3dBm
+  
+  // Setup the BLE server
+  setupBLEServer();
+  
+  Serial.printf("BLE Server started as '%s'\n", deviceName.c_str());
+}
+
+// BLE Restart Function (for device name changes)
+void restartBLE() {
+  // Get device name from preferences
+  String deviceName = preferences.getString("deviceName", "Luna_Sailing");
+  Serial.printf("[BLE Restart] Using device name from preferences: '%s'\n", deviceName.c_str());
+  
+  // Ensure BLE is completely deinitialized first (only when restarting)
+  Serial.println("[BLE Restart] Deinitializing existing BLE stack...");
+  NimBLEDevice::deinit(true); // true = clear all bonding info
+  delay(100); // Give time for cleanup
+  
+  // Initialize NimBLE with new device name
+  Serial.printf("[BLE Restart] Initializing NimBLE with name: '%s'\n", deviceName.c_str());
   NimBLEDevice::init(deviceName.c_str());
   
   // Set TX power for balance between range and power consumption
@@ -321,7 +400,7 @@ void setupBLE() {
   // Setup the BLE server
   setupBLEServer();
   
-  Serial.printf("NimBLE Server started as '%s', waiting for client connections...\n", deviceName.c_str());
+  Serial.printf("NimBLE Server restarted as '%s', waiting for client connections...\n", deviceName.c_str());
   Serial.printf("Multiple connections supported (max %d)\n", CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
 }
 
@@ -335,29 +414,31 @@ void setupBLEServer() {
   NimBLEService *pService = pServer->createService(SERVICE_UUID);
 
   // Create BLE Characteristics
-  
-  // Sensor Data Characteristic (notify + read for better compatibility)
   pSensorDataCharacteristic = pService->createCharacteristic(
                       SENSOR_DATA_UUID,
                       NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
                     );
   
-  // Command Characteristic (write only)
   pCommandCharacteristic = pService->createCharacteristic(
                       COMMAND_UUID,
-                      NIMBLE_PROPERTY::WRITE
+                      NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR
                     );
   pCommandCharacteristic->setCallbacks(new CommandCallbacks());
 
   // Start the service
   pService->start();
 
-  // Start advertising with settings to support multiple connections
+  // Start advertising
   NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true);
   pAdvertising->setMinPreferred(0x06);  // 7.5ms intervals
   pAdvertising->setMaxPreferred(0x12);  // 22.5ms intervals
+  
+  // Include device name in advertising data
+  String deviceName = preferences.getString("deviceName", "Luna_Sailing");
+  pAdvertising->setName(deviceName.c_str());
+  
   pAdvertising->start();
 }
 
@@ -510,6 +591,7 @@ void setup() {
   }
   
   // Initialize BLE with the loaded device name
+  Serial.printf("[Boot] Initializing BLE with device name: '%s'\n", deviceName.c_str());
   setupBLE();
   
   // Initialize GPS module
