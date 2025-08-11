@@ -12,7 +12,7 @@
 #define DEBUG_BLE_DATA
 #define DEBUG_WIND_SENSOR
 // #define DEBUG_GPS
-#define DEBUG_BNO080
+// #define DEBUG_BNO080
 
 // Persistent storage for settings
 Preferences preferences;
@@ -62,7 +62,6 @@ void setupBLE();
 void setupBLEServer();
 void preTransmission();
 void postTransmission();
-float regsToFloat(uint16_t lowReg, uint16_t highReg);
 
 // BLE Server Callbacks
 class MyServerCallbacks: public NimBLEServerCallbacks {
@@ -231,14 +230,6 @@ void preTransmission() {
 
 void postTransmission() { 
   digitalWrite(RS485_DE, LOW); 
-}
-
-// Convert two Modbus registers (32 bits) to float
-float regsToFloat(uint16_t lowReg, uint16_t highReg) {
-  uint32_t combined = ((uint32_t)highReg << 16) | lowReg;
-  float value;
-  memcpy(&value, &combined, sizeof(value));
-  return value;
 }
 
 // Data structure to hold sensor readings
@@ -526,16 +517,31 @@ void setup() {
   Serial.println("GPS module initialized");
   
   // Initialize RS485 for wind sensor with ModbusMaster
-  rs485.begin(9600, SERIAL_8E1, RS485_RX, RS485_TX);
+  rs485.begin(4800, SERIAL_8N1, RS485_RX, RS485_TX);
   pinMode(RS485_DE, OUTPUT);
   digitalWrite(RS485_DE, LOW);
   
   windSensor.begin(1, rs485); // Sensor ID 1
   windSensor.preTransmission(preTransmission);
   windSensor.postTransmission(postTransmission);
-  Serial.println("RS485 wind sensor initialized with ModbusMaster");
   
-  // Initialize sensor data
+  Serial.println("RS485 wind sensor initialized with ModbusMaster");
+  Serial.printf("RS485 pins: RX=%d, TX=%d, DE=%d\n", RS485_RX, RS485_TX, RS485_DE);
+  Serial.println("RS485 settings: 4800 baud, 8N1 (confirmed working)");
+  
+  // Test wind sensor connection
+  delay(1000);
+  Serial.println("Testing wind sensor connection...");
+  
+  float testSpeed;
+  int testDirection;
+  bool testResult = readWindSensor(testSpeed, testDirection);
+  if (testResult) {
+    Serial.printf("Wind sensor test PASSED: %.2f m/s (%.1f kt) @ %d°\n", 
+                  testSpeed, testSpeed * 1.944, testDirection);
+  } else {
+    Serial.println("Wind sensor test FAILED - check connections and power");
+  }
   
   Serial.println("Setup complete");
 }
@@ -1032,26 +1038,58 @@ String getSensorDataJson() {
 
 // Read wind sensor data via RS485 using ModbusMaster
 bool readWindSensor(float &windSpeed, int &windDirection) {
-  uint8_t result = windSensor.readHoldingRegisters(0x0001, 4); // direction + speed (4 regs)
+  static unsigned long lastAttempt = 0;
+  
+  // Don't hammer the sensor - minimum 100ms between attempts
+  if (millis() - lastAttempt < 100) {
+    return false;
+  }
+  lastAttempt = millis();
+  
+  #ifdef DEBUG_WIND_SENSOR
+  Serial.print("[Wind Sensor] Reading registers 0x0000-0x0001... ");
+  #endif
+  
+  // Clear any existing response data
+  windSensor.clearResponseBuffer();
+  
+  // Read registers 0x0000 (wind speed) and 0x0001 (wind direction)
+  uint8_t result = windSensor.readHoldingRegisters(0x0000, 2);
 
   if (result == windSensor.ku8MBSuccess) {
-    uint16_t windDir   = windSensor.getResponseBuffer(0); // direction (0–359)
-    uint16_t speedLow  = windSensor.getResponseBuffer(1); // first half of float
-    uint16_t speedHigh = windSensor.getResponseBuffer(2); // second half of float
-
-    // Convert registers to float (swapped order for correct endianness)
-    windSpeed = regsToFloat(speedLow, speedHigh);
-    windDirection = windDir;
+    // Register 0x0000: Wind speed (expanded by 100, e.g., 125 = 1.25 m/s)
+    uint16_t speedRaw = windSensor.getResponseBuffer(0);
+    windSpeed = speedRaw / 100.0f; // Convert from expanded integer to actual m/s
+    
+    // Register 0x0001: Wind direction (0-359 degrees, 0° = North, 90° = East)
+    windDirection = windSensor.getResponseBuffer(1);
     
     #ifdef DEBUG_WIND_SENSOR
-    Serial.printf("[Wind Sensor] Direction: %d°, Speed: %.2f m/s\n", windDirection, windSpeed);
+    Serial.printf("SUCCESS - Raw speed: %d (%.2f m/s), Direction: %d°\n", 
+                  speedRaw, windSpeed, windDirection);
     #endif
     
     return true;
   } else {
     #ifdef DEBUG_WIND_SENSOR
-    Serial.printf("[Wind Sensor] Modbus read error: %d\n", result);
+    Serial.printf("ERROR %d - ", result);
+    
+    // Decode common Modbus error codes
+    switch(result) {
+      case 0xE0: Serial.println("Invalid slave ID"); break;
+      case 0xE1: Serial.println("Invalid function"); break;
+      case 0xE2: Serial.println("Response timeout"); break;
+      case 0xE3: Serial.println("Invalid CRC"); break;
+      default:   
+        if (result == 226) {
+          Serial.println("Communication timeout/no response");
+        } else {
+          Serial.printf("Unknown error code\n");
+        }
+        break;
+    }
     #endif
+    
     return false;
   }
 }
