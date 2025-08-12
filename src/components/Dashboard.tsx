@@ -7,6 +7,7 @@ import TrueWindAngleCard from './cards/TrueWindAngleCard'
 import SatellitesCard from './cards/SatellitesCard'
 import WindDirectionCard from './cards/WindDirectionCard'
 import ConnectionStatus from './ConnectionStatus'
+import Settings from './Settings'
 import './Dashboard.css'
 
 export default function Dashboard() {
@@ -15,6 +16,7 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
+      <Settings />
       <div className="dashboard-layout">
         <div className="wind-direction-area">
           <WindDirectionCard

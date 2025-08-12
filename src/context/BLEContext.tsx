@@ -36,6 +36,7 @@ export interface BLEState {
   rssi: number | null
   signalQuality: 'excellent' | 'good' | 'fair' | 'poor' | 'unknown'
   lastMessageTime: number | null
+  deviceName: string | null
   sailingData: SailingData
 }
 
@@ -56,6 +57,7 @@ type BLEAction =
   | { type: 'UPDATE_DATA'; payload: Partial<SailingData> }
   | { type: 'UPDATE_RSSI'; payload: number }
   | { type: 'UPDATE_LAST_MESSAGE_TIME'; payload: number }
+  | { type: 'UPDATE_DEVICE_NAME'; payload: string }
 
 // Initial state
 const initialState: BLEState = {
@@ -69,6 +71,7 @@ const initialState: BLEState = {
   rssi: null,
   signalQuality: 'unknown',
   lastMessageTime: null,
+  deviceName: null,
   sailingData: {
     speed: 0,
     speedMax: 0,
@@ -132,6 +135,7 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
         rssi: null,
         signalQuality: 'unknown',
         lastMessageTime: null,
+        deviceName: null,
         sailingData: {
           speed: 0,
           speedMax: 0,
@@ -171,6 +175,11 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
         ...state,
         lastMessageTime: action.payload
       }
+    case 'UPDATE_DEVICE_NAME':
+      return {
+        ...state,
+        deviceName: action.payload
+      }
     default:
       return state
   }
@@ -197,9 +206,9 @@ export function BLEProvider({ children }: { children: ReactNode }) {
     try {
       dispatch({ type: 'CONNECT_START' })
 
-      // Request BLE device
+      // Request BLE device - show all devices with our service
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ name: BLE_CONFIG.DEVICE_NAME }],
+        filters: [{ services: [BLE_CONFIG.SERVICE_UUID] }],
         optionalServices: [BLE_CONFIG.SERVICE_UUID]
       })
 
@@ -227,6 +236,11 @@ export function BLEProvider({ children }: { children: ReactNode }) {
         payload: { device, server, sensorDataCharacteristic, commandCharacteristic }
       })
 
+      // Store the device name for display in settings
+      if (device.name) {
+        dispatch({ type: 'UPDATE_DEVICE_NAME', payload: device.name })
+      }
+
       // RSSI now comes from ESP32 data stream, no need for periodic monitoring
 
     } catch (error) {
@@ -252,12 +266,21 @@ export function BLEProvider({ children }: { children: ReactNode }) {
 
     try {
       const commandStr = JSON.stringify(command)
+      console.log('Attempting to send command:', commandStr)
+      console.log('Command length:', commandStr.length, 'bytes')
+      
       const encoder = new TextEncoder()
-      await state.commandCharacteristic.writeValue(encoder.encode(commandStr))
-      console.log('BLE command sent:', command)
+      const encodedData = encoder.encode(commandStr)
+      console.log('Encoded data length:', encodedData.length, 'bytes')
+      
+      // Use writeValueWithoutResponse for better compatibility as recommended by ESP32 docs
+      await state.commandCharacteristic.writeValueWithoutResponse(encodedData)
+      console.log('BLE command sent successfully:', command)
       return true
     } catch (error) {
       console.error('Error sending BLE command:', error)
+      console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error)
+      console.error('Error message:', error instanceof Error ? error.message : String(error))
       return false
     }
   }
