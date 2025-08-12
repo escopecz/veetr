@@ -65,33 +65,33 @@ export default function WindDirectionCard({
             );
           })}
           
-          {/* Dead wind zone (red V) */}
-          <path
-            d={`M 200,200 L ${200 + 140 * Math.sin((deadWindAngle * Math.PI) / 180)},${200 - 140 * Math.cos((deadWindAngle * Math.PI) / 180)} M 200,200 L ${200 - 140 * Math.sin((deadWindAngle * Math.PI) / 180)},${200 - 140 * Math.cos((deadWindAngle * Math.PI) / 180)}`}
-            stroke="#ef4444"
-            strokeWidth="4"
-            opacity="0.6"
-          />
-          
           {/* Boat shape at center */}
           <path
-            d="M 200,160 Q 220,200 210,240 Q 200,250 190,240 Q 180,200 200,160 Z"
-            fill="rgba(179, 230, 255, 0.9)"
+            d="M 200,172 Q 214,200 207,228 Q 200,235 193,228 Q 186,200 200,172 Z"
+            fill="#404040"
             stroke="#e0e0e0"
             strokeWidth="2"
           />
           <circle cx="200" cy="200" r="5" fill="#000" stroke="#fff" strokeWidth="2" />
           
+          {/* Dead wind zone (red V) - drawn after boat to appear on top */}
+          <path
+            d={`M 200,200 L ${200 + 180 * Math.sin((deadWindAngle * Math.PI) / 180)},${200 - 180 * Math.cos((deadWindAngle * Math.PI) / 180)} M 200,200 L ${200 - 180 * Math.sin((deadWindAngle * Math.PI) / 180)},${200 - 180 * Math.cos((deadWindAngle * Math.PI) / 180)}`}
+            stroke="#ef4444"
+            strokeWidth="4"
+            opacity="0.6"
+          />
+          
           {/* Apparent wind arrow */}
           <g transform={`rotate(${windDirection} 200 200)`}>
             <path
-              d="M 190,40 L 200,200 L 210,40"
-              fill="#3b82f6"
-              stroke="#1e40af"
+              d="M 190,20 L 200,200 L 210,20"
+              fill="#ffffff"
+              stroke="#ffff00"
               strokeWidth="3"
-              opacity="0.9"
+              opacity="0.95"
             />
-            <circle cx="200" cy="50" r="8" fill="#3b82f6" stroke="#1e40af" strokeWidth="2" />
+            <circle cx="200" cy="30" r="8" fill="#ffffff" stroke="#ffff00" strokeWidth="2" />
             {/* Removed APP label for apparent wind arrow */}
           </g>
           
@@ -99,16 +99,16 @@ export default function WindDirectionCard({
           {trueWindSpeed > 0 && (
             <g transform={`rotate(${trueWindDirection} 200 200)`}>
               <path
-                d="M 185,40 L 200,200 L 215,40"
+                d="M 185,20 L 200,200 L 215,20"
                 fill="#f59e0b"
                 stroke="#d97706"
                 strokeWidth="3"
                 opacity="0.8"
               />
-              <circle cx="200" cy="50" r="6" fill="#f59e0b" stroke="#d97706" strokeWidth="2" />
+              <circle cx="200" cy="30" r="6" fill="#f59e0b" stroke="#d97706" strokeWidth="2" />
               <text 
                 x="220" 
-                y="35" 
+                y="15" 
                 fill="#f59e0b" 
                 fontSize="10" 
                 fontWeight="bold"
