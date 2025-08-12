@@ -25,6 +25,7 @@ export default function Dashboard() {
             trueWindDirection={sailingData.trueWindDirection}
             trueWindSpeed={sailingData.trueWindSpeed}
             deadWindAngle={sailingData.deadWindAngle}
+            heading={sailingData.heading}
           />
         </div>
         <div className="dashboard-cards-area">

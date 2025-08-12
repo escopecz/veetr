@@ -22,6 +22,7 @@ export interface SailingData {
   hdop: number
   lat: number
   lon: number
+  heading: number
 }
 
 // BLE connection state
@@ -92,7 +93,8 @@ const initialState: BLEState = {
     gpsSatellites: 0,
     hdop: 0,
     lat: 0,
-    lon: 0
+    lon: 0,
+    heading: 0
   }
 }
 
@@ -156,7 +158,8 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
           gpsSatellites: 0,
           hdop: 0,
           lat: 0,
-          lon: 0
+          lon: 0,
+          heading: 0
         }
       }
     case 'UPDATE_DATA':
@@ -314,7 +317,8 @@ export function BLEProvider({ children }: { children: ReactNode }) {
         gpsSatellites: data.satellites || 0,
         hdop: data.hdop || 0,            // Horizontal Dilution of Precision
         lat: data.lat || 0,              // Latitude
-        lon: data.lon || 0               // Longitude
+        lon: data.lon || 0,              // Longitude
+        heading: data.HDM || 0           // Heading Magnetic (compass direction)
       }
 
       dispatch({ type: 'UPDATE_DATA', payload: mappedData })

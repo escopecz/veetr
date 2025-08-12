@@ -1,5 +1,6 @@
 import '../Dashboard.css'
 import './WindDirectionCard.css'
+import { useSmoothRotation } from '../../hooks/useSmoothRotation'
 
 interface WindDirectionCardProps {
   windDirection: number
@@ -7,6 +8,7 @@ interface WindDirectionCardProps {
   trueWindDirection: number
   trueWindSpeed: number
   deadWindAngle: number
+  heading: number
 }
 
 export default function WindDirectionCard({ 
@@ -14,8 +16,14 @@ export default function WindDirectionCard({
   windSpeed: _windSpeed, 
   trueWindDirection, 
   trueWindSpeed, 
-  deadWindAngle 
+  deadWindAngle,
+  heading 
 }: WindDirectionCardProps) {
+  // Use smooth rotation for all rotating elements
+  const smoothWindDirection = useSmoothRotation(windDirection, { duration: 800 })
+  const smoothTrueWindDirection = useSmoothRotation(trueWindDirection, { duration: 800 })
+  const smoothHeading = useSmoothRotation(heading, { duration: 1000 })
+
   return (
     <div className="card wind-direction-card">
       <div className="wind-compass">
@@ -39,6 +47,27 @@ export default function WindDirectionCard({
             stroke="rgba(255,255,255,0.2)" 
             strokeWidth="2"
           />
+          
+          {/* North pointer on inner ring - rotates opposite to boat heading to always point north */}
+          <g transform={`rotate(${-smoothHeading} 200 200)`}>
+            <path
+              d="M 195,50 L 200,35 L 205,50 Z"
+              fill="#ffffff"
+              stroke="#333333"
+              strokeWidth="2"
+              opacity="0.9"
+            />
+            <text 
+              x="200" 
+              y="75" 
+              fill="#ffffff" 
+              fontSize="12" 
+              fontWeight="bold"
+              textAnchor="middle"
+            >
+              N
+            </text>
+          </g>
           
           {/* Degree markers */}
           {Array.from({ length: 36 }, (_, i) => {
@@ -83,7 +112,7 @@ export default function WindDirectionCard({
           />
           
           {/* Apparent wind arrow */}
-          <g transform={`rotate(${windDirection} 200 200)`}>
+          <g transform={`rotate(${smoothWindDirection} 200 200)`}>
             <path
               d="M 190,20 L 200,200 L 210,20"
               fill="#ffffff"
@@ -97,7 +126,7 @@ export default function WindDirectionCard({
           
           {/* True wind arrow */}
           {trueWindSpeed > 0 && (
-            <g transform={`rotate(${trueWindDirection} 200 200)`}>
+            <g transform={`rotate(${smoothTrueWindDirection} 200 200)`}>
               <path
                 d="M 185,20 L 200,200 L 215,20"
                 fill="#f59e0b"
