@@ -65,7 +65,7 @@ The Luna Sailing Dashboard transmits data via BLE notifications using a standard
   "AWS": 12.5,
   "AWD": 045,
   "heel": -5.2,
-  "heading": 185.5,
+  "HDM": 185.5,
   "accelX": 0.12,
   "accelY": -0.05,
   "accelZ": 9.81,
@@ -87,7 +87,7 @@ The Luna Sailing Dashboard transmits data via BLE notifications using a standard
 | `AWS` | float | knots | Apparent Wind Speed | ✓ |
 | `AWD` | integer | degrees | Apparent Wind Direction (0-360°) | ✓ |
 | `heel` | float | degrees | Vessel heel angle (+ = starboard, - = port) | ✓ |
-| `heading` | float | degrees | Compass heading from magnetometer (0-360°) | ✓ |
+| `HDM` | float | degrees | Heading Magnetic from magnetometer (0-360°) | ✓ |
 | `accelX` | float | m/s² | Acceleration along X-axis (fore/aft) | ✓ |
 | `accelY` | float | m/s² | Acceleration along Y-axis (port/starboard) | ✓ |
 | `accelZ` | float | m/s² | Acceleration along Z-axis (up/down) | ✓ |
@@ -105,7 +105,7 @@ The Luna Sailing Dashboard transmits data via BLE notifications using a standard
 - `AWS` - Only present if wind sensor is connected and working
 - `AWD` - Only present if wind sensor is connected and working  
 - `heel` - Only present if BNO080 IMU sensor is detected and working
-- `heading` - Only present if BNO080 magnetometer is working and has valid data
+- `HDM` - Only present if BNO080 magnetometer is working and has valid data
 - `accelX`, `accelY`, `accelZ` - Only present if BNO080 accelerometer is working and has valid data
 
 ### GPS Speed Filtering
@@ -239,8 +239,8 @@ sensorCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
   console.log('Device:', data.deviceName);
   
   // New BNO080 sensor data (if available)
-  if (data.heading !== undefined) {
-    console.log('Compass Heading:', data.heading, 'degrees');
+  if (data.HDM !== undefined) {
+    console.log('Magnetic Heading:', data.HDM, 'degrees');
   }
   
   if (data.accelX !== undefined) {

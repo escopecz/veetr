@@ -12,7 +12,7 @@
 // #define DEBUG_BLE_DATA
 #define DEBUG_WIND_SENSOR
 // #define DEBUG_GPS
-// #define DEBUG_BNO080
+#define DEBUG_BNO080
 
 // Persistent storage for settings
 Preferences preferences;
@@ -266,7 +266,7 @@ struct SensorData {
   float trueWindSpeed;  // True wind speed in knots
   float trueWindDirection; // True wind direction in degrees (0-359)
   float tilt;           // Vessel heel/tilt angle in degrees
-  float heading;        // Compass heading in degrees (0-359)
+  int HDM;              // Magnetic heading in degrees (0-359)
   float accelX;         // Acceleration X-axis in m/s²
   float accelY;         // Acceleration Y-axis in m/s²
   float accelZ;         // Acceleration Z-axis in m/s²
@@ -517,9 +517,9 @@ void setup() {
     imu.enableRotationVector(50); // 50ms = 20Hz update rate
     Serial.println("Rotation vector configuration sent");
     
-    // Enable magnetometer for compass heading
-    imu.enableMagnetometer(100); // 100ms = 10Hz update rate
-    Serial.println("Magnetometer configuration sent");
+    // Enable magnetometer for compass heading with higher update rate
+    imu.enableMagnetometer(50); // 50ms = 20Hz update rate (increased from 100ms)
+    Serial.println("Magnetometer configuration sent (20Hz)");
     
     // Enable accelerometer for acceleration data
     imu.enableAccelerometer(50); // 50ms = 20Hz update rate
@@ -672,8 +672,8 @@ void loop() {
         Serial.printf("Wind:%.1fkt@%d° ", currentData.windSpeed, currentData.windDirection);
       if (!isnan(currentData.tilt)) 
         Serial.printf("Tilt:%.1f° ", currentData.tilt);
-      if (!isnan(currentData.heading)) 
-        Serial.printf("Hdg:%.1f° ", currentData.heading);
+      if (currentData.HDM >= 0 && currentData.HDM <= 359) 
+        Serial.printf("Hdm:%d° ", currentData.HDM);
       
       // GPS status - only show satellite count if we have actual GPS data
       if (gps.charsProcessed() > 10) {
@@ -1178,23 +1178,112 @@ void readSensors() {
         Serial.printf("[BNO080] Roll: %.2f°, Heel: %.2f°\n", roll, zeroedTilt);
         #endif
         
-        // Read magnetometer data if available
-        if (imu.getMagX() != 0 || imu.getMagY() != 0 || imu.getMagZ() != 0) {
-          // Calculate compass heading from magnetometer
+        // Read magnetometer data with fresh data detection
+        static float lastMagX = 0, lastMagY = 0, lastMagZ = 0;
+        static unsigned long lastMagChangeTime = 0;
+        
+        // Force magnetometer data update by checking for new magnetometer reports
+        // The BNO080 might be caching old values, so we need to ensure fresh reads
+        bool newMagData = false;
+        
+        // Check if there's specifically magnetometer data available
+        if (imu.dataAvailable()) {
+          // Try multiple approaches to get fresh magnetometer data
+          
+          // Method 1: Check if there's been a magnetometer data update
+          // by calling the data parsing function
+          imu.parseInputReport(); // Force parsing of any pending reports
+          
+          // Get current magnetometer readings
           float magX = imu.getMagX();
           float magY = imu.getMagY();
           float magZ = imu.getMagZ();
           
-          // Calculate heading (yaw) from magnetometer data
-          // This is a simplified calculation - for better accuracy, tilt compensation would be needed
-          float heading = atan2(magY, magX) * 180.0f / PI;
-          if (heading < 0) heading += 360.0f; // Normalize to 0-360
+          // Check if magnetometer data has actually changed
+          bool magDataChanged = (abs(magX - lastMagX) > 0.01 || 
+                                abs(magY - lastMagY) > 0.01 || 
+                                abs(magZ - lastMagZ) > 0.01);
           
-          currentData.heading = heading;
+          if (magDataChanged) {
+            lastMagChangeTime = millis();
+            lastMagX = magX;
+            lastMagY = magY; 
+            lastMagZ = magZ;
+            newMagData = true;
+          }
+          
+          // Calculate total magnetic field strength to validate readings
+          float magMagnitude = sqrt(magX * magX + magY * magY + magZ * magZ);
           
           #ifdef DEBUG_BNO080
-          Serial.printf("[BNO080] Mag: X=%.2f Y=%.2f Z=%.2f, Heading=%.1f°\n", magX, magY, magZ, heading);
+          Serial.printf("[BNO080] Mag: X=%.2f Y=%.2f Z=%.2f (mag=%.2f) %s\n", 
+                        magX, magY, magZ, magMagnitude, 
+                        magDataChanged ? "CHANGED" : "same");
+          
+          // Warn if magnetometer data hasn't changed in a while
+          static unsigned long lastStaleWarning = 0;
+          if (millis() - lastMagChangeTime > 3000 && millis() - lastStaleWarning > 5000) {
+            Serial.printf("[BNO080] WARNING: Magnetometer data hasn't changed in %lu ms\n", 
+                          millis() - lastMagChangeTime);
+            lastStaleWarning = millis();
+          }
           #endif
+          
+          // Only calculate new heading if we have fresh magnetometer data or reasonable readings
+          if (newMagData || magMagnitude > 0.1) {
+            // Calculate heading (yaw) from magnetometer data
+            float heading = atan2(magY, magX) * 180.0f / PI;
+            if (heading < 0) heading += 360.0f; // Normalize to 0-360
+            
+            // Only update heading if we have genuinely new data
+            if (newMagData) {
+              currentData.HDM = (int)round(heading); // Convert to integer
+              
+              #ifdef DEBUG_BNO080
+              Serial.printf("[BNO080] Updated Heading: %d° (NEW DATA)\n", currentData.HDM);
+              #endif
+            } else {
+              #ifdef DEBUG_BNO080
+              Serial.printf("[BNO080] Heading would be: %.1f° (but data is stale)\n", heading);
+              #endif
+            }
+          }
+        } else {
+          // No general data available, but try to force a magnetometer update anyway
+          static unsigned long lastMagForceTime = 0;
+          if (millis() - lastMagForceTime > 100) { // Try every 100ms
+            lastMagForceTime = millis();
+            
+            #ifdef DEBUG_BNO080
+            Serial.println("[BNO080] No dataAvailable(), trying to force magnetometer read...");
+            #endif
+            
+            // Force the sensor to process any pending data
+            if (imu.receivePacket()) {
+              float magX = imu.getMagX();
+              float magY = imu.getMagY();
+              float magZ = imu.getMagZ();
+              
+              bool magDataChanged = (abs(magX - lastMagX) > 0.01 || 
+                                    abs(magY - lastMagY) > 0.01 || 
+                                    abs(magZ - lastMagZ) > 0.01);
+              
+              if (magDataChanged) {
+                lastMagChangeTime = millis();
+                lastMagX = magX;
+                lastMagY = magY; 
+                lastMagZ = magZ;
+                
+                float heading = atan2(magY, magX) * 180.0f / PI;
+                if (heading < 0) heading += 360.0f;
+                currentData.HDM = (int)round(heading); // Convert to integer
+                
+                #ifdef DEBUG_BNO080
+                Serial.printf("[BNO080] Forced update - Heading: %d°\n", currentData.HDM);
+                #endif
+              }
+            }
+          }
         }
         
         // Read accelerometer data if available
@@ -1226,7 +1315,7 @@ void readSensors() {
   } else {
     // IMU not available - set all values to 0/NaN
     currentData.tilt = 0.0;
-    currentData.heading = NAN;
+    currentData.HDM = -1; // Use -1 to indicate invalid heading
     currentData.accelX = NAN;
     currentData.accelY = NAN;
     currentData.accelZ = NAN;
@@ -1292,9 +1381,9 @@ String getSensorDataJson() {
     doc["heel"] = currentData.tilt; // Vessel heel angle
   }
   
-  // Compass heading - only include if IMU is available and has valid data
-  if (imuAvailable && !isnan(currentData.heading)) {
-    doc["heading"] = currentData.heading; // Compass heading in degrees
+  // Magnetic heading - only include if IMU is available and has valid data
+  if (imuAvailable && currentData.HDM >= 0 && currentData.HDM <= 359) {
+    doc["HDM"] = currentData.HDM; // Magnetic heading in degrees
   }
   
   // Acceleration data - only include if IMU is available and has valid data
