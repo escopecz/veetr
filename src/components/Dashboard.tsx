@@ -33,12 +33,12 @@ export default function Dashboard() {
             windSpeed={sailingData.windSpeed}
             title="Apparent Wind"
           />
-          <ApparentAngleCard angle={sailingData.windDirection} />
+          <ApparentAngleCard angle={Math.min(sailingData.windDirection, 360 - sailingData.windDirection)} />
           <WindCard
             windSpeed={sailingData.trueWindSpeed}
             title="True Wind"
           />
-          <TrueWindAngleCard twa={sailingData.trueWindDirection} />
+          <TrueWindAngleCard twa={Math.min(sailingData.trueWindDirection, 360 - sailingData.trueWindDirection)} />
           <SpeedCard 
             speed={sailingData.gpsSpeed > 0.5 ? sailingData.gpsSpeed : sailingData.speed}
             satellites={sailingData.gpsSatellites}

@@ -24,6 +24,10 @@ export default function WindDirectionCard({
   const smoothTrueWindDirection = useSmoothRotation(trueWindDirection, { duration: 800 })
   const smoothHeading = useSmoothRotation(heading, { duration: 1000 })
 
+  // Convert 360° wind directions to 0-180° apparent wind angles
+  const apparentWindAngle = Math.min(windDirection, 360 - windDirection)
+  const trueWindAngle = Math.min(trueWindDirection, 360 - trueWindDirection)
+
   return (
     <div className="card wind-direction-card">
       <div className="wind-compass">
@@ -51,15 +55,13 @@ export default function WindDirectionCard({
           {/* North pointer on inner ring - rotates opposite to boat heading to always point north */}
           <g transform={`rotate(${-smoothHeading} 200 200)`}>
             <path
-              d="M 195,50 L 200,35 L 205,50 Z"
-              fill="#ffffff"
-              stroke="#333333"
-              strokeWidth="2"
-              opacity="0.9"
+              d="M 195,49 L 200,34 L 205,49 Z"
+              fill="rgba(255,255,255,0.3)"
+              stroke="none"
             />
             <text 
               x="200" 
-              y="75" 
+              y="65" 
               fill="#ffffff" 
               fontSize="12" 
               fontWeight="bold"
@@ -151,14 +153,18 @@ export default function WindDirectionCard({
         </svg>
       </div>
       
-      {trueWindSpeed > 0 && (
-        <div className="wind-data">
-          <div className="wind-data-item">
-            <span className="wind-label">True</span>
-            <span className="wind-value">{trueWindDirection.toFixed(0)}°</span>
-          </div>
+      <div className="wind-data">
+        <div className="wind-data-item">
+          <span className="wind-label">AWA</span>
+          <span className="wind-value">{apparentWindAngle.toFixed(0)}°</span>
         </div>
-      )}
+        {trueWindSpeed > 0 && (
+          <div className="wind-data-item">
+            <span className="wind-label">TWA</span>
+            <span className="wind-value">{trueWindAngle.toFixed(0)}°</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
