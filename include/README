@@ -1,5 +1,18 @@
 
-This directory is intended for project header files.
+This directory contains project header files and documentation for hardware components.
+
+Luna Sailing Dashboard - Hardware Documentation:
+
+- RS485_Breakout_v10.pdf: Documentation for RS485 to UART converter module
+- Ultrasonic Wind Speed and Direction Sensor(RS485).doc.pdf: Wind sensor documentation
+- adxl345-ep.pdf: Accelerometer documentation (legacy - now using BNO080)
+
+Wind Sensor Notes:
+The system automatically detects between two common ultrasonic wind sensor formats:
+- IEEE754 Format: 9600 baud, 8E1, registers 0x0001, IEEE 754 float encoding
+- Integer Format: 4800 baud, 8N1, registers 0x0000, integer×100 encoding
+
+No manual configuration required - detection happens at startup.
 
 A header file is a file containing C declarations and macro definitions
 to be shared between several project source files. You request the use of a

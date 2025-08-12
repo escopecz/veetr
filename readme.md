@@ -274,9 +274,18 @@ await resetHeelAngle();
 
 - ESP32 DEVKIT V1 DOIT (main controller)
 - NEO-7M GPS Module with external antenna
-- Ultrasonic Wind Speed and Direction Sensor (RS485)
+- Ultrasonic Wind Speed and Direction Sensor (RS485) - **Auto-detects sensor format**
 - GY-BNO080 9-Axis IMU Sensor (I2C)
 - RS485 to UART Converter Module
+
+### Wind Sensor Compatibility
+
+The system automatically detects and supports two different ultrasonic wind sensor formats:
+
+- **IEEE754 Format**: 9600 baud, 8E1, registers 0x0001, IEEE 754 float encoding
+- **Integer Format**: 4800 baud, 8N1, registers 0x0000, integer×100 encoding
+
+Auto-detection occurs at startup by attempting communication with each format and validating the response data. Once detected, the system locks to the working format for optimal performance.
 
 ## Getting Started
 
@@ -670,9 +679,12 @@ Once connected, the ESP32 automatically sends JSON data every 1 second:
 
 - **Wind data not appearing in JSON**
   - Verify wind sensor is connected to RS485 converter
-  - Check RS485 converter connections to ESP32 pins 25/26
+  - Check RS485 converter connections to ESP32 pins 32/33
   - Ensure wind sensor has proper power supply (typically 12V)
+  - Check serial console for auto-detection messages during startup
+  - System automatically tries both IEEE754 and integer formats
   - Wind sensor data only appears in JSON when sensor is detected and working
+  - If auto-detection fails, verify Modbus address is set to 1 on the sensor
 
 - **Heel angle not appearing in JSON**
   - Verify BNO080 IMU sensor is connected to I2C pins 21/22
@@ -735,20 +747,20 @@ Once connected, the ESP32 automatically sends JSON data every 1 second:
 
 #### Wind Sensor
 
-1. **Calibration**
-   - The ultrasonic wind sensor should be calibrated according to manufacturer instructions
-   - For most sensors, this involves:
-     1. Mounting the sensor in a stable position
-     2. Navigating to the dashboard's Settings tab
-     3. Clicking "Calibrate Wind Sensor"
-     4. Following the on-screen instructions to rotate the sensor
-     5. Saving the calibration data
+1. **Auto-Detection**
+   - The system automatically detects your wind sensor format at startup
+   - Supports both IEEE754 float (9600,8E1) and integer (4800,8N1) formats
+   - No manual configuration required - the system tests both formats and locks to the working one
+   - Detection status is shown in the serial console during startup
 
-2. **Configuration Options**
-   - If using a different model than the default, you may need to adjust the RS485 communication parameters:
-     ```cpp
-     // In src/sensors/wind.cpp
-     const int WIND_SENSOR_ADDRESS = 1;    // Modbus address of the sensor
+2. **Supported Formats**
+   - **IEEE754 Format**: 9600 baud, 8E1, registers 0x0001, speed as IEEE 754 float
+   - **Integer Format**: 4800 baud, 8N1, registers 0x0000, speed as integer×100
+
+3. **Calibration**
+   - The ultrasonic wind sensor should be calibrated according to manufacturer instructions
+   - Most sensors require physical calibration at installation (aligning to boat's centerline)
+   - No software calibration is typically needed as readings are absolute
      const int WIND_UPDATE_RATE = 1000;    // Update rate in milliseconds
      const int WIND_SENSOR_BAUDRATE = 9600; // Baud rate for RS485 communication
      ```

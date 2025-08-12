@@ -9,8 +9,8 @@
 #include <ModbusMaster.h>
 
 // Debug flags - uncomment for verbose output
-#define DEBUG_BLE_DATA
-// #define DEBUG_WIND_SENSOR
+// #define DEBUG_BLE_DATA
+#define DEBUG_WIND_SENSOR
 // #define DEBUG_GPS
 // #define DEBUG_BNO080
 
@@ -328,6 +328,7 @@ float filterGPSSpeed(float rawSpeed, int satellites, float hdop);
 
 // Wind Sensor Functions
 bool readWindSensor(float &windSpeed, int &windDirection);
+float regsToFloat(uint16_t lowReg, uint16_t highReg);
 
 // GPS Functions
 bool readGPS();
@@ -599,7 +600,8 @@ void setup() {
   Serial.println("GPS module initialized");
   
   // Initialize RS485 for wind sensor with ModbusMaster
-  rs485.begin(4800, SERIAL_8N1, RS485_RX, RS485_TX);
+  // Try both sensor configurations - start with 9600 baud format first
+  rs485.begin(9600, SERIAL_8E1, RS485_RX, RS485_TX); // Ultrasonic sensor (9600,8E1,IEEE754)
   pinMode(RS485_DE, OUTPUT);
   digitalWrite(RS485_DE, LOW);
   
@@ -607,9 +609,22 @@ void setup() {
   windSensor.preTransmission(preTransmission);
   windSensor.postTransmission(postTransmission);
   
+  // Set shorter timeout to prevent long delays - default is often 2000ms
+  windSensor.idle([]() {
+    // Allow other tasks during Modbus idle time
+    yield();
+  });
+  
+  // Try to set a shorter timeout if the library supports it
+  // Note: Not all ModbusMaster versions support this
+  #ifdef MODBUS_RESPONSE_TIMEOUT
+  windSensor.setResponseTimeout(500); // 500ms timeout instead of default 2000ms
+  #endif
+  
   Serial.println("RS485 wind sensor initialized with ModbusMaster");
   Serial.printf("RS485 pins: RX=%d, TX=%d, DE=%d\n", RS485_RX, RS485_TX, RS485_DE);
-  Serial.println("RS485 settings: 4800 baud, 8N1 (confirmed working)");
+  Serial.println("RS485 settings: Auto-detect between IEEE754 float (9600,8E1) and integer (4800,8N1) formats");
+  Serial.println("Anemometer format: Auto-detect between IEEE 754 float and integer data types");
   
   // Test wind sensor connection
   delay(1000);
@@ -720,12 +735,25 @@ float calculateBearing(double lat1, double lon1, double lat2, double lon2) {
 
 // Analyze GPS track to determine if movement is real
 bool isMovementConsistent() {
+  static unsigned long lastAnalysisTime = 0;
+  static bool lastResult = false;
+  
+  // Only analyze movement every 2 seconds to reduce CPU load
+  if (millis() - lastAnalysisTime < 2000) {
+    return lastResult;
+  }
+  lastAnalysisTime = millis();
+  
   if (!gpsTrackBufferFull && gpsTrackIndex < 3) {
+    lastResult = false;
     return false; // Need at least 3 points
   }
   
   int validPoints = gpsTrackBufferFull ? GPS_TRACK_BUFFER_SIZE : gpsTrackIndex;
-  if (validPoints < 3) return false;
+  if (validPoints < 3) {
+    lastResult = false;
+    return false;
+  }
   
   // Calculate total distance and bearing changes
   float totalDistance = 0.0;
@@ -782,10 +810,12 @@ bool isMovementConsistent() {
     
     // Allow for reasonable course changes in sailing
     if (avgBearingChange < 45.0) { // Less than 45° average change = consistent track
+      lastResult = true;
       return true;
     }
   }
   
+  lastResult = false;
   return false;
 }
 
@@ -863,11 +893,18 @@ float filterGPSSpeed(float rawSpeed, int satellites, float hdop) {
   }
 }
 
-// Set up WiFi Access Point
 // Read sensor data
 void readSensors() {
+  #ifdef DEBUG_BLE_DATA
+  unsigned long startTime = millis();
+  #endif
+  
   // Read GPS data first
   bool gpsDataValid = readGPS();
+  
+  #ifdef DEBUG_BLE_DATA
+  unsigned long gpsTime = millis();
+  #endif
   
   // Apply track-based GPS speed filtering
   if (gpsDataValid && gps.speed.isValid()) {
@@ -896,6 +933,10 @@ void readSensors() {
     currentData.speed = 0.0;
   }
 
+  #ifdef DEBUG_BLE_DATA
+  unsigned long filterTime = millis();
+  #endif
+
   // Read wind sensor using ModbusMaster
   float sensorWindSpeed;
   int sensorWindDirection;
@@ -916,6 +957,10 @@ void readSensors() {
       lastErrorTime = millis();
     }
   }
+  
+  #ifdef DEBUG_BLE_DATA
+  unsigned long windTime = millis();
+  #endif
   
   // Enhanced GPS debug output (only when needed)
   #ifdef DEBUG_GPS
@@ -1045,6 +1090,20 @@ void readSensors() {
     currentData.accelY = NAN;
     currentData.accelZ = NAN;
   }
+  
+  #ifdef DEBUG_BLE_DATA
+  unsigned long endTime = millis();
+  static unsigned long lastTimingReport = 0;
+  if (millis() - lastTimingReport > 5000) { // Report timing every 5 seconds
+    Serial.printf("[Timing] Total: %lums, GPS: %lums, Filter: %lums, Wind: %lums, IMU: %lums\n",
+                  endTime - startTime,
+                  gpsTime - startTime,
+                  filterTime - gpsTime, 
+                  windTime - filterTime,
+                  endTime - windTime);
+    lastTimingReport = millis();
+  }
+  #endif
 }
 
 // Generate JSON string with current sensor data using marine standard terminology
@@ -1118,9 +1177,19 @@ String getSensorDataJson() {
 
 // Wind Sensor Functions
 
+// Convert two Modbus registers (32 bits) to float
+float regsToFloat(uint16_t lowReg, uint16_t highReg) {
+  uint32_t combined = ((uint32_t)highReg << 16) | lowReg;
+  float value;
+  memcpy(&value, &combined, sizeof(value));
+  return value;
+}
+
 // Read wind sensor data via RS485 using ModbusMaster
 bool readWindSensor(float &windSpeed, int &windDirection) {
   static unsigned long lastAttempt = 0;
+  static bool sensorTypeDetected = false;
+  static bool useIEEE754Format = true; // true = IEEE754 float (9600,8E1), false = integer (4800,8N1)
   
   // Don't hammer the sensor - minimum 100ms between attempts
   if (millis() - lastAttempt < 100) {
@@ -1129,29 +1198,114 @@ bool readWindSensor(float &windSpeed, int &windDirection) {
   lastAttempt = millis();
   
   #ifdef DEBUG_WIND_SENSOR
-  Serial.print("[Wind Sensor] Reading registers 0x0000-0x0001... ");
+  Serial.print("[Wind Sensor] Reading ");
+  if (useIEEE754Format) {
+    Serial.print("IEEE754 format (9600,8E1,float)... ");
+  } else {
+    Serial.print("integer format (4800,8N1,int)... ");
+  }
+  unsigned long modbusStart = millis();
   #endif
   
   // Clear any existing response data
   windSensor.clearResponseBuffer();
   
-  // Read registers 0x0000 (wind speed) and 0x0001 (wind direction)
-  uint8_t result = windSensor.readHoldingRegisters(0x0000, 2);
+  uint8_t result;
+  
+  if (useIEEE754Format) {
+    // IEEE754 ultrasonic sensor: Read registers 0x0001 for 4 registers (direction + speed float)
+    result = windSensor.readHoldingRegisters(0x0001, 4);
+  } else {
+    // Integer ultrasonic sensor: Read registers 0x0000 for 2 registers (speed int + direction)  
+    result = windSensor.readHoldingRegisters(0x0000, 2);
+  }
+
+  #ifdef DEBUG_WIND_SENSOR
+  unsigned long modbusTime = millis() - modbusStart;
+  Serial.printf("(took %lums) ", modbusTime);
+  #endif
 
   if (result == windSensor.ku8MBSuccess) {
-    // Register 0x0000: Wind speed (expanded by 100, e.g., 125 = 1.25 m/s)
-    uint16_t speedRaw = windSensor.getResponseBuffer(0);
-    windSpeed = speedRaw / 100.0f; // Convert from expanded integer to actual m/s
     
-    // Register 0x0001: Wind direction (0-359 degrees, 0° = North, 90° = East)
-    windDirection = windSensor.getResponseBuffer(1);
+    if (useIEEE754Format) {
+      // IEEE754 ultrasonic anemometer format:
+      // reg0 = direction (0–359°)
+      // reg1 = speed float low word
+      // reg2 = speed float high word  
+      // reg3 = unused
+      
+      windDirection = windSensor.getResponseBuffer(0); // direction
+      uint16_t speedLow = windSensor.getResponseBuffer(1);
+      uint16_t speedHigh = windSensor.getResponseBuffer(2);
+      
+      // Convert registers to IEEE 754 float
+      windSpeed = regsToFloat(speedLow, speedHigh);
+      
+      #ifdef DEBUG_WIND_SENSOR
+      Serial.printf("SUCCESS - IEEE754 format: Direction=%d°, Speed=%.3f m/s (raw: low=%d, high=%d)\n", 
+                    windDirection, windSpeed, speedLow, speedHigh);
+      #endif
+      
+      // Validate data - if it looks wrong, try integer format
+      if (!sensorTypeDetected && (windDirection < 0 || windDirection > 359 || 
+          isnan(windSpeed) || windSpeed < 0 || windSpeed > 50)) {
+        #ifdef DEBUG_WIND_SENSOR
+        Serial.println("  IEEE754 format data invalid, will try integer format next");
+        #endif
+        useIEEE754Format = false;
+        
+        // Reconfigure RS485 for integer sensor
+        rs485.end();
+        rs485.begin(4800, SERIAL_8N1, RS485_RX, RS485_TX);
+        windSensor.begin(1, rs485);
+        windSensor.preTransmission(preTransmission);
+        windSensor.postTransmission(postTransmission);
+        
+        return false; // Try again with integer format
+      }
+      
+    } else {
+      // Integer ultrasonic anemometer format:
+      // reg0 = speed (expanded by 100, e.g., 125 = 1.25 m/s)
+      // reg1 = direction (0-359°)
+      
+      uint16_t speedRaw = windSensor.getResponseBuffer(0);
+      windSpeed = speedRaw / 100.0f;
+      windDirection = windSensor.getResponseBuffer(1);
+      
+      #ifdef DEBUG_WIND_SENSOR
+      Serial.printf("SUCCESS - integer format: Speed raw=%d (%.2f m/s), Direction=%d°\n", 
+                    speedRaw, windSpeed, windDirection);
+      #endif
+      
+      // Validate data - if it looks wrong, try IEEE754 format
+      if (!sensorTypeDetected && (windDirection < 0 || windDirection > 359 || windSpeed < 0 || windSpeed > 50)) {
+        #ifdef DEBUG_WIND_SENSOR
+        Serial.println("  Integer format data invalid, will try IEEE754 format next");
+        #endif
+        useIEEE754Format = true;
+        
+        // Reconfigure RS485 for IEEE754 sensor
+        rs485.end(); 
+        rs485.begin(9600, SERIAL_8E1, RS485_RX, RS485_TX);
+        windSensor.begin(1, rs485);
+        windSensor.preTransmission(preTransmission);
+        windSensor.postTransmission(postTransmission);
+        
+        return false; // Try again with IEEE754 format
+      }
+    }
     
-    #ifdef DEBUG_WIND_SENSOR
-    Serial.printf("SUCCESS - Raw speed: %d (%.2f m/s), Direction: %d°\n", 
-                  speedRaw, windSpeed, windDirection);
-    #endif
+    // If we get here with valid data, lock in the sensor type
+    if (!sensorTypeDetected && windDirection >= 0 && windDirection <= 359 && 
+        windSpeed >= 0 && windSpeed <= 50 && !isnan(windSpeed)) {
+      sensorTypeDetected = true;
+      Serial.printf("\n[Wind Sensor] Detected %s format and locked it in\n", 
+                    useIEEE754Format ? "IEEE754 float" : "integer");
+    }
     
     return true;
+    
   } else {
     #ifdef DEBUG_WIND_SENSOR
     Serial.printf("ERROR %d - ", result);
@@ -1169,6 +1323,26 @@ bool readWindSensor(float &windSpeed, int &windDirection) {
           Serial.printf("Unknown error code\n");
         }
         break;
+    }
+    
+    // If we haven't detected sensor type yet, try the other format
+    if (!sensorTypeDetected) {
+      useIEEE754Format = !useIEEE754Format;
+      #ifdef DEBUG_WIND_SENSOR
+      Serial.printf("  Switching to %s format for next attempt\n", 
+                    useIEEE754Format ? "IEEE754 float" : "integer");
+      #endif
+      
+      // Reconfigure RS485 for the other sensor type
+      rs485.end();
+      if (useIEEE754Format) {
+        rs485.begin(9600, SERIAL_8E1, RS485_RX, RS485_TX);
+      } else {
+        rs485.begin(4800, SERIAL_8N1, RS485_RX, RS485_TX);
+      }
+      windSensor.begin(1, rs485);
+      windSensor.preTransmission(preTransmission);
+      windSensor.postTransmission(postTransmission);
     }
     #endif
     
