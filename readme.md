@@ -110,28 +110,41 @@ The Luna Sailing Dashboard transmits data via BLE notifications using a standard
 
 ### GPS Speed Filtering
 
-The system includes intelligent GPS speed filtering to distinguish real vessel movement from GPS noise when stationary or docked.
+The system includes intelligent GPS speed filtering that combines GPS track analysis with accelerometer data to accurately distinguish real vessel movement from GPS noise when stationary or docked.
 
 **How it works:**
-1. **Track Analysis:** Collects recent GPS positions and analyzes the vessel's track
-2. **Distance & Bearing:** Calculates actual distance traveled and bearing changes
-3. **Movement Detection:** Distinguishes between real movement and GPS drift/noise
-4. **Quality Check:** Only uses GPS data with ≥6 satellites and HDOP ≤ 2.0
-5. **Hysteresis:** Different thresholds prevent speed "flickering" between 0 and low values
+1. **GPS Track Analysis:** Collects recent GPS positions and analyzes the vessel's track for distance traveled and bearing changes
+2. **Accelerometer Movement Detection:** Analyzes acceleration magnitude variations to detect physical movement independent of GPS
+3. **Sensor Fusion:** Combines both GPS and accelerometer data for more accurate movement detection
+4. **Quality Check:** Only uses GPS data with ≥4 satellites and HDOP ≤ 3.0
+5. **Adaptive Thresholds:** Adjusts noise filtering thresholds based on sensor confidence
+6. **Hysteresis:** Different thresholds prevent speed "flickering" between 0 and low values
 
 **Key Features:**
-- **Moving Average Filter:** 8-sample moving average smooths erratic readings
-- **Variance Detection:** Rejects readings when GPS signal is unstable
-- **Stationary Detection:** Reports 0 speed when anchored/docked to filter GPS noise
+- **Dual-Sensor Validation:** Uses both GPS track analysis and accelerometer data when IMU is available
+- **Independent Movement Detection:** Accelerometer provides movement confirmation independent of GPS signal quality
+- **Adaptive Filtering:** Lower thresholds when both sensors confirm movement, higher when stationary
+- **Graceful Degradation:** Falls back to GPS-only filtering when IMU sensor is not available
 - **Responsive:** Quickly detects when vessel starts moving after being stationary
 
-**Thresholds:**
-- **Noise Threshold:** 0.08 knots (speeds below this are considered noise)
-- **Start Moving:** ≥0.18 knots (noise threshold + 10% hysteresis)
-- **Stop Moving:** <0.08 knots or inconsistent GPS track indicates stationary state
+**Enhanced Thresholds (with Accelerometer):**
+- **High Confidence Movement:** 0.05 knots (both GPS and accelerometer detect movement)
+- **Normal Filtering:** 0.08 knots (mixed signals or IMU unavailable)
+- **High Confidence Stationary:** 0.12 knots (both sensors confirm stationary state)
+- **Start Moving Hysteresis:** +0.1 knots above respective threshold
 
-**Why Start > Stop (Hysteresis):**
-This prevents speed "flickering" between 0 and low values when GPS noise fluctuates around the threshold. The boat must reach a slightly higher speed to register as "moving" than the speed at which it's considered "stopped."
+**Accelerometer Movement Detection:**
+- **Acceleration Variance:** Detects changes in acceleration magnitude indicating movement
+- **Magnitude Analysis:** Monitors total acceleration range and standard deviation
+- **Validation:** Ensures accelerometer readings are reasonable (gravity present: 8-12 m/s²)
+- **Noise Immunity:** Filters false positives from sensor noise or vibrations
+
+**Why This Approach:**
+This dual-sensor approach significantly improves accuracy over GPS-only filtering:
+- **Eliminates False Positives:** GPS noise won't register as movement without accelerometer confirmation
+- **Reduces False Negatives:** Real movement detected by accelerometer even with poor GPS signal
+- **Better Sensitivity:** Can detect very slow movement (below GPS noise floor) when accelerometer confirms motion
+- **Marine Environment Optimized:** Accounts for wave motion, anchoring, and low-speed maneuvering scenarios
 
 ### Error Handling
 

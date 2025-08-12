@@ -706,10 +706,23 @@ struct GPSPoint {
   bool valid;
 };
 
+// Accelerometer-based movement detection variables
+const int ACCEL_BUFFER_SIZE = 8;  // Track last 8 acceleration readings
+struct AccelPoint {
+  float x, y, z;
+  float magnitude;
+  unsigned long timestamp;
+  bool valid;
+};
+
 static GPSPoint gpsTrackBuffer[GPS_TRACK_BUFFER_SIZE];
 static int gpsTrackIndex = 0;
 static bool gpsTrackBufferFull = false;
 static float lastValidSpeed = 0.0;
+
+static AccelPoint accelBuffer[ACCEL_BUFFER_SIZE];
+static int accelIndex = 0;
+static bool accelBufferFull = false;
 
 // Calculate distance between two GPS points in meters
 float calculateDistance(double lat1, double lon1, double lat2, double lon2) {
@@ -731,6 +744,100 @@ float calculateBearing(double lat1, double lon1, double lat2, double lon2) {
             sin(lat1 * PI / 180.0) * cos(lat2 * PI / 180.0) * cos(dLon);
   float bearing = atan2(y, x) * 180.0 / PI;
   return fmod(bearing + 360.0, 360.0);
+}
+
+// Store accelerometer reading for movement analysis
+void storeAccelReading(float accelX, float accelY, float accelZ) {
+  if (!imuAvailable) return;
+  
+  AccelPoint point;
+  point.x = accelX;
+  point.y = accelY;
+  point.z = accelZ;
+  point.magnitude = sqrt(accelX * accelX + accelY * accelY + accelZ * accelZ);
+  point.timestamp = millis();
+  point.valid = true;
+  
+  accelBuffer[accelIndex] = point;
+  accelIndex = (accelIndex + 1) % ACCEL_BUFFER_SIZE;
+  
+  if (!accelBufferFull && accelIndex == 0) {
+    accelBufferFull = true;
+  }
+}
+
+// Analyze accelerometer data to detect movement
+bool isAccelerometerMovementDetected() {
+  if (!imuAvailable || (!accelBufferFull && accelIndex < 3)) {
+    return false; // Not enough data or no IMU
+  }
+  
+  static unsigned long lastAnalysisTime = 0;
+  static bool lastResult = false;
+  
+  // Only analyze every 500ms to reduce CPU load
+  if (millis() - lastAnalysisTime < 500) {
+    return lastResult;
+  }
+  lastAnalysisTime = millis();
+  
+  int validPoints = accelBufferFull ? ACCEL_BUFFER_SIZE : accelIndex;
+  if (validPoints < 3) return false;
+  
+  // Calculate acceleration variance to detect movement
+  float totalMagnitude = 0.0;
+  float maxMagnitude = 0.0;
+  float minMagnitude = 1000.0;
+  
+  for (int i = 0; i < validPoints; i++) {
+    int idx = (accelIndex - validPoints + i + ACCEL_BUFFER_SIZE) % ACCEL_BUFFER_SIZE;
+    if (!accelBuffer[idx].valid) continue;
+    
+    float mag = accelBuffer[idx].magnitude;
+    totalMagnitude += mag;
+    maxMagnitude = max(maxMagnitude, mag);
+    minMagnitude = min(minMagnitude, mag);
+  }
+  
+  float avgMagnitude = totalMagnitude / validPoints;
+  float magnitudeRange = maxMagnitude - minMagnitude;
+  
+  // Calculate standard deviation of acceleration magnitude
+  float variance = 0.0;
+  for (int i = 0; i < validPoints; i++) {
+    int idx = (accelIndex - validPoints + i + ACCEL_BUFFER_SIZE) % ACCEL_BUFFER_SIZE;
+    if (!accelBuffer[idx].valid) continue;
+    
+    float diff = accelBuffer[idx].magnitude - avgMagnitude;
+    variance += diff * diff;
+  }
+  variance /= validPoints;
+  float stdDev = sqrt(variance);
+  
+  // Movement detection thresholds
+  const float MOVEMENT_STD_DEV_THRESHOLD = 0.5;  // m/s² - acceleration variation indicating movement
+  const float MOVEMENT_RANGE_THRESHOLD = 1.0;    // m/s² - total acceleration range indicating movement
+  const float MIN_AVERAGE_ACCEL = 8.0;           // m/s² - minimum for valid readings (gravity ~9.81)
+  const float MAX_AVERAGE_ACCEL = 12.0;          // m/s² - maximum for valid readings
+  
+  // Check if accelerometer readings are reasonable (detecting presence of gravity)
+  bool validAccelData = (avgMagnitude >= MIN_AVERAGE_ACCEL && avgMagnitude <= MAX_AVERAGE_ACCEL);
+  
+  // Movement detected if significant variation in acceleration
+  bool movementDetected = validAccelData && 
+                         (stdDev > MOVEMENT_STD_DEV_THRESHOLD || magnitudeRange > MOVEMENT_RANGE_THRESHOLD);
+  
+  #ifdef DEBUG_GPS
+  static unsigned long lastAccelDebugTime = 0;
+  if (millis() - lastAccelDebugTime > 2000) { // Debug every 2 seconds
+    Serial.printf("[Accel Movement] Avg: %.2f m/s², StdDev: %.2f, Range: %.2f, Movement: %s\n",
+                  avgMagnitude, stdDev, magnitudeRange, movementDetected ? "YES" : "NO");
+    lastAccelDebugTime = millis();
+  }
+  #endif
+  
+  lastResult = movementDetected;
+  return movementDetected;
 }
 
 // Analyze GPS track to determine if movement is real
@@ -819,7 +926,7 @@ bool isMovementConsistent() {
   return false;
 }
 
-// Track-based GPS speed filtering
+// Enhanced GPS speed filtering with accelerometer data
 float filterGPSSpeed(float rawSpeed, int satellites, float hdop) {
   // Basic GPS quality check - less strict than before
   bool goodGPSQuality = (satellites >= 4 && hdop <= 3.0);
@@ -859,28 +966,57 @@ float filterGPSSpeed(float rawSpeed, int satellites, float hdop) {
   
   float smoothedSpeed = speedCount > 0 ? speedSum / speedCount : rawSpeed;
   
-  // Very conservative noise filtering for low speeds
-  const float NOISE_THRESHOLD = 0.08; // Much lower threshold - 0.08 knots
+  // Enhanced movement detection combining GPS track and accelerometer
+  bool gpsMovementDetected = isMovementConsistent();
+  bool accelMovementDetected = isAccelerometerMovementDetected();
   
-  if (smoothedSpeed < NOISE_THRESHOLD) {
-    // Check if we have consistent track indicating real movement
-    if (isMovementConsistent()) {
-      // GPS track shows real movement, trust the speed even if low
+  // Combined movement detection logic
+  bool realMovementDetected = false;
+  
+  if (imuAvailable) {
+    // When IMU is available, use both GPS and accelerometer
+    // Movement confirmed if EITHER sensor detects movement (OR logic for sensitivity)
+    // But both must agree for stationary state (AND logic for stability)
+    if (gpsMovementDetected || accelMovementDetected) {
+      realMovementDetected = true;
+    } else {
+      // Both sensors agree: no movement
+      realMovementDetected = false;
+    }
+  } else {
+    // Fall back to GPS-only detection when no IMU
+    realMovementDetected = gpsMovementDetected;
+  }
+  
+  // Adaptive noise threshold based on movement detection confidence
+  float noiseThreshold = 0.08; // Base threshold: 0.08 knots
+  
+  if (imuAvailable && accelMovementDetected && gpsMovementDetected) {
+    // Both sensors confirm movement - lower threshold for better sensitivity
+    noiseThreshold = 0.05; // More sensitive when movement is confirmed
+  } else if (imuAvailable && !accelMovementDetected && !gpsMovementDetected) {
+    // Both sensors confirm stationary - higher threshold to filter noise
+    noiseThreshold = 0.12; // Less sensitive when stationary is confirmed
+  }
+  
+  if (smoothedSpeed < noiseThreshold) {
+    if (realMovementDetected) {
+      // Movement detected by sensors, trust the GPS speed even if low
       lastValidSpeed = smoothedSpeed;
       return smoothedSpeed;
     } else {
-      // No consistent track, likely stationary
+      // No movement detected, likely stationary or GPS noise
       lastValidSpeed = 0.0;
       return 0.0;
     }
   }
   
-  // For higher speeds, use lighter filtering
+  // For higher speeds, use lighter filtering with hysteresis
   const float HYSTERESIS_FACTOR = 0.1; // 10% hysteresis
   
-  if (lastValidSpeed < NOISE_THRESHOLD) {
+  if (lastValidSpeed < noiseThreshold) {
     // Was stationary, need slightly higher speed to register movement
-    if (smoothedSpeed > (NOISE_THRESHOLD + HYSTERESIS_FACTOR)) {
+    if (smoothedSpeed > (noiseThreshold + HYSTERESIS_FACTOR)) {
       lastValidSpeed = smoothedSpeed;
       return smoothedSpeed;
     } else {
@@ -914,20 +1050,22 @@ void readSensors() {
     int satellites = gps.satellites.isValid() ? gps.satellites.value() : 0;
     float hdop = gps.hdop.isValid() ? gps.hdop.hdop() : 99.9;
     
-    // Use track-based filtering that considers GPS position changes
+    // Use enhanced GPS filtering with accelerometer data
     currentData.speed = filterGPSSpeed(rawSpeed, satellites, hdop);
     
     #ifdef DEBUG_GPS
-    Serial.printf("[GPS Filter] Raw: %.2f, Filtered: %.2f, Sats: %d, HDOP: %.1f, Track: %s\n", 
+    Serial.printf("[GPS Filter] Raw: %.2f, Filtered: %.2f, Sats: %d, HDOP: %.1f, GPS Track: %s, Accel: %s\n", 
                   rawSpeed, currentData.speed, satellites, hdop,
-                  isMovementConsistent() ? "MOVING" : "STATIONARY");
+                  isMovementConsistent() ? "MOVING" : "STATIONARY",
+                  imuAvailable ? (isAccelerometerMovementDetected() ? "MOVING" : "STATIONARY") : "N/A");
     #endif
     
-    // Additional debug for movement detection (always show when speed > 0.3 knots raw)
+    // Additional debug for enhanced movement detection (always show when speed > 0.3 knots raw)
     if (rawSpeed > 0.3) {
-      Serial.printf("[GPS Track] Raw: %.3f kt, Filtered: %.3f kt, Movement: %s\n", 
+      Serial.printf("[Enhanced GPS] Raw: %.3f kt, Filtered: %.3f kt, GPS: %s, Accel: %s\n", 
                     rawSpeed, currentData.speed, 
-                    isMovementConsistent() ? "CONSISTENT" : "INCONSISTENT");
+                    isMovementConsistent() ? "MOVING" : "STATIONARY",
+                    imuAvailable ? (isAccelerometerMovementDetected() ? "MOVING" : "STATIONARY") : "N/A");
     }
   } else {
     currentData.speed = 0.0;
@@ -1065,6 +1203,9 @@ void readSensors() {
           currentData.accelX = imu.getAccelX();
           currentData.accelY = imu.getAccelY();
           currentData.accelZ = imu.getAccelZ();
+          
+          // Store accelerometer data for movement analysis
+          storeAccelReading(currentData.accelX, currentData.accelY, currentData.accelZ);
           
           #ifdef DEBUG_BNO080
           Serial.printf("[BNO080] Accel: X=%.2f Y=%.2f Z=%.2f m/s²\n", 
