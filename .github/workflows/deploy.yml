@@ -26,19 +26,17 @@ jobs:
         cache: 'npm'
         cache-dependency-path: 'web/package-lock.json'
 
-    - name: Debug - List files
+    - name: Debug - Check npm version and fix if needed
       run: |
-        echo "=== Root directory ==="
-        ls -la
-        echo "=== Web directory ==="
-        ls -la web/
+        echo "=== Node and npm versions ==="
+        node --version
+        npm --version
+        echo "=== Try to install latest npm ==="
+        npm install -g npm@latest
+        npm --version
         echo "=== Check package-lock.json ==="
-        if [ -f web/package-lock.json ]; then
-          echo "package-lock.json exists"
-          head -5 web/package-lock.json
-        else
-          echo "package-lock.json NOT found"
-        fi
+        head -10 package-lock.json
+      working-directory: ./web
 
     - name: Install dependencies
       run: npm ci
