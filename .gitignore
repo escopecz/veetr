@@ -4,22 +4,62 @@ node_modules/
 # Build output
 dist/
 build/
+out/
+
+# Vite
+.vite/
+*.local
 
 # PlatformIO
 .pio/
 .pioenvs/
 .piolibdeps/
-.vscode/c_cpp_properties.json
-.vscode/launch.json
+
+# VS Code (user-specific settings)
+.vscode/
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
 
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Cache directories
+.cache/
+.npm/
+.yarn/
+.pnpm-store/
+
+# Coverage reports
+coverage/
+*.lcov
 
 # Env files
 .env
 .env.*
+!.env.example
