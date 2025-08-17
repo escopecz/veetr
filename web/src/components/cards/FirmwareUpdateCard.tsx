@@ -1,0 +1,135 @@
+import { useState, useEffect } from 'react'
+import { useBLE } from '../../context/BLEContext'
+import './FirmwareUpdateCard.css'
+
+export function FirmwareUpdateCard() {
+  const { state, checkForUpdates, startFirmwareUpdate } = useBLE()
+  const [isChecking, setIsChecking] = useState(false)
+  const [lastChecked, setLastChecked] = useState<Date | null>(null)
+
+  const handleCheckForUpdates = async () => {
+    setIsChecking(true)
+    try {
+      await checkForUpdates()
+      setLastChecked(new Date())
+    } catch (error) {
+      console.error('Failed to check for updates:', error)
+    } finally {
+      setIsChecking(false)
+    }
+  }
+
+  const handleStartUpdate = async () => {
+    if (!window.confirm('Are you sure you want to update the firmware? The device will restart during this process.')) {
+      return
+    }
+
+    try {
+      await startFirmwareUpdate()
+    } catch (error) {
+      console.error('Firmware update failed:', error)
+      alert(`Firmware update failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  // Auto-check for updates when connected
+  useEffect(() => {
+    if (state.isConnected && !lastChecked) {
+      handleCheckForUpdates()
+    }
+  }, [state.isConnected])
+
+  if (!state.isConnected) {
+    return (
+      <div className="firmware-update-card">
+        <div className="card-header">
+          <h3>Firmware Update</h3>
+          <div className="status-badge status-disconnected">
+            Device Disconnected
+          </div>
+        </div>
+        <p>Connect to your sailing device to check for firmware updates.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="firmware-update-card">
+      <div className="card-header">
+        <h3>Firmware Update</h3>
+        {state.firmwareInfo.updateAvailable && (
+          <div className="status-badge status-update-available">
+            Update Available
+          </div>
+        )}
+      </div>
+
+      <div className="firmware-info">
+        <div className="version-info">
+          <div className="version-item">
+            <label>Current Version:</label>
+            <span className="version-number">{state.firmwareInfo.currentVersion}</span>
+          </div>
+          
+          {state.firmwareInfo.latestVersion && (
+            <div className="version-item">
+              <label>Latest Version:</label>
+              <span className="version-number">{state.firmwareInfo.latestVersion}</span>
+            </div>
+          )}
+        </div>
+
+        {lastChecked && (
+          <div className="last-checked">
+            Last checked: {lastChecked.toLocaleTimeString()}
+          </div>
+        )}
+      </div>
+
+      {state.firmwareInfo.isUpdating && (
+        <div className="update-progress">
+          <div className="progress-info">
+            <span>Updating firmware...</span>
+            <span>{state.firmwareInfo.updateProgress}%</span>
+          </div>
+          <div className="progress-bar">
+            <div 
+              className="progress-fill" 
+              style={{ width: `${state.firmwareInfo.updateProgress}%` }}
+            />
+          </div>
+          <div className="update-warning">
+            ⚠️ Do not disconnect the device during update
+          </div>
+        </div>
+      )}
+
+      {!state.firmwareInfo.isUpdating && (
+        <div className="action-buttons">
+          <button 
+            onClick={handleCheckForUpdates}
+            disabled={isChecking}
+            className="btn btn-secondary"
+          >
+            {isChecking ? 'Checking...' : 'Check for Updates'}
+          </button>
+
+          {state.firmwareInfo.updateAvailable && (
+            <button 
+              onClick={handleStartUpdate}
+              className="btn btn-primary"
+            >
+              Update Firmware
+            </button>
+          )}
+        </div>
+      )}
+
+      {state.error && (
+        <div className="error-message">
+          Error: {state.error}
+        </div>
+      )}
+    </div>
+  )
+}

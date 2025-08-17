@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useBLE } from '../context/BLEContext'
+import { FirmwareUpdateCard } from './cards/FirmwareUpdateCard'
 import './Settings.css'
 
 export default function Settings() {
@@ -238,6 +239,11 @@ export default function Settings() {
               </button>
             </div>
             <p className="help-text">Future regatta timing functionality</p>
+          </div>
+
+          <div className="menu-section">
+            <h4>Firmware Update</h4>
+            <FirmwareUpdateCard />
           </div>
 
           {!state.isConnected && (

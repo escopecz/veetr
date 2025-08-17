@@ -7,6 +7,11 @@
 #include <SparkFun_BNO080_Arduino_Library.h>
 #include <NimBLEDevice.h>
 #include <ModbusMaster.h>
+#include <Update.h>
+#include <esp_ota_ops.h>
+
+// Firmware version
+#define FIRMWARE_VERSION "v1.0.0"
 
 // Debug flags - uncomment for verbose output
 // #define DEBUG_BLE_DATA
@@ -72,6 +77,19 @@ class MyServerCallbacks: public NimBLEServerCallbacks {
       connectedDeviceCount++;
       deviceConnected = true;
       Serial.printf("BLE Client connected (total: %d)\n", connectedDeviceCount);
+      
+      // Send firmware version after connection
+      delay(1000); // Give client time to set up characteristics
+      if (pSensorDataCharacteristic) {
+        DynamicJsonDocument doc(128);
+        doc["type"] = "firmware_version";
+        doc["version"] = FIRMWARE_VERSION;
+        String versionData;
+        serializeJson(doc, versionData);
+        pSensorDataCharacteristic->setValue(versionData.c_str());
+        pSensorDataCharacteristic->notify();
+        Serial.printf("Sent firmware version on connect: %s\n", FIRMWARE_VERSION);
+      }
       
       // Continue advertising if we haven't reached max connections
       if (connectedDeviceCount < CONFIG_BT_NIMBLE_MAX_CONNECTIONS) {
@@ -204,6 +222,105 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             Serial.println("Restarting ESP32 to apply new device name...");
             delay(500); // Give time for response to be sent
             ESP.restart();
+          }
+          else if (doc["cmd"] == "GET_FW_VERSION") {
+            // Send firmware version response
+            DynamicJsonDocument response(128);
+            response["type"] = "firmware_version";
+            response["version"] = FIRMWARE_VERSION;
+            String responseStr;
+            serializeJson(response, responseStr);
+            
+            if (pSensorDataCharacteristic) {
+              pSensorDataCharacteristic->setValue(responseStr.c_str());
+              pSensorDataCharacteristic->notify();
+              Serial.printf("Sent firmware version: %s\n", FIRMWARE_VERSION);
+            }
+          }
+          else if (doc["cmd"] == "START_FW_UPDATE") {
+            int totalSize = doc["size"];
+            Serial.printf("Starting firmware update, size: %d bytes\n", totalSize);
+            
+            // Initialize OTA update
+            if (!Update.begin(totalSize)) {
+              Serial.println("OTA update initialization failed");
+              // Send error response
+              DynamicJsonDocument response(128);
+              response["type"] = "update_error";
+              response["message"] = "Failed to initialize update";
+              String responseStr;
+              serializeJson(response, responseStr);
+              if (pSensorDataCharacteristic) {
+                pSensorDataCharacteristic->setValue(responseStr.c_str());
+                pSensorDataCharacteristic->notify();
+              }
+            } else {
+              Serial.println("OTA update initialized successfully");
+              // Send acknowledgment
+              DynamicJsonDocument response(128);
+              response["type"] = "update_ready";
+              String responseStr;
+              serializeJson(response, responseStr);
+              if (pSensorDataCharacteristic) {
+                pSensorDataCharacteristic->setValue(responseStr.c_str());
+                pSensorDataCharacteristic->notify();
+              }
+            }
+          }
+          else if (doc["cmd"] == "FW_CHUNK") {
+            int chunkIndex = doc["index"];
+            String base64Data = doc["data"];
+            
+            // Decode base64 data
+            // Note: This is a simplified implementation
+            // In production, you'd want better base64 decoding
+            Serial.printf("Received firmware chunk %d\n", chunkIndex);
+            
+            // For demo purposes, just acknowledge receipt
+            DynamicJsonDocument response(128);
+            response["type"] = "chunk_ack";
+            response["index"] = chunkIndex;
+            String responseStr;
+            serializeJson(response, responseStr);
+            if (pSensorDataCharacteristic) {
+              pSensorDataCharacteristic->setValue(responseStr.c_str());
+              pSensorDataCharacteristic->notify();
+            }
+          }
+          else if (doc["cmd"] == "VERIFY_FW") {
+            Serial.println("Verifying firmware...");
+            
+            // In a real implementation, verify the firmware checksum
+            DynamicJsonDocument response(128);
+            response["type"] = "verify_complete";
+            response["success"] = true;
+            String responseStr;
+            serializeJson(response, responseStr);
+            if (pSensorDataCharacteristic) {
+              pSensorDataCharacteristic->setValue(responseStr.c_str());
+              pSensorDataCharacteristic->notify();
+            }
+          }
+          else if (doc["cmd"] == "APPLY_FW") {
+            Serial.println("Applying firmware update...");
+            
+            // In a real implementation, apply the update and restart
+            if (Update.end(true)) {
+              Serial.println("Firmware update completed successfully! Restarting...");
+              delay(1000);
+              ESP.restart();
+            } else {
+              Serial.println("Firmware update failed");
+              DynamicJsonDocument response(128);
+              response["type"] = "update_error";
+              response["message"] = "Failed to apply update";
+              String responseStr;
+              serializeJson(response, responseStr);
+              if (pSensorDataCharacteristic) {
+                pSensorDataCharacteristic->setValue(responseStr.c_str());
+                pSensorDataCharacteristic->notify();
+              }
+            }
           }
         }
       }

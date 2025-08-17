@@ -1,4 +1,6 @@
 import { createContext, useContext, useReducer, ReactNode } from 'react'
+import { getLatestRelease, getFirmwareAsset, downloadFirmware, compareVersions } from '../utils/githubApi'
+import { BLEFirmwareUpdater } from '../utils/firmwareUpdater'
 
 // Types for sailing data
 export interface SailingData {
@@ -25,6 +27,15 @@ export interface SailingData {
   heading: number
 }
 
+// Firmware update state
+export interface FirmwareInfo {
+  currentVersion: string
+  latestVersion: string | null
+  updateAvailable: boolean
+  updateProgress: number | null
+  isUpdating: boolean
+}
+
 // BLE connection state
 export interface BLEState {
   isConnected: boolean
@@ -39,6 +50,7 @@ export interface BLEState {
   lastMessageTime: number | null
   deviceName: string | null
   sailingData: SailingData
+  firmwareInfo: FirmwareInfo
 }
 
 // BLE Service and Characteristic UUIDs (must match ESP32)
@@ -59,6 +71,12 @@ type BLEAction =
   | { type: 'UPDATE_RSSI'; payload: number }
   | { type: 'UPDATE_LAST_MESSAGE_TIME'; payload: number }
   | { type: 'UPDATE_DEVICE_NAME'; payload: string }
+  | { type: 'UPDATE_FIRMWARE_VERSION'; payload: string }
+  | { type: 'SET_LATEST_VERSION'; payload: string }
+  | { type: 'START_FIRMWARE_UPDATE' }
+  | { type: 'UPDATE_FIRMWARE_PROGRESS'; payload: number }
+  | { type: 'FIRMWARE_UPDATE_COMPLETE' }
+  | { type: 'FIRMWARE_UPDATE_ERROR'; payload: string }
 
 // Initial state
 const initialState: BLEState = {
@@ -95,6 +113,13 @@ const initialState: BLEState = {
     lat: 0,
     lon: 0,
     heading: 0
+  },
+  firmwareInfo: {
+    currentVersion: 'Unknown',
+    latestVersion: null,
+    updateAvailable: false,
+    updateProgress: null,
+    isUpdating: false
   }
 }
 
@@ -183,6 +208,61 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
         ...state,
         deviceName: action.payload
       }
+    case 'UPDATE_FIRMWARE_VERSION':
+      return {
+        ...state,
+        firmwareInfo: {
+          ...state.firmwareInfo,
+          currentVersion: action.payload
+        }
+      }
+    case 'SET_LATEST_VERSION':
+      return {
+        ...state,
+        firmwareInfo: {
+          ...state.firmwareInfo,
+          latestVersion: action.payload,
+          updateAvailable: action.payload !== state.firmwareInfo.currentVersion
+        }
+      }
+    case 'START_FIRMWARE_UPDATE':
+      return {
+        ...state,
+        firmwareInfo: {
+          ...state.firmwareInfo,
+          isUpdating: true,
+          updateProgress: 0
+        }
+      }
+    case 'UPDATE_FIRMWARE_PROGRESS':
+      return {
+        ...state,
+        firmwareInfo: {
+          ...state.firmwareInfo,
+          updateProgress: action.payload
+        }
+      }
+    case 'FIRMWARE_UPDATE_COMPLETE':
+      return {
+        ...state,
+        firmwareInfo: {
+          ...state.firmwareInfo,
+          isUpdating: false,
+          updateProgress: null,
+          updateAvailable: false,
+          currentVersion: state.firmwareInfo.latestVersion || state.firmwareInfo.currentVersion
+        }
+      }
+    case 'FIRMWARE_UPDATE_ERROR':
+      return {
+        ...state,
+        firmwareInfo: {
+          ...state.firmwareInfo,
+          isUpdating: false,
+          updateProgress: null
+        },
+        error: action.payload
+      }
     default:
       return state
   }
@@ -194,6 +274,8 @@ const BLEContext = createContext<{
   connect: () => Promise<void>
   disconnect: () => void
   sendCommand: (command: any) => Promise<boolean>
+  checkForUpdates: () => Promise<void>
+  startFirmwareUpdate: () => Promise<void>
 } | null>(null)
 
 // Provider component
@@ -296,6 +378,13 @@ export function BLEProvider({ children }: { children: ReactNode }) {
 
       const data = JSON.parse(value)
       
+      // Handle firmware version message
+      if (data.type === 'firmware_version') {
+        dispatch({ type: 'UPDATE_FIRMWARE_VERSION', payload: data.version })
+        console.log('Received firmware version:', data.version)
+        return
+      }
+      
       // Map standard keys to internal data structure
       const mappedData: Partial<SailingData> = {
         speed: data.SOG || 0,            // Speed Over Ground
@@ -336,8 +425,69 @@ export function BLEProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const checkForUpdates = async () => {
+    try {
+      const release = await getLatestRelease()
+      if (!release) {
+        console.warn('No releases found')
+        return
+      }
+
+      const latestVersion = release.tag_name
+      dispatch({ type: 'SET_LATEST_VERSION', payload: latestVersion })
+
+      // Check if update is available
+      if (compareVersions(state.firmwareInfo.currentVersion, latestVersion)) {
+        console.log(`Update available: ${state.firmwareInfo.currentVersion} -> ${latestVersion}`)
+      }
+    } catch (error) {
+      console.error('Failed to check for updates:', error)
+      dispatch({ type: 'CONNECT_ERROR', payload: 'Failed to check for firmware updates' })
+    }
+  }
+
+  const startFirmwareUpdate = async () => {
+    if (!state.isConnected || !state.commandCharacteristic || !state.firmwareInfo.latestVersion) {
+      throw new Error('Device not connected or no update available')
+    }
+
+    try {
+      dispatch({ type: 'START_FIRMWARE_UPDATE' })
+
+      // Get latest release and firmware asset
+      const release = await getLatestRelease()
+      if (!release) {
+        throw new Error('Could not fetch latest release')
+      }
+
+      const firmwareAsset = await getFirmwareAsset(release)
+      if (!firmwareAsset) {
+        throw new Error('No firmware found in latest release')
+      }
+
+      // Download firmware
+      const firmwareData = await downloadFirmware(firmwareAsset)
+
+      // Create updater and start update
+      const updater = new BLEFirmwareUpdater(
+        state.commandCharacteristic,
+        (progress) => {
+          dispatch({ type: 'UPDATE_FIRMWARE_PROGRESS', payload: progress.percentage })
+        }
+      )
+
+      await updater.updateFirmware(firmwareData)
+      dispatch({ type: 'FIRMWARE_UPDATE_COMPLETE' })
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: errorMessage })
+      throw error
+    }
+  }
+
   return (
-    <BLEContext.Provider value={{ state, connect, disconnect, sendCommand }}>
+    <BLEContext.Provider value={{ state, connect, disconnect, sendCommand, checkForUpdates, startFirmwareUpdate }}>
       {children}
     </BLEContext.Provider>
   )
