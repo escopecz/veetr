@@ -24,10 +24,6 @@ export default function WindDirectionCard({
   const smoothTrueWindDirection = useSmoothRotation(trueWindDirection, { duration: 800 })
   const smoothHeading = useSmoothRotation(heading, { duration: 1000 })
 
-  // Convert 360° wind directions to 0-180° apparent wind angles
-  const apparentWindAngle = Math.min(windDirection, 360 - windDirection)
-  const trueWindAngle = Math.min(trueWindDirection, 360 - trueWindDirection)
-
   return (
     <div className="card wind-direction-card">
       <div className="wind-compass">
@@ -151,19 +147,6 @@ export default function WindDirectionCard({
           
           {/* No cardinal directions for max density */}
         </svg>
-      </div>
-      
-      <div className="wind-data">
-        <div className="wind-data-item">
-          <span className="wind-label">AWA</span>
-          <span className="wind-value">{apparentWindAngle.toFixed(0)}°</span>
-        </div>
-        {trueWindSpeed > 0 && (
-          <div className="wind-data-item">
-            <span className="wind-label">TWA</span>
-            <span className="wind-value">{trueWindAngle.toFixed(0)}°</span>
-          </div>
-        )}
       </div>
     </div>
   )
