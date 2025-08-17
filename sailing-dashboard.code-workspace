@@ -1,0 +1,37 @@
+{
+  "folders": [
+    {
+      "name": "Web Dashboard",
+      "path": "./web"
+    },
+    {
+      "name": "ESP32 Firmware", 
+      "path": "./firmware"
+    },
+    {
+      "name": "Documentation",
+      "path": "./docs"
+    }
+  ],
+  "settings": {
+    "typescript.preferences.includePackageJsonAutoImports": "auto",
+    "files.associations": {
+      "*.ino": "cpp",
+      "*.h": "cpp"
+    },
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "platformio-ide.useBuiltinPlatformIO": true,
+    "platformio-ide.autoRebuildAutocompleteIndex": true,
+    "platformio-ide.customPATH": null,
+    "platformio-ide.activateProjectOnTextEditorChange": true,
+    "python.defaultInterpreterPath": "/usr/bin/python3"
+  },
+  "extensions": {
+    "recommendations": [
+      "platformio.platformio-ide",
+      "bradlc.vscode-tailwindcss", 
+      "ms-vscode.vscode-typescript-next",
+      "esbenp.prettier-vscode"
+    ]
+  }
+}

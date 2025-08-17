@@ -1,147 +1,93 @@
 # Luna Sailing Dashboard
 
-A modern React-based sailing dashboard with Bluetooth Low Energy (BLE) connectivity for real-time sailing data monitoring.
+A complete sailing dashboard system with ESP32 sensor hardware and web-based dashboard.
+
+## Quick Start ⚡
+
+### 1. Setup Development Environment
+```bash
+git clone https://github.com/escopecz/sailing-dashboard.git
+cd sailing-dashboard
+code sailing-dashboard.code-workspace
+```
+
+### 2. Install Task Buttons Extension
+Install the **Task Buttons** extension in VS Code for one-click development.
+
+### 3. Use Task Buttons
+Look for these buttons in your VS Code status bar:
+- **🌐 Web Dev** - Start React development server
+- **⚡ FW Build** - Build ESP32 firmware  
+- **📤 FW Upload** - Upload firmware to ESP32
+- **📺 Monitor** - Open serial monitor
+
+### 4. Alternative Commands
+```bash
+# Web development
+cd web && npm install && npm run dev
+
+# Firmware development  
+pio run                    # Build
+pio run --target upload    # Upload to ESP32
+pio device monitor         # Serial monitor
+```
+
+## Project Structure
+
+```
+sailing-dashboard/
+├── web/                     # React/TypeScript web dashboard
+├── firmware/                # ESP32 firmware source code
+├── docs/                    # Detailed documentation
+├── platformio.ini           # PlatformIO configuration
+├── package.json             # Root workspace configuration
+└── .vscode/                 # VS Code tasks and settings
+```
 
 ## Features
 
-- 🛰️ **Real-time GPS Data** - Monitor vessel speed (SOG), course (COG), position, and satellite count
-- 💨 **Wind Data** - Apparent and true wind speed/direction with visual compass
-- ⚖️ **Heel Angle** - Precise heel monitoring with visual gauge
-- 🧭 **Compass Heading** - Real-time boat heading for navigation
-- 📈 **Acceleration Monitoring** - 3-axis acceleration data for boat movement analysis
-- ⚙️ **Device Configuration** - Calibrate sensors and configure device settings via BLE
-- 🏁 **Regatta Features** - Future support for regatta timing and line markers
-- 📱 **Progressive Web App** - Install on mobile devices for offline use
-- 🔄 **Live BLE Connection** - Connect directly to ESP32 Luna Sailing device
-- 📊 **Modern UI** - Responsive dashboard with glass-morphism design
+- 🛰️ **Real-time GPS Data** - Speed, course, position, satellite count
+- 💨 **Wind Monitoring** - Apparent and true wind speed/direction
+- ⚖️ **Heel Angle** - Precise boat tilt monitoring
+- 🧭 **Compass Heading** - Real-time boat heading
+- 📱 **Web Dashboard** - Modern responsive interface
+- 🔗 **BLE Connectivity** - Direct ESP32 to browser communication
+- ⚙️ **Task Buttons** - One-click build and deployment
 
-## Quick Start
+## Technology Stack
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+### Web Dashboard:
+- **React 18** + TypeScript + Vite
+- **Tailwind CSS** for styling
+- **Web Bluetooth API** for BLE communication
 
-2. **Start development server:**
-   ```bash
-   npm run dev
-   ```
+### ESP32 Firmware:
+- **Arduino Framework** via PlatformIO
+- **NimBLE** for Bluetooth Low Energy
+- **GPS, IMU, Wind sensors** via UART/I2C/RS485
 
-3. **Build for production:**
-   ```bash
-   npm run build
-   ```
+## Documentation
 
-4. **Deploy to GitHub Pages:**
-   ```bash
-   npm run deploy
-   ```
+For detailed information, see the [docs/](./docs/) directory:
 
-## Usage
+- **[Setup Guide](./docs/SETUP.md)** - Complete installation and configuration
+- **[Hardware Guide](./docs/HARDWARE.md)** - ESP32 wiring and sensor setup
+- **[PlatformIO Guide](./docs/PLATFORMIO.md)** - Firmware development details
+- **[Storage Architecture](./docs/STORAGE.md)** - Data storage and persistence
 
-1. Open the dashboard in a modern web browser (Chrome, Edge, or Opera recommended for Web Bluetooth support)
-2. Click "Connect to Luna" to pair with your ESP32 device
-3. Monitor real-time sailing data on the dashboard
+## Development Workflow
 
-## Browser Compatibility
+1. **🌐 Start Web Dev Server** - Click button or `cd web && npm run dev`
+2. **⚡ Build Firmware** - Click button or `pio run`
+3. **📤 Upload to ESP32** - Click button or `pio run --target upload` 
+4. **📺 Monitor Serial** - Click button or `pio device monitor`
+5. **🔗 Test BLE Connection** - Open dashboard and connect to ESP32
 
-- ✅ **Chrome** - Full BLE support
-- ✅ **Edge** - Full BLE support  
-- ✅ **Opera** - Full BLE support
-- ❌ **Firefox** - No Web Bluetooth support
-- ❌ **Safari** - No Web Bluetooth support
+## Browser Support
 
-## ESP32 Compatibility
-
-This dashboard is designed to work with the Luna Sailing ESP32 firmware that transmits data via BLE with these characteristics:
-
-- **Service UUID:** `12345678-1234-1234-1234-123456789abc`
-- **Data UUID:** `87654321-4321-4321-4321-cba987654321`
-- **Command UUID:** `11111111-2222-3333-4444-555555555555`
-- **Device Name:** `Luna_Sailing`
-
-## Data Format
-
-The ESP32 sends comprehensive sailing data in JSON format:
-```json
-{
-  "SOG": 0,                    // Speed Over Ground (knots)
-  "lat": 0,                    // Latitude (decimal degrees)
-  "lon": 0,                    // Longitude (decimal degrees)
-  "COG": 0,                    // Course Over Ground (degrees)
-  "satellites": 0,             // Number of GPS satellites
-  "hdop": 99.9,               // Horizontal Dilution of Precision
-  "heel": 174.7181854,        // Heel angle (degrees)
-  "heading": 330.7838135,     // Compass heading (degrees)
-  "accelX": -8.5,             // X-axis acceleration (m/s²)
-  "accelY": 0.3828125,        // Y-axis acceleration (m/s²)
-  "accelZ": -4.09765625,      // Z-axis acceleration (m/s²)
-  "rssi": -26,                // Bluetooth signal strength (dBm)
-  "deviceName": "Luna_Sailing"  // Device identification
-}
-```
-
-### BLE Commands
-
-The Luna Sailing Dashboard supports bidirectional communication via a dedicated command characteristic. This allows web applications to configure device settings and trigger actions remotely.
-
-#### Command Characteristic
-
-- **Characteristic UUID:** `11111111-2222-3333-4444-555555555555`
-- **Properties:** Write
-- **Data Format:** JSON string encoded as UTF-8
-
-#### Available Commands
-
-**1. Reset Heel Angle (Calibration)**
-```json
-{
-  "action": "resetHeelAngle"
-}
-```
-Calibrates the heel angle sensor by setting the current tilt as the new zero point. Useful for adjusting when the boat is level.
-
-**2. Set Device Name**
-```json
-{
-  "action": "setDeviceName",
-  "deviceName": "Luna_Port_Side"
-}
-```
-Sets the BLE device name used for Bluetooth discovery. This is essential for distinguishing between multiple ESP32 devices. Limited to 1-20 characters, alphanumeric, underscore, hyphen, and space only.
-
-**3. Regatta Line Markers (Future)**
-```json
-{
-  "action": "regattaSetPort"
-}
-```
-```json
-{
-  "action": "regattaSetStarboard"
-}
-```
-Placeholder commands for future regatta timing functionality.
-
-#### Multi-Device Management
-
-The device name feature is particularly useful for sailing applications with multiple sensors:
-
-- **Fleet Management:** "Luna_01", "Luna_02", "Luna_03"
-- **Multi-Hull Boats:** "Luna_Port", "Luna_Starboard"
-- **Multiple Locations:** "Luna_Mast", "Luna_Cockpit"
-- **Development/Testing:** "Luna_Dev", "Luna_Prod"
-
-When you change the device name, the ESP32 immediately restarts its BLE advertising with the new name, making it instantly discoverable under the new identifier.
-
-## Development
-
-Built with:
-- **React 18** with TypeScript
-- **Vite** for fast development and building
-- **Web Bluetooth API** for BLE connectivity
-- **CSS Grid** and **Flexbox** for responsive layout
+- ✅ **Chrome, Edge, Opera** - Full Web Bluetooth support
+- ❌ **Firefox, Safari** - No Web Bluetooth support yet
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License - see [LICENSE](./LICENSE) for details.
