@@ -1,0 +1,57 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "type": "shell",
+            "command": "${command:platformio-ide.build}",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+        {
+            "label": "Upload Firmware",
+            "type": "shell",
+            "command": "${command:platformio-ide.upload}",
+            "group": "build",
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+        {
+            "label": "Upload Filesystem",
+            "type": "shell",
+            "command": "~/.platformio/penv/bin/platformio",
+            "args": ["run", "--target", "uploadfs"],
+            "group": "build",
+            "problemMatcher": [
+                "$platformio"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "Monitor",
+            "type": "shell",
+            "command": "${command:platformio-ide.monitor}",
+            "group": "none",
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+        {
+            "label": "Clean",
+            "type": "shell",
+            "command": "${command:platformio-ide.clean}",
+            "group": "build",
+            "problemMatcher": [
+                "$platformio"
+            ]
+        }
+    ]
+}
