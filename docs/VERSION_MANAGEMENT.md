@@ -19,16 +19,14 @@ veetr release 0.0.1   # Creates branch, commits, tags, and pushes
 1. ✅ Validates the version format (semver)
 2. ✅ Checks git working directory is clean
 3. ✅ Updates all version references
-4. ✅ Creates branch `bump-0.0.1`
-5. ✅ Commits with message `"Bump to version 0.0.1"`
-6. ✅ Creates and pushes git tag `0.0.1`
-7. ✅ Pushes the branch
+4. ✅ Commits directly to main with message `"Bump to version 0.0.1"`
+5. ✅ Creates and pushes git tag `0.0.1`
+6. ✅ Pushes changes to main branch
 
 **GitHub Actions will then:**
 1. 🔍 Validate version consistency across all files
 2. 🏗️ Build web app and firmware to ensure no errors
-3. 📝 Create a Pull Request automatically
-4. 🎉 Create GitHub release with binaries (after PR merge)
+3. 🎉 Create GitHub release with binaries automatically
 
 
 ## Complete Release Workflow
@@ -38,8 +36,8 @@ veetr release 0.0.1   # Creates branch, commits, tags, and pushes
 # 1. Create release (does everything automatically)
 veetr release 1.2.3
 
-# 2. Review and merge the auto-created Pull Request
-# 3. GitHub Actions handles the rest!
+# 2. GitHub Actions automatically validates, builds, and creates release
+# 3. Done! Check the releases page for your new release
 ```
 
 ## GitHub Actions Automation
@@ -47,13 +45,8 @@ veetr release 1.2.3
 ### On Tag Creation:
 - **Validates**: All files have consistent versions
 - **Builds**: Web app and firmware 
-- **Creates**: Pull Request with validation results
-- **Reports**: Success/failure with detailed information
-
-### On PR Merge:
-- **Builds**: Final release artifacts
 - **Creates**: GitHub release with firmware binaries
-- **Deploys**: Web app to GitHub Pages
+- **Reports**: Success/failure with detailed information
 
 
 ## Troubleshooting
