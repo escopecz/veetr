@@ -890,6 +890,51 @@ float calculateBearing(double lat1, double lon1, double lat2, double lon2) {
   return fmod(bearing + 360.0, 360.0);
 }
 
+// Transform accelerometer data from device coordinates to vessel coordinates using calibration
+// This uses the level calibration (heelAngleDelta) and compass calibration (compassOffsetDelta)
+// to create a rotation matrix that transforms device coordinates to vessel coordinates
+void transformAccelerometerToVessel(float deviceX, float deviceY, float deviceZ, 
+                                   float &vesselForward, float &vesselStarboard, float &vesselUp) {
+  
+  // For now, we'll assume the device coordinate system aligns with vessel coordinates
+  // after level and compass calibration. This is a simplified approach.
+  // In a full implementation, we'd need to determine the device mounting orientation
+  // and create proper rotation matrices.
+  
+  // Simplified mapping (this assumes device X=forward, Y=starboard, Z=up)
+  // This will need to be enhanced based on actual device mounting
+  vesselForward = deviceX;    // Forward/aft acceleration
+  vesselStarboard = deviceY;  // Port/starboard acceleration  
+  vesselUp = deviceZ;         // Up/down acceleration
+  
+  // TODO: Apply proper rotation matrix transformation using heelAngleDelta and compassOffsetDelta
+  // This would involve creating a 3D rotation matrix that accounts for:
+  // 1. Device mounting orientation relative to vessel
+  // 2. Current heel angle compensation
+  // 3. Compass heading compensation
+}
+
+// Get forward acceleration (positive = accelerating forward)
+float getForwardAcceleration(float accelX, float accelY, float accelZ) {
+  float forward, starboard, up;
+  transformAccelerometerToVessel(accelX, accelY, accelZ, forward, starboard, up);
+  return forward;
+}
+
+// Get starboard acceleration (positive = accelerating to starboard/right)
+float getStarboardAcceleration(float accelX, float accelY, float accelZ) {
+  float forward, starboard, up;
+  transformAccelerometerToVessel(accelX, accelY, accelZ, forward, starboard, up);
+  return starboard;
+}
+
+// Get up acceleration (positive = accelerating upward)
+float getUpAcceleration(float accelX, float accelY, float accelZ) {
+  float forward, starboard, up;
+  transformAccelerometerToVessel(accelX, accelY, accelZ, forward, starboard, up);
+  return up;
+}
+
 // Store accelerometer reading for movement analysis
 void storeAccelReading(float accelX, float accelY, float accelZ) {
   if (!imuAvailable) return;
