@@ -6,6 +6,7 @@ import './Settings.css'
 
 export default function Settings() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [currentView, setCurrentView] = useState<'main' | 'configuration' | 'regatta' | 'about'>('main')
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)
   const [deviceName, setDeviceName] = useState('')
   const menuRef = useRef<HTMLDivElement>(null)
@@ -23,6 +24,7 @@ export default function Settings() {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false)
+        setCurrentView('main')
       }
     }
 
@@ -34,6 +36,13 @@ export default function Settings() {
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen)
+    if (!menuOpen) {
+      setCurrentView('main')
+    }
+  }
+
+  const navigateToView = (view: 'main' | 'configuration' | 'regatta' | 'about') => {
+    setCurrentView(view)
   }
 
   const handleResetHeelAngle = async () => {
@@ -167,95 +176,237 @@ export default function Settings() {
       
       {menuOpen && (
         <div className="settings-menu">
-          <div className="menu-header">
-            <h3>Device Settings</h3>
-            <button 
-              className="close-button" 
-              onClick={() => setMenuOpen(false)}
-              aria-label="Close settings"
-            >
-              ×
-            </button>
-          </div>
-          
-          <div className="menu-section">
-            <h4>Calibration</h4>
-            <button 
-              className="menu-item" 
-              onClick={handleResetHeelAngle}
-              disabled={actionInProgress !== null || !state.isConnected}
-            >
-              {actionInProgress === 'resetHeel' ? 'Resetting...' : 'Reset Heel Angle'}
-            </button>
-            <p className="help-text">Calibrates current position as level (0°)</p>
-          </div>
-
-          <div className="menu-section">
-            <h4>Device Configuration</h4>
-            
-            {state.deviceName && (
-              <p className="help-text" style={{ marginBottom: '8px', color: 'rgba(255, 255, 255, 0.8)' }}>
-                Current device: <strong>{state.deviceName}</strong>
-              </p>
-            )}
-            
-            <div className="input-group">
-              <label htmlFor="deviceName">New Device Name:</label>
-              <input 
-                id="deviceName"
-                type="text"
-                value={deviceName}
-                onChange={(e) => setDeviceName(e.target.value)}
-                placeholder={state.deviceName || "Veetr_Port_Side"}
-                maxLength={20}
-                disabled={actionInProgress !== null}
-              />
-              <button 
-                onClick={handleSetDeviceName}
-                disabled={actionInProgress !== null || !state.isConnected || !deviceName.trim()}
-              >
-                {actionInProgress === 'setDeviceName' ? 'Setting...' : 'Set Name'}
-              </button>
-            </div>
-            <p className="help-text">Device will restart after name change. Allowed: letters, numbers, underscore, hyphen, space</p>
-          </div>
-
-          <div className="menu-section">
-            <h4>Regatta Features (Beta)</h4>
-            <div className="button-group">
-              <button 
-                className="menu-item half-width" 
-                onClick={handleRegattaSetPort}
-                disabled={actionInProgress !== null || !state.isConnected}
-              >
-                {actionInProgress === 'regattaPort' ? 'Setting...' : 'Set Port Line'}
-              </button>
+          {currentView === 'main' && (
+            <>
+              <div className="menu-header">
+                <h3>Veetr Menu</h3>
+                <button 
+                  className="close-button" 
+                  onClick={() => setMenuOpen(false)}
+                  aria-label="Close menu"
+                >
+                  ×
+                </button>
+              </div>
               
-              <button 
-                className="menu-item half-width" 
-                onClick={handleRegattaSetStarboard}
-                disabled={actionInProgress !== null || !state.isConnected}
-              >
-                {actionInProgress === 'regattaStarboard' ? 'Setting...' : 'Set Starboard Line'}
-              </button>
-            </div>
-            <p className="help-text">Future regatta timing functionality</p>
-          </div>
-
-          <div className="menu-section">
-            <h4>Firmware Update</h4>
-            <FirmwareUpdateCard />
-          </div>
-
-          {!state.isConnected && (
-            <div className="connection-warning">
-              <p>⚠️ Connect to Veetr device to access settings</p>
-            </div>
+              <div className="menu-section">
+                <button 
+                  className="menu-item main-menu-item" 
+                  onClick={() => navigateToView('configuration')}
+                >
+                  <span className="menu-icon">⚙️</span>
+                  <div className="menu-item-content">
+                    <h4>Configuration</h4>
+                    <p>Calibration and device settings</p>
+                  </div>
+                  <span className="menu-arrow">›</span>
+                </button>
+                
+                <button 
+                  className="menu-item main-menu-item" 
+                  onClick={() => navigateToView('regatta')}
+                >
+                  <span className="menu-icon">🏁</span>
+                  <div className="menu-item-content">
+                    <h4>Regatta</h4>
+                    <p>Starting procedure and race setup</p>
+                  </div>
+                  <span className="menu-arrow">›</span>
+                </button>
+                
+                <button 
+                  className="menu-item main-menu-item" 
+                  onClick={() => navigateToView('about')}
+                >
+                  <span className="menu-icon">ℹ️</span>
+                  <div className="menu-item-content">
+                    <h4>About</h4>
+                    <p>Version info and updates</p>
+                  </div>
+                  <span className="menu-arrow">›</span>
+                </button>
+              </div>
+            </>
           )}
-          
-          <div className="menu-footer">
-            <span className="version">{APP_VERSION}</span>
-          </div>
+
+          {currentView === 'configuration' && (
+            <>
+              <div className="menu-header">
+                <button 
+                  className="back-button" 
+                  onClick={() => navigateToView('main')}
+                  aria-label="Back to main menu"
+                >
+                  ‹
+                </button>
+                <h3>Configuration</h3>
+                <button 
+                  className="close-button" 
+                  onClick={() => setMenuOpen(false)}
+                  aria-label="Close menu"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="menu-section">
+                <h4>Calibration</h4>
+                <button 
+                  className="menu-item" 
+                  onClick={handleResetHeelAngle}
+                  disabled={actionInProgress !== null || !state.isConnected}
+                >
+                  {actionInProgress === 'resetHeel' ? 'Resetting...' : 'Reset Heel Angle'}
+                </button>
+                <p className="help-text">Calibrates current position as level (0°)</p>
+              </div>
+
+              <div className="menu-section">
+                <h4>Device Configuration</h4>
+                
+                {state.deviceName && (
+                  <p className="help-text" style={{ marginBottom: '8px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                    Current device: <strong>{state.deviceName}</strong>
+                  </p>
+                )}
+                
+                <div className="input-group">
+                  <label htmlFor="deviceName">New Device Name:</label>
+                  <input 
+                    id="deviceName"
+                    type="text"
+                    value={deviceName}
+                    onChange={(e) => setDeviceName(e.target.value)}
+                    placeholder={state.deviceName || "Veetr_Port_Side"}
+                    maxLength={20}
+                    disabled={actionInProgress !== null}
+                  />
+                  <button 
+                    onClick={handleSetDeviceName}
+                    disabled={actionInProgress !== null || !state.isConnected || !deviceName.trim()}
+                  >
+                    {actionInProgress === 'setDeviceName' ? 'Setting...' : 'Set Name'}
+                  </button>
+                </div>
+                <p className="help-text">Device will restart after name change. Allowed: letters, numbers, underscore, hyphen, space</p>
+              </div>
+
+              {!state.isConnected && (
+                <div className="connection-warning">
+                  <p>⚠️ Connect to Veetr device to access settings</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {currentView === 'regatta' && (
+            <>
+              <div className="menu-header">
+                <button 
+                  className="back-button" 
+                  onClick={() => navigateToView('main')}
+                  aria-label="Back to main menu"
+                >
+                  ‹
+                </button>
+                <h3>Regatta</h3>
+                <button 
+                  className="close-button" 
+                  onClick={() => setMenuOpen(false)}
+                  aria-label="Close menu"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="menu-section">
+                <h4>Starting Line Setup</h4>
+                <div className="button-group">
+                  <button 
+                    className="menu-item half-width" 
+                    onClick={handleRegattaSetPort}
+                    disabled={actionInProgress !== null || !state.isConnected}
+                  >
+                    {actionInProgress === 'regattaPort' ? 'Setting...' : 'Set Port Line'}
+                  </button>
+                  
+                  <button 
+                    className="menu-item half-width" 
+                    onClick={handleRegattaSetStarboard}
+                    disabled={actionInProgress !== null || !state.isConnected}
+                  >
+                    {actionInProgress === 'regattaStarboard' ? 'Setting...' : 'Set Starboard Line'}
+                  </button>
+                </div>
+                <p className="help-text">Set the starting line markers for race timing</p>
+              </div>
+
+              <div className="menu-section">
+                <h4>Starting Procedure</h4>
+                <button 
+                  className="menu-item" 
+                  disabled={true}
+                >
+                  Coming Soon: Race Timer
+                </button>
+                <p className="help-text">Countdown timer and race start alerts</p>
+              </div>
+
+              {!state.isConnected && (
+                <div className="connection-warning">
+                  <p>⚠️ Connect to Veetr device to access regatta features</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {currentView === 'about' && (
+            <>
+              <div className="menu-header">
+                <button 
+                  className="back-button" 
+                  onClick={() => navigateToView('main')}
+                  aria-label="Back to main menu"
+                >
+                  ‹
+                </button>
+                <h3>About</h3>
+                <button 
+                  className="close-button" 
+                  onClick={() => setMenuOpen(false)}
+                  aria-label="Close menu"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="menu-section">
+                <h4>Version Information</h4>
+                <div className="version-info">
+                  <p><strong>Veetr Dashboard</strong></p>
+                  <p>Version: {APP_VERSION}</p>
+                  {state.deviceName && (
+                    <p>Connected Device: {state.deviceName}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="menu-section">
+                <h4>Firmware Update</h4>
+                <FirmwareUpdateCard />
+              </div>
+
+              <div className="menu-section">
+                <h4>Information</h4>
+                <p className="help-text">
+                  Veetr is an open-source sailing dashboard providing real-time wind, GPS, and boat data via Bluetooth Low Energy.
+                </p>
+                <p className="help-text">
+                  For support and updates, visit the GitHub repository or check the documentation.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
