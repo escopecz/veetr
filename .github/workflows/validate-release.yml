@@ -132,6 +132,7 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         branch: ${{ steps.branch.outputs.branch }}
+        base: main
         title: "Release v${{ steps.version.outputs.version }}"
         body: |
           ## 🚀 Release v${{ steps.version.outputs.version }}
