@@ -125,7 +125,7 @@ jobs:
     - name: Build firmware
       run: |
         echo "🔧 Building firmware..."
-        cd firmware && pio run
+        pio run
     
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v5
