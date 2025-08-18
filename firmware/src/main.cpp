@@ -414,28 +414,35 @@ struct SensorData {
 };
 
 // Function to calculate true wind from apparent wind
-// Assumes vessel heading is 0 degrees (north) for simplification
-// In a real implementation, you would need compass/GPS heading data
-void calculateTrueWind(float vesselSpeed, float apparentWindSpeed, float apparentWindDirection, 
+void calculateTrueWind(float vesselSpeed, float vesselHeading, float apparentWindSpeed, float apparentWindDirection, 
                        float &trueWindSpeed, float &trueWindDirection) {
   
   // Convert degrees to radians
   float appWindDirRad = apparentWindDirection * PI / 180.0;
+  float vesselHeadingRad = vesselHeading * PI / 180.0;
   
-  // Convert apparent wind to components (relative to vessel)
-  float appWindX = apparentWindSpeed * sin(appWindDirRad);  // Cross-track component
-  float appWindY = apparentWindSpeed * cos(appWindDirRad);  // Along-track component
+  // Convert apparent wind to components relative to vessel
+  float appWindX = apparentWindSpeed * sin(appWindDirRad);  // Cross-track component (relative to vessel)
+  float appWindY = apparentWindSpeed * cos(appWindDirRad);  // Along-track component (relative to vessel)
   
-  // Calculate true wind components
+  // Convert vessel velocity to components in world coordinates
+  float vesselVelX = vesselSpeed * sin(vesselHeadingRad);  // East component of vessel velocity
+  float vesselVelY = vesselSpeed * cos(vesselHeadingRad);  // North component of vessel velocity
+  
+  // Convert apparent wind from vessel coordinates to world coordinates
+  float appWindWorldX = appWindX * cos(vesselHeadingRad) - appWindY * sin(vesselHeadingRad);
+  float appWindWorldY = appWindX * sin(vesselHeadingRad) + appWindY * cos(vesselHeadingRad);
+  
+  // Calculate true wind components in world coordinates
   // True wind = apparent wind - vessel velocity
-  float trueWindX = appWindX;  // Cross-track unchanged
-  float trueWindY = appWindY - vesselSpeed;  // Subtract vessel speed from along-track
+  float trueWindWorldX = appWindWorldX - vesselVelX;
+  float trueWindWorldY = appWindWorldY - vesselVelY;
   
-  // Calculate true wind speed and direction
-  trueWindSpeed = sqrt(trueWindX * trueWindX + trueWindY * trueWindY);
+  // Calculate true wind speed
+  trueWindSpeed = sqrt(trueWindWorldX * trueWindWorldX + trueWindWorldY * trueWindWorldY);
   
-  // Calculate true wind direction (in degrees)
-  trueWindDirection = atan2(trueWindX, trueWindY) * 180.0 / PI;
+  // Calculate true wind direction in world coordinates (degrees from north)
+  trueWindDirection = atan2(trueWindWorldX, trueWindWorldY) * 180.0 / PI;
   
   // Normalize to 0-359 degrees
   if (trueWindDirection < 0) {
@@ -1323,11 +1330,12 @@ void readSensors() {
   // Calculate true wind: if speed is very low, set true wind = apparent wind
   const float SPEED_THRESHOLD = 0.5; // knots
   if (!isnan(currentData.windSpeed) && currentData.windDirection >= 0 && currentData.windDirection <= 359) {
-    if (!isnan(currentData.speed) && currentData.speed >= SPEED_THRESHOLD) {
-      calculateTrueWind(currentData.speed, currentData.windSpeed, currentData.windDirection,
+    if (!isnan(currentData.speed) && currentData.speed >= SPEED_THRESHOLD && currentData.HDM >= 0 && currentData.HDM <= 359) {
+      // We have valid speed, wind data, and heading - calculate true wind
+      calculateTrueWind(currentData.speed, currentData.HDM, currentData.windSpeed, currentData.windDirection,
                         currentData.trueWindSpeed, currentData.trueWindDirection);
     } else {
-      // Boat is stationary or moving very slowly: true wind = apparent wind
+      // Boat is stationary, moving very slowly, or no valid heading: true wind = apparent wind
       currentData.trueWindSpeed = currentData.windSpeed;
       currentData.trueWindDirection = currentData.windDirection;
     }
