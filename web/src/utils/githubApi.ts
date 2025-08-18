@@ -64,25 +64,60 @@ export async function downloadFirmware(asset: FirmwareAsset): Promise<ArrayBuffe
 }
 
 export function compareVersions(current: string, latest: string): boolean {
-  // Simple semantic version comparison
+  // Semantic version comparison with pre-release support
   // Returns true if latest > current
   const parseVersion = (version: string) => {
-    const cleaned = version.replace(/^v/, '') // Remove 'v' prefix
-    return cleaned.split('.').map(Number)
+    const [versionPart, preRelease] = version.split('-', 2)
+    const parts = versionPart.split('.').map(Number)
+    
+    // Ensure we have at least [major, minor, patch]
+    while (parts.length < 3) {
+      parts.push(0)
+    }
+    
+    return {
+      major: parts[0] || 0,
+      minor: parts[1] || 0, 
+      patch: parts[2] || 0,
+      preRelease: preRelease || null
+    }
   }
 
   try {
-    const currentParts = parseVersion(current)
-    const latestParts = parseVersion(latest)
+    const currentVersion = parseVersion(current)
+    const latestVersion = parseVersion(latest)
     
-    const maxLength = Math.max(currentParts.length, latestParts.length)
+    // Compare major.minor.patch first
+    if (latestVersion.major !== currentVersion.major) {
+      return latestVersion.major > currentVersion.major
+    }
+    if (latestVersion.minor !== currentVersion.minor) {
+      return latestVersion.minor > currentVersion.minor
+    }
+    if (latestVersion.patch !== currentVersion.patch) {
+      return latestVersion.patch > currentVersion.patch
+    }
     
-    for (let i = 0; i < maxLength; i++) {
-      const currentPart = currentParts[i] || 0
-      const latestPart = latestParts[i] || 0
-      
-      if (latestPart > currentPart) return true
-      if (latestPart < currentPart) return false
+    // If versions are equal, handle pre-release precedence
+    // According to semver: 1.0.0-alpha < 1.0.0-beta < 1.0.0-rc < 1.0.0
+    
+    // If neither has pre-release, versions are equal
+    if (!currentVersion.preRelease && !latestVersion.preRelease) {
+      return false
+    }
+    
+    // Normal version (no pre-release) has higher precedence than pre-release
+    if (!currentVersion.preRelease && latestVersion.preRelease) {
+      return false // current (1.0.0) > latest (1.0.0-alpha)
+    }
+    if (currentVersion.preRelease && !latestVersion.preRelease) {
+      return true // latest (1.0.0) > current (1.0.0-alpha)
+    }
+    
+    // Both have pre-release, compare them lexically
+    // This handles: alpha < beta < rc, and also numbered pre-releases
+    if (currentVersion.preRelease && latestVersion.preRelease) {
+      return latestVersion.preRelease > currentVersion.preRelease
     }
     
     return false // Versions are equal

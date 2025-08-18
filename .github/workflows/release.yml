@@ -1,0 +1,215 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'  # Triggers on semver tags like 0.0.0, 1.2.3, etc.
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  build-firmware:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Cache pip
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Cache PlatformIO
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.platformio/.cache
+          .pio
+        key: ${{ runner.os }}-pio-${{ hashFiles('**/platformio.ini') }}
+        restore-keys: |
+          ${{ runner.os }}-pio-
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio
+
+    - name: Extract version from tag
+      id: version
+      run: |
+        if [ "${{ github.ref_type }}" = "tag" ]; then
+          VERSION=${{ github.ref_name }}
+        else
+          VERSION="0.0.0-dev-$(date +%Y%m%d)-$(echo ${{ github.sha }} | cut -c1-7)"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Building version: $VERSION"
+
+    - name: Update firmware version
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        sed -i 's/#define FIRMWARE_VERSION.*/#define FIRMWARE_VERSION "'$VERSION'"/' firmware/src/main.cpp
+        echo "Updated firmware version to: $VERSION"
+        grep "FIRMWARE_VERSION" firmware/src/main.cpp
+
+    - name: Build firmware
+      run: |
+        pio run --project-dir . --environment esp32doit-devkit-v1
+
+    - name: Prepare firmware artifact
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        mkdir -p release-artifacts
+        cp .pio/build/esp32doit-devkit-v1/firmware.bin release-artifacts/luna-sailing-$VERSION.bin
+        cp .pio/build/esp32doit-devkit-v1/firmware.elf release-artifacts/luna-sailing-$VERSION.elf
+        
+        # Create firmware info file
+        cat > release-artifacts/firmware-info.json << EOF
+        {
+          "version": "$VERSION",
+          "build_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "commit": "${{ github.sha }}",
+          "binary_size": $(stat -c%s release-artifacts/luna-sailing-$VERSION.bin),
+          "target": "esp32doit-devkit-v1"
+        }
+        EOF
+        
+        ls -la release-artifacts/
+
+    - name: Upload firmware artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: firmware-${{ steps.version.outputs.version }}
+        path: release-artifacts/
+        retention-days: 90
+
+  create-release:
+    needs: [build-firmware]
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'  # Only create releases for tags
+    
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Extract version from tag
+      id: version
+      run: |
+        VERSION=${{ github.ref_name }}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Download firmware artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: firmware-${{ steps.version.outputs.version }}
+        path: firmware-artifacts/
+
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        
+        # Get commit messages since last tag
+        LAST_TAG=$(git tag --sort=-version:refname | grep -v "^$VERSION$" | head -1)
+        if [ -z "$LAST_TAG" ]; then
+          LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+        fi
+        
+        echo "Generating changelog from $LAST_TAG to $VERSION"
+        
+        # Extract changes by category
+        FEATURES=$(git log --oneline $LAST_TAG..HEAD --grep="feat\|add\|implement" --pretty="- %s" | head -10)
+        FIXES=$(git log --oneline $LAST_TAG..HEAD --grep="fix\|bug" --pretty="- %s" | head -10)
+        IMPROVEMENTS=$(git log --oneline $LAST_TAG..HEAD --grep="improve\|enhance\|update\|refactor" --pretty="- %s" | head -10)
+        
+        # Get firmware size info
+        FIRMWARE_SIZE=$(stat -c%s firmware-artifacts/luna-sailing-$VERSION.bin)
+        FIRMWARE_SIZE_KB=$((FIRMWARE_SIZE / 1024))
+        
+        # Get build info
+        BUILD_DATE=$(date -u +"%Y-%m-%d %H:%M UTC")
+        COMMIT_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+        
+        cat > release-notes.md << EOF
+        # Luna Sailing Dashboard $VERSION
+        
+        Built on $BUILD_DATE from commit [\`$COMMIT_SHORT\`](https://github.com/escopecz/sailing-dashboard/commit/${{ github.sha }})
+        
+        ## � New Features
+        
+        $FEATURES
+        
+        ## 🐛 Bug Fixes
+        
+        $FIXES
+        
+        ## ⚡ Improvements
+        
+        $IMPROVEMENTS
+        
+        ## 📦 Downloads
+        
+        - **Firmware Binary**: \`luna-sailing-$VERSION.bin\` (${FIRMWARE_SIZE_KB} KB) - Flash this to your ESP32
+        - **Debug Symbols**: \`luna-sailing-$VERSION.elf\` - For development/debugging
+        - **Web Dashboard**: https://escopecz.github.io/sailing-dashboard/ (always latest)
+        
+        ## 🔄 Firmware Update
+        
+        Use the web dashboard's built-in OTA update feature:
+        1. Connect to your ESP32 via BLE
+        2. Go to Settings → Firmware Update
+        3. Click "Check for Updates"
+        4. If this version is newer, click "Update Firmware"
+        
+        ## 📋 Manual Installation
+        
+        ### ESP32 Firmware
+        \`\`\`bash
+        # Using esptool
+        esptool.py write_flash 0x10000 luna-sailing-$VERSION.bin
+        
+        # Using PlatformIO
+        pio run --target upload
+        \`\`\`
+        
+        ### Web Dashboard
+        Use the live version: https://escopecz.github.io/sailing-dashboard/
+        
+        ## 🔧 Technical Details
+        - **Firmware Size**: ${FIRMWARE_SIZE_KB} KB (${FIRMWARE_SIZE} bytes)
+        - **Target**: ESP32 DOIT DevKit v1
+        - **Build Date**: $BUILD_DATE
+        - **Commit**: [\`$COMMIT_SHORT\`](https://github.com/escopecz/sailing-dashboard/commit/${{ github.sha }})
+        
+        ---
+        
+        **Full Changelog**: https://github.com/escopecz/sailing-dashboard/compare/$LAST_TAG...$VERSION
+        EOF
+        
+        echo "Generated release notes for $VERSION"
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: Luna Sailing Dashboard ${{ steps.version.outputs.version }}
+        body_path: release-notes.md
+        draft: false
+        prerelease: false
+        files: |
+          firmware-artifacts/luna-sailing-${{ steps.version.outputs.version }}.bin
+          firmware-artifacts/luna-sailing-${{ steps.version.outputs.version }}.elf
+          firmware-artifacts/firmware-info.json
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

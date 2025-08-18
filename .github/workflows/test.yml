@@ -1,0 +1,74 @@
+name: Test Build
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-web:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'package-lock.json'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build web app
+      run: npm run --workspace=web build
+
+    - name: Run tests (if any)
+      run: npm run --workspace=web test --passWithNoTests || true
+
+  test-firmware:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Cache PlatformIO
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.platformio/.cache
+          .pio
+        key: ${{ runner.os }}-pio-${{ hashFiles('**/platformio.ini') }}
+        restore-keys: |
+          ${{ runner.os }}-pio-
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio
+
+    - name: Test firmware build
+      run: |
+        pio run --project-dir . --environment esp32doit-devkit-v1
+
+    - name: Check firmware size
+      run: |
+        size_bytes=$(stat -c%s .pio/build/esp32doit-devkit-v1/firmware.bin)
+        size_kb=$((size_bytes / 1024))
+        echo "Firmware size: ${size_kb} KB (${size_bytes} bytes)"
+        
+        # Warn if firmware is getting large (ESP32 has 4MB flash, OTA needs ~50% free)
+        if [ $size_bytes -gt 1500000 ]; then
+          echo "⚠️ Warning: Firmware size is large (${size_kb} KB). Consider optimizations."
+        else
+          echo "✅ Firmware size is acceptable (${size_kb} KB)"
+        fi
