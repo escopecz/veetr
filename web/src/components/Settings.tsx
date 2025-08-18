@@ -69,6 +69,30 @@ export default function Settings() {
     }
   }
 
+  const handleCalibrateCompass = async () => {
+    if (!state.isConnected) {
+      alert('Please connect to Veetr device first')
+      return
+    }
+
+    if (window.confirm('Calibrate compass to north? Point the vessel\'s bow toward north and press OK. This will set the current magnetic heading as the north reference.')) {
+      setActionInProgress('resetCompass')
+      try {
+        const success = await sendCommand({ action: 'resetCompassNorth' })
+        if (success) {
+          alert('Compass calibrated successfully! The current heading is now set as north (0°).')
+        } else {
+          alert('Failed to calibrate compass. Please try again.')
+        }
+      } catch (error) {
+        console.error('Failed to calibrate compass:', error)
+        alert('Error calibrating compass')
+      } finally {
+        setActionInProgress(null)
+      }
+    }
+  }
+
   const handleSetDeviceName = async () => {
     if (!state.isConnected) {
       alert('Please connect to Veetr device first')
@@ -259,6 +283,15 @@ export default function Settings() {
                   {actionInProgress === 'resetHeel' ? 'Calibrating...' : 'Vessel is Level'}
                 </button>
                 <p className="help-text">Calibrates current position as level across all axes (heel, pitch, roll)</p>
+                
+                <button 
+                  className="menu-item" 
+                  onClick={handleCalibrateCompass}
+                  disabled={actionInProgress !== null || !state.isConnected}
+                >
+                  {actionInProgress === 'resetCompass' ? 'Calibrating...' : 'Set Compass North'}
+                </button>
+                <p className="help-text">Point vessel's bow to north, then press to calibrate compass heading</p>
               </div>
 
               <div className="menu-section">

@@ -22,6 +22,7 @@
 // Persistent storage for settings
 Preferences preferences;
 float heelAngleDelta = 0.0f;
+float compassOffsetDelta = 0.0f; // Compass calibration offset in degrees
 int deadWindAngle = 40; // default
 
 // BLE Configuration
@@ -151,6 +152,29 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               }
             } else {
               Serial.println("Level calibration failed - IMU sensor not available");
+            }
+          }
+          else if (action == "resetCompassNorth") {
+            // Calibrate compass to north - saves current magnetic heading as north reference
+            if (imuAvailable) {
+              // Get current magnetometer data
+              if (imu.dataAvailable()) {
+                float magX = imu.getMagX();
+                float magY = imu.getMagY();
+                
+                // Calculate current magnetic heading
+                float currentHeading = atan2(magY, magX) * 180.0f / PI;
+                if (currentHeading < 0) currentHeading += 360.0f;
+                
+                // Store this heading as the offset (what the device reads when vessel points north)
+                compassOffsetDelta = currentHeading;
+                preferences.putFloat("compassOffset", compassOffsetDelta);
+                Serial.printf("Compass calibrated - north offset set to %.2f degrees\n", compassOffsetDelta);
+              } else {
+                Serial.println("Compass calibration failed - can't read magnetometer");
+              }
+            } else {
+              Serial.println("Compass calibration failed - IMU sensor not available");
             }
           }
           else if (action == "regattaSetPort") {
@@ -606,10 +630,13 @@ void setup() {
   // Initialize Preferences for persistent storage
   preferences.begin("settings", false);
   heelAngleDelta = preferences.getFloat("delta", 0.0f);
+  compassOffsetDelta = preferences.getFloat("compassOffset", 0.0f);
   deadWindAngle = preferences.getInt("deadWindAngle", 40);
   String deviceName = preferences.getString("deviceName", "Veetr");
   Serial.print("[Boot] Loaded level calibration offset from NVS: ");
   Serial.println(heelAngleDelta);
+  Serial.print("[Boot] Loaded compass calibration offset from NVS: ");
+  Serial.println(compassOffsetDelta);
   Serial.print("[Boot] Loaded deadWindAngle from NVS: ");
   Serial.println(deadWindAngle);
   Serial.print("[Boot] Loaded deviceName from NVS: ");
@@ -1348,20 +1375,25 @@ void readSensors() {
           
           // Only calculate new heading if we have fresh magnetometer data or reasonable readings
           if (newMagData || magMagnitude > 0.1) {
-            // Calculate heading (yaw) from magnetometer data
-            float heading = atan2(magY, magX) * 180.0f / PI;
-            if (heading < 0) heading += 360.0f; // Normalize to 0-360
+            // Calculate raw heading (yaw) from magnetometer data
+            float rawHeading = atan2(magY, magX) * 180.0f / PI;
+            if (rawHeading < 0) rawHeading += 360.0f; // Normalize to 0-360
+            
+            // Apply compass calibration offset (subtract to align with vessel's north)
+            float calibratedHeading = rawHeading - compassOffsetDelta;
+            if (calibratedHeading < 0) calibratedHeading += 360.0f;
+            if (calibratedHeading >= 360) calibratedHeading -= 360.0f;
             
             // Only update heading if we have genuinely new data
             if (newMagData) {
-              currentData.HDM = (int)round(heading); // Convert to integer
+              currentData.HDM = (int)round(calibratedHeading); // Convert to integer
               
               #ifdef DEBUG_BNO080
-              Serial.printf("[BNO080] Updated Heading: %d° (NEW DATA)\n", currentData.HDM);
+              Serial.printf("[BNO080] Raw Heading: %.1f°, Calibrated: %d° (NEW DATA)\n", rawHeading, currentData.HDM);
               #endif
             } else {
               #ifdef DEBUG_BNO080
-              Serial.printf("[BNO080] Heading would be: %.1f° (but data is stale)\n", heading);
+              Serial.printf("[BNO080] Raw Heading: %.1f°, Calibrated would be: %.1f° (but data is stale)\n", rawHeading, calibratedHeading);
               #endif
             }
           }
