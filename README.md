@@ -71,6 +71,7 @@ sailing-dashboard/
 For detailed information, see the [docs/](./docs/) directory:
 
 - **[Setup Guide](./docs/SETUP.md)** - Complete installation and configuration
+- **[Firmware Update Guide](./docs/FIRMWARE_UPDATE.md)** - How to update ESP32 firmware
 - **[Hardware Guide](./docs/HARDWARE.md)** - ESP32 wiring and sensor setup
 - **[PlatformIO Guide](./docs/PLATFORMIO.md)** - Firmware development details
 - **[Storage Architecture](./docs/STORAGE.md)** - Data storage and persistence

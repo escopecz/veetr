@@ -132,36 +132,23 @@ function handleRelease(args) {
   // Sync all version references
   syncVersions(targetVersion)
 
-  // Create release branch
-  const branchName = `bump-${targetVersion}`
-  runCommand(`git checkout -b ${branchName}`, `Creating branch ${branchName}`)
-
-  // Commit changes
+  // Commit changes directly to main
   runCommand('git add .', 'Staging changes')
   runCommand(`git commit -m "Bump to version ${targetVersion}"`, `Committing changes`)
 
   // Create and push tag
   runCommand(`git tag ${targetVersion}`, `Creating tag ${targetVersion}`)
+  runCommand(`git push origin main`, `Pushing changes to main`)
   runCommand(`git push origin ${targetVersion}`, `Pushing tag ${targetVersion}`)
-
-  // Push branch
-  runCommand(`git push origin ${branchName}`, `Pushing branch ${branchName}`)
-
-  // Return to main branch
-  runCommand('git checkout main', 'Switching back to main branch')
 
   console.log(`\n${c.success('🎉 Release')} ${targetVersion} ${c.success('completed successfully!')}`)
   console.log(`\n${c.info('📋 What happened:')}`)
-  console.log(`   ${c.success('✓')} Created branch: ${branchName}`)
   console.log(`   ${c.success('✓')} Updated all version references to ${targetVersion}`)
-  console.log(`   ${c.success('✓')} Committed changes`)
+  console.log(`   ${c.success('✓')} Committed changes to main branch`)
   console.log(`   ${c.success('✓')} Created and pushed tag: ${targetVersion}`)
-  console.log(`   ${c.success('✓')} Pushed branch: ${branchName}`)
-  console.log(`   ${c.success('✓')} Switched back to main branch`)
   console.log(`\n${c.info('⏳ GitHub Actions will now:')}`)
-  console.log(`   - Verify version consistency across all files`)
+  console.log(`   - Validate version consistency across all files`)
   console.log(`   - Build firmware and web app`)
-  console.log(`   - Create a Pull Request if everything checks out`)
   console.log(`   - Create a GitHub release with binaries`)
 }
 
