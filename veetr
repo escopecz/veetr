@@ -147,6 +147,9 @@ function handleRelease(args) {
   // Push branch
   runCommand(`git push origin ${branchName}`, `Pushing branch ${branchName}`)
 
+  // Return to main branch
+  runCommand('git checkout main', 'Switching back to main branch')
+
   console.log(`\n${c.success('🎉 Release')} ${targetVersion} ${c.success('completed successfully!')}`)
   console.log(`\n${c.info('📋 What happened:')}`)
   console.log(`   ${c.success('✓')} Created branch: ${branchName}`)
@@ -154,6 +157,7 @@ function handleRelease(args) {
   console.log(`   ${c.success('✓')} Committed changes`)
   console.log(`   ${c.success('✓')} Created and pushed tag: ${targetVersion}`)
   console.log(`   ${c.success('✓')} Pushed branch: ${branchName}`)
+  console.log(`   ${c.success('✓')} Switched back to main branch`)
   console.log(`\n${c.info('⏳ GitHub Actions will now:')}`)
   console.log(`   - Verify version consistency across all files`)
   console.log(`   - Build firmware and web app`)
