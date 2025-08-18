@@ -4,7 +4,7 @@
 **ALWAYS READ THE README.MD FILE FIRST** - It contains comprehensive setup instructions, documentation, and usage guidelines for this project. Use it as your primary reference when working on this project.
 
 ## About this project
-This is a PlatformIO project named "Luna" focused on embedded systems development for marine applications.
+This is a PlatformIO project named "Veetr" focused on embedded systems development for marine applications.
 
 The project provides sailors on small racing vessels with real-time information about vessel performance including:
 - Speed Over Ground (SOG) via GPS with intelligent noise filtering

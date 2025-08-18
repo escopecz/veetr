@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useBLE } from '../context/BLEContext'
 import { FirmwareUpdateCard } from './cards/FirmwareUpdateCard'
+import { APP_VERSION } from '../utils/version'
 import './Settings.css'
 
 export default function Settings() {
@@ -37,7 +38,7 @@ export default function Settings() {
 
   const handleResetHeelAngle = async () => {
     if (!state.isConnected) {
-      alert('Please connect to Luna device first')
+      alert('Please connect to Veetr device first')
       return
     }
 
@@ -61,7 +62,7 @@ export default function Settings() {
 
   const handleSetDeviceName = async () => {
     if (!state.isConnected) {
-      alert('Please connect to Luna device first')
+      alert('Please connect to Veetr device first')
       return
     }
 
@@ -108,7 +109,7 @@ export default function Settings() {
 
   const handleRegattaSetPort = async () => {
     if (!state.isConnected) {
-      alert('Please connect to Luna device first')
+      alert('Please connect to Veetr device first')
       return
     }
 
@@ -130,7 +131,7 @@ export default function Settings() {
 
   const handleRegattaSetStarboard = async () => {
     if (!state.isConnected) {
-      alert('Please connect to Luna device first')
+      alert('Please connect to Veetr device first')
       return
     }
 
@@ -200,12 +201,12 @@ export default function Settings() {
             
             <div className="input-group">
               <label htmlFor="deviceName">New Device Name:</label>
-              <input
+              <input 
                 id="deviceName"
                 type="text"
                 value={deviceName}
                 onChange={(e) => setDeviceName(e.target.value)}
-                placeholder={state.deviceName || "Luna_Port_Side"}
+                placeholder={state.deviceName || "Veetr_Port_Side"}
                 maxLength={20}
                 disabled={actionInProgress !== null}
               />
@@ -248,12 +249,12 @@ export default function Settings() {
 
           {!state.isConnected && (
             <div className="connection-warning">
-              <p>⚠️ Connect to Luna device to access settings</p>
+              <p>⚠️ Connect to Veetr device to access settings</p>
             </div>
           )}
           
           <div className="menu-footer">
-            <span className="version">Luna Sailing Dashboard v1.0</span>
+            <span className="version">{APP_VERSION}</span>
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 
 This directory contains project header files and documentation for hardware components.
 
-Luna Sailing Dashboard - Hardware Documentation:
+Veetr - Hardware Documentation:
 
 - RS485_Breakout_v10.pdf: Documentation for RS485 to UART converter module
 - Ultrasonic Wind Speed and Direction Sensor(RS485).doc.pdf: Wind sensor documentation

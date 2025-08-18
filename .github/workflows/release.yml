@@ -68,8 +68,8 @@ jobs:
       run: |
         VERSION="${{ steps.version.outputs.version }}"
         mkdir -p release-artifacts
-        cp .pio/build/esp32doit-devkit-v1/firmware.bin release-artifacts/luna-sailing-$VERSION.bin
-        cp .pio/build/esp32doit-devkit-v1/firmware.elf release-artifacts/luna-sailing-$VERSION.elf
+        cp .pio/build/esp32doit-devkit-v1/firmware.bin release-artifacts/veetr-$VERSION.bin
+        cp .pio/build/esp32doit-devkit-v1/firmware.elf release-artifacts/veetr-$VERSION.elf
         
         # Create firmware info file
         cat > release-artifacts/firmware-info.json << EOF
@@ -77,7 +77,7 @@ jobs:
           "version": "$VERSION",
           "build_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "commit": "${{ github.sha }}",
-          "binary_size": $(stat -c%s release-artifacts/luna-sailing-$VERSION.bin),
+          "binary_size": $(stat -c%s release-artifacts/veetr-$VERSION.bin),
           "target": "esp32doit-devkit-v1"
         }
         EOF
@@ -134,7 +134,7 @@ jobs:
         IMPROVEMENTS=$(git log --oneline $LAST_TAG..HEAD --grep="improve\|enhance\|update\|refactor" --pretty="- %s" | head -10)
         
         # Get firmware size info
-        FIRMWARE_SIZE=$(stat -c%s firmware-artifacts/luna-sailing-$VERSION.bin)
+        FIRMWARE_SIZE=$(stat -c%s firmware-artifacts/veetr-$VERSION.bin)
         FIRMWARE_SIZE_KB=$((FIRMWARE_SIZE / 1024))
         
         # Get build info
@@ -142,7 +142,7 @@ jobs:
         COMMIT_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
         
         cat > release-notes.md << EOF
-        # Luna Sailing Dashboard $VERSION
+        # Veetr $VERSION
         
         Built on $BUILD_DATE from commit [\`$COMMIT_SHORT\`](https://github.com/escopecz/sailing-dashboard/commit/${{ github.sha }})
         
@@ -160,8 +160,8 @@ jobs:
         
         ## 📦 Downloads
         
-        - **Firmware Binary**: \`luna-sailing-$VERSION.bin\` (${FIRMWARE_SIZE_KB} KB) - Flash this to your ESP32
-        - **Debug Symbols**: \`luna-sailing-$VERSION.elf\` - For development/debugging
+        - **Firmware Binary**: \`veetr-$VERSION.bin\` (${FIRMWARE_SIZE_KB} KB) - Flash this to your ESP32
+        - **Debug Symbols**: \`veetr-$VERSION.elf\` - For development/debugging
         - **Web Dashboard**: https://escopecz.github.io/sailing-dashboard/ (always latest)
         
         ## 🔄 Firmware Update
@@ -177,7 +177,7 @@ jobs:
         ### ESP32 Firmware
         \`\`\`bash
         # Using esptool
-        esptool.py write_flash 0x10000 luna-sailing-$VERSION.bin
+        esptool.py write_flash 0x10000 veetr-$VERSION.bin
         
         # Using PlatformIO
         pio run --target upload
@@ -203,13 +203,13 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ steps.version.outputs.version }}
-        name: Luna Sailing Dashboard ${{ steps.version.outputs.version }}
+        name: Veetr ${{ steps.version.outputs.version }}
         body_path: release-notes.md
         draft: false
         prerelease: false
         files: |
-          firmware-artifacts/luna-sailing-${{ steps.version.outputs.version }}.bin
-          firmware-artifacts/luna-sailing-${{ steps.version.outputs.version }}.elf
+          firmware-artifacts/veetr-${{ steps.version.outputs.version }}.bin
+          firmware-artifacts/veetr-${{ steps.version.outputs.version }}.elf
           firmware-artifacts/firmware-info.json
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

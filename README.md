@@ -1,6 +1,6 @@
-# Luna Sailing Dashboard
+# Veetr
 
-A complete sailing dashboard system with ESP32 sensor hardware and web-based dashboard.
+Veetr provides open source software and hardware for tracking wind speed, direction, speed over ground, GPS tracking, heading, heel and other data in real time during a sail. Great fit for daysailers or weekendsailers.
 
 ## Quick Start ⚡
 
@@ -74,6 +74,7 @@ For detailed information, see the [docs/](./docs/) directory:
 - **[Hardware Guide](./docs/HARDWARE.md)** - ESP32 wiring and sensor setup
 - **[PlatformIO Guide](./docs/PLATFORMIO.md)** - Firmware development details
 - **[Storage Architecture](./docs/STORAGE.md)** - Data storage and persistence
+- **[Version Management](./docs/VERSION_MANAGEMENT.md)** - Release and versioning workflow
 
 ## Development Workflow
 

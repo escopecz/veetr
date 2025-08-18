@@ -1,0 +1,317 @@
+#!/usr/bin/env node
+
+const fs = require('fs')
+const path = require('path')
+const { execSync } = require('child_process')
+
+// Color utilities - just 3 essential colors
+const colors = {
+  reset: '\x1b[0m',
+  green: '\x1b[32m',   // Success/positive
+  red: '\x1b[31m',     // Error/negative  
+  blue: '\x1b[34m'     // Info/neutral
+}
+
+// Simple color helpers
+const c = {
+  success: (text) => `${colors.green}${text}${colors.reset}`,
+  error: (text) => `${colors.red}${text}${colors.reset}`,
+  info: (text) => `${colors.blue}${text}${colors.reset}`
+}
+
+// Get the command and arguments
+const [command, ...args] = process.argv.slice(2)
+
+// Available commands
+const commands = {
+  release: {
+    description: 'Create a new release',
+    usage: 'veetr release <version>',
+    example: 'veetr release 0.0.1',
+    handler: handleRelease
+  },
+  version: {
+    description: 'Show current version',
+    usage: 'veetr version',
+    example: 'veetr version',
+    handler: handleVersion
+  },
+  build: {
+    description: 'Build firmware and web app',
+    usage: 'veetr build [firmware|web]',
+    example: 'veetr build firmware',
+    handler: handleBuild
+  },
+  dev: {
+    description: 'Start development server',
+    usage: 'veetr dev',
+    example: 'veetr dev',
+    handler: handleDev
+  },
+  help: {
+    description: 'Show help information',
+    usage: 'veetr help [command]',
+    example: 'veetr help release',
+    handler: handleHelp
+  }
+}
+
+// Utility function to run commands
+function runCommand(command, description, options = {}) {
+  if (description) {
+    console.log(`📋 ${description}...`)
+  }
+  
+  try {
+    const result = execSync(command, { 
+      encoding: 'utf8', 
+      stdio: options.silent ? 'pipe' : 'inherit',
+      cwd: __dirname,
+      ...options
+    })
+    
+    if (description && !options.silent) {
+      console.log(`${c.success('✓')} ${description} completed`)
+    }
+    
+    return result
+  } catch (error) {
+    if (description) {
+      console.error(`${c.error('❌')} Error during: ${description}`)
+    }
+    console.error(c.error(error.message))
+    process.exit(1)
+  }
+}
+
+// Command handlers
+function handleRelease(args) {
+  const targetVersion = args[0]
+  if (!targetVersion) {
+    console.error(`${c.error('❌ Error:')} Please provide a version number`)
+    console.log(`Usage: veetr release <version>`)
+    console.log(`Example: veetr release 0.0.1`)
+    process.exit(1)
+  }
+
+  // Validate semver format
+  const semverRegex = /^\d+\.\d+\.\d+(-[\w\.-]+)?$/
+  if (!semverRegex.test(targetVersion)) {
+    console.error(`${c.error('❌ Error:')} Invalid version format. Use semver format (e.g., 0.0.1, 1.2.3, 2.0.0-beta.1)`)
+    process.exit(1)
+  }
+
+  // Read current version
+  const rootPackageJsonPath = path.join(__dirname, 'package.json')
+  const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, 'utf8'))
+  const currentVersion = rootPackageJson.version
+
+  console.log(`${c.info('🚀 Veetr Release Manager')}`)
+  console.log(`Starting release process: ${currentVersion} → ${targetVersion}`)
+
+  // Check if git working directory is clean
+  try {
+    const status = execSync('git status --porcelain', { encoding: 'utf8' })
+    if (status.trim()) {
+      console.error(`${c.error('❌ Error:')} Git working directory is not clean`)
+      console.error('Please commit or stash your changes before releasing')
+      process.exit(1)
+    }
+  } catch (error) {
+    console.error(`${c.error('❌ Error:')} Not in a git repository or git not available`)
+    process.exit(1)
+  }
+
+  console.log(`${c.success('✓')} Git status check passed`)
+
+  // Update root package.json version
+  rootPackageJson.version = targetVersion
+  fs.writeFileSync(rootPackageJsonPath, JSON.stringify(rootPackageJson, null, 2) + '\n')
+  console.log(`${c.success('✓')} Updated root package.json to ${targetVersion}`)
+
+  // Sync all version references
+  syncVersions(targetVersion)
+
+  // Create release branch
+  const branchName = `bump-${targetVersion}`
+  runCommand(`git checkout -b ${branchName}`, `Creating branch ${branchName}`)
+
+  // Commit changes
+  runCommand('git add .', 'Staging changes')
+  runCommand(`git commit -m "Bump to version ${targetVersion}"`, `Committing changes`)
+
+  // Create and push tag
+  runCommand(`git tag ${targetVersion}`, `Creating tag ${targetVersion}`)
+  runCommand(`git push origin ${targetVersion}`, `Pushing tag ${targetVersion}`)
+
+  // Push branch
+  runCommand(`git push origin ${branchName}`, `Pushing branch ${branchName}`)
+
+  console.log(`\n${c.success('🎉 Release')} ${targetVersion} ${c.success('completed successfully!')}`)
+  console.log(`\n${c.info('📋 What happened:')}`)
+  console.log(`   ${c.success('✓')} Created branch: ${branchName}`)
+  console.log(`   ${c.success('✓')} Updated all version references to ${targetVersion}`)
+  console.log(`   ${c.success('✓')} Committed changes`)
+  console.log(`   ${c.success('✓')} Created and pushed tag: ${targetVersion}`)
+  console.log(`   ${c.success('✓')} Pushed branch: ${branchName}`)
+  console.log(`\n${c.info('⏳ GitHub Actions will now:')}`)
+  console.log(`   - Verify version consistency across all files`)
+  console.log(`   - Build firmware and web app`)
+  console.log(`   - Create a Pull Request if everything checks out`)
+  console.log(`   - Create a GitHub release with binaries`)
+}
+
+// Helper function to sync versions across all files
+function syncVersions(version) {
+  // Update web package.json
+  const webPackageJsonPath = path.join(__dirname, 'web/package.json')
+  if (fs.existsSync(webPackageJsonPath)) {
+    const pkg = JSON.parse(fs.readFileSync(webPackageJsonPath, 'utf8'))
+    pkg.version = version
+    fs.writeFileSync(webPackageJsonPath, JSON.stringify(pkg, null, 2) + '\n')
+    console.log(`${c.success('✓')} Updated web/package.json to ${version}`)
+  }
+
+  // Update TypeScript version file
+  const versionTsPath = path.join(__dirname, 'web/src/utils/version.ts')
+  if (fs.existsSync(versionTsPath)) {
+    let content = fs.readFileSync(versionTsPath, 'utf8')
+    content = content.replace(
+      /const VERSION = '.*'/,
+      `const VERSION = '${version}'`
+    )
+    fs.writeFileSync(versionTsPath, content)
+    console.log(`${c.success('✓')} Updated web/src/utils/version.ts to ${version}`)
+  } else {
+    console.log(`⚠️  web/src/utils/version.ts not found, skipping`)
+  }
+
+  // Update firmware version
+  const firmwarePath = path.join(__dirname, 'firmware/src/main.cpp')
+  if (fs.existsSync(firmwarePath)) {
+    let content = fs.readFileSync(firmwarePath, 'utf8')
+    content = content.replace(
+      /#define FIRMWARE_VERSION ".*"/,
+      `#define FIRMWARE_VERSION "${version}"`
+    )
+    fs.writeFileSync(firmwarePath, content)
+    console.log(`${c.success('✓')} Updated firmware/src/main.cpp to ${version}`)
+  }
+}
+
+function handleVersion() {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'))
+  console.log(`${c.info('📦')} Veetr v${packageJson.version}`)
+  
+  // Also show versions from other files for comparison
+  try {
+    const webPackage = JSON.parse(fs.readFileSync(path.join(__dirname, 'web/package.json'), 'utf8'))
+    console.log(`   Web: ${c.success('v' + webPackage.version)}`)
+  } catch (e) {
+    console.log(`   Web: package.json not found`)
+  }
+  
+  try {
+    const firmwareContent = fs.readFileSync(path.join(__dirname, 'firmware/src/main.cpp'), 'utf8')
+    const versionMatch = firmwareContent.match(/#define FIRMWARE_VERSION "(.+)"/)
+    if (versionMatch) {
+      console.log(`   Firmware: ${c.success('v' + versionMatch[1])}`)
+    }
+  } catch (e) {
+    console.log(`   Firmware: version not found`)
+  }
+  
+  try {
+    const versionTs = fs.readFileSync(path.join(__dirname, 'web/src/utils/version.ts'), 'utf8')
+    const versionMatch = versionTs.match(/const VERSION = '(.+)'/)
+    if (versionMatch) {
+      console.log(`   TypeScript: ${c.success('v' + versionMatch[1])}`)
+    }
+  } catch (e) {
+    console.log(`   TypeScript: version.ts not found`)
+  }
+}
+
+function handleBuild(args) {
+  const target = args[0]
+  
+  console.log(`${c.info('🔨 Veetr Build System')}`)
+  
+  if (!target || target === 'all') {
+    console.log('Building everything...')
+    runCommand('npm install', 'Installing web dependencies', { cwd: path.join(__dirname, 'web') })
+    runCommand('npm run build', 'Building web app', { cwd: path.join(__dirname, 'web') })
+    runCommand('pio run', 'Building firmware', { cwd: path.join(__dirname, 'firmware') })
+  } else if (target === 'web') {
+    console.log('Building web app...')
+    runCommand('npm install', 'Installing web dependencies', { cwd: path.join(__dirname, 'web') })
+    runCommand('npm run build', 'Building web app', { cwd: path.join(__dirname, 'web') })
+  } else if (target === 'firmware') {
+    console.log('Building firmware...')
+    runCommand('pio run', 'Building firmware', { cwd: path.join(__dirname, 'firmware') })
+  } else {
+    console.error(`${c.error('❌ Unknown build target:')} ${target}`)
+    console.log(`Available targets: web, firmware, all`)
+    process.exit(1)
+  }
+}
+
+function handleDev() {
+  console.log(`${c.info('🚀 Veetr Development Server')}`)
+  console.log('Starting web development server...')
+  runCommand('npm run dev', null, { cwd: path.join(__dirname, 'web') })
+}
+
+function handleHelp(args) {
+  const specificCommand = args[0]
+  
+  if (specificCommand && commands[specificCommand]) {
+    const cmd = commands[specificCommand]
+    console.log(`${c.info('📚 Veetr Help')} - ${specificCommand}`)
+    console.log(`\nDescription: ${cmd.description}`)
+    console.log(`Usage: ${cmd.usage}`)
+    console.log(`Example: ${cmd.example}`)
+  } else {
+    console.log(`${c.info('📚 Veetr Command Line Interface')}`)
+    console.log(`\nAvailable commands:`)
+    
+    Object.entries(commands).forEach(([name, cmd]) => {
+      console.log(`  ${name.padEnd(12)} ${cmd.description}`)
+    })
+    
+    console.log(`\nExamples:`)
+    console.log(`  veetr release 0.0.1     Create a new release`)
+    console.log(`  veetr version           Show current version`)
+    console.log(`  veetr build firmware    Build firmware only`)
+    console.log(`  veetr dev               Start dev server`)
+    console.log(`  veetr help release      Get help for specific command`)
+    
+    console.log(`\nFor more help on a specific command:`)
+    console.log(`  veetr help <command>`)
+  }
+}
+
+// Main execution
+function main() {
+  // Show banner for non-help commands
+  if (command !== 'help' && command !== 'version') {
+    console.log(`${c.info('⛵ Veetr CLI')}`)
+    console.log('───────────')
+  }
+  
+  if (!command || command === 'help') {
+    handleHelp(args)
+    return
+  }
+  
+  if (!commands[command]) {
+    console.error(`${c.error('❌ Unknown command:')} ${command}`)
+    console.log(`\nRun veetr help to see available commands`)
+    process.exit(1)
+  }
+  
+  // Execute the command
+  commands[command].handler(args)
+}
+
+main()

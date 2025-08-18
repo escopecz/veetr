@@ -181,7 +181,7 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               
               if (validName && newDeviceName.length() > 0) {
                 // Get current device name for comparison
-                String currentDeviceName = preferences.getString("deviceName", "Luna_Sailing");
+                String currentDeviceName = preferences.getString("deviceName", "Veetr");
                 
                 // Save new device name to preferences
                 preferences.putString("deviceName", newDeviceName);
@@ -192,7 +192,7 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
                 preferences.begin("settings", false);  // Reopen preferences
                 
                 // Verify the name was actually saved
-                String savedName = preferences.getString("deviceName", "Luna_Sailing");
+                String savedName = preferences.getString("deviceName", "Veetr");
                 Serial.printf("Device name changed from '%s' to '%s'\n", currentDeviceName.c_str(), newDeviceName.c_str());
                 Serial.printf("Verified saved name: '%s'\n", savedName.c_str());
                 
@@ -479,7 +479,7 @@ void resetBLEForNewName(const String& newName) {
 // BLE Setup Function
 void setupBLE() {
   // Get device name from preferences
-  String deviceName = preferences.getString("deviceName", "Luna_Sailing");
+  String deviceName = preferences.getString("deviceName", "Veetr");
   Serial.printf("[BLE] Initializing as '%s'\n", deviceName.c_str());
   
   // Initialize NimBLE with device name
@@ -500,7 +500,7 @@ void setupBLE() {
 // BLE Restart Function (for device name changes)
 void restartBLE() {
   // Get device name from preferences
-  String deviceName = preferences.getString("deviceName", "Luna_Sailing");
+  String deviceName = preferences.getString("deviceName", "Veetr");
   Serial.printf("[BLE Restart] Using device name from preferences: '%s'\n", deviceName.c_str());
   
   // Ensure BLE is completely deinitialized first (only when restarting)
@@ -554,7 +554,7 @@ void setupBLEServer() {
   pAdvertising->setMaxPreferred(0x12);  // 22.5ms intervals
   
   // Include device name in advertising data
-  String deviceName = preferences.getString("deviceName", "Luna_Sailing");
+  String deviceName = preferences.getString("deviceName", "Veetr");
   pAdvertising->setName(deviceName.c_str());
   
   pAdvertising->start();
@@ -601,13 +601,13 @@ void setup() {
   // Initialize serial communication first
   Serial.begin(115200);
   delay(1000); // Give serial time to initialize
-  Serial.println("\n=== Luna Sailing Dashboard Starting ===");
+  Serial.println("\n=== Veetr Starting ===");
   
   // Initialize Preferences for persistent storage
   preferences.begin("settings", false);
   heelAngleDelta = preferences.getFloat("delta", 0.0f);
   deadWindAngle = preferences.getInt("deadWindAngle", 40);
-  String deviceName = preferences.getString("deviceName", "Luna_Sailing");
+  String deviceName = preferences.getString("deviceName", "Veetr");
   Serial.print("[Boot] Loaded heelAngleDelta from NVS: ");
   Serial.println(heelAngleDelta);
   Serial.print("[Boot] Loaded deadWindAngle from NVS: ");
@@ -1514,7 +1514,7 @@ String getSensorDataJson() {
   doc["rssi"] = bleRSSI;
   
   // Device identification (BLE device name)
-  String deviceName = preferences.getString("deviceName", "Luna_Sailing");
+  String deviceName = preferences.getString("deviceName", "Veetr");
   doc["deviceName"] = deviceName;
   
   String output;

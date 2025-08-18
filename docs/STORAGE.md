@@ -1,6 +1,6 @@
-# Data Storage - Luna Sailing Dashboard
+# Data Storage - Veetr
 
-Documentation for data storage, persistence, and logging in the Luna Sailing Dashboard system.
+Documentation for data storage, persistence, and logging in the Veetr system.
 
 ## Storage Architecture
 

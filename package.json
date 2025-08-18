@@ -1,7 +1,7 @@
 {
-  "name": "sailing-dashboard",
-  "version": "1.0.0",
-  "description": "Luna Sailing Dashboard - ESP32 sensor hardware and web dashboard",
+  "name": "veetr",
+  "version": "0.0.0",
+  "description": "Veetr - hardware and web dashboard",
   "private": true,
   "workspaces": [
     "web"
@@ -20,5 +20,11 @@
     "esp32",
     "platformio"
   ],
+  "scripts": {
+    "veetr": "./veetr"
+  },
+  "bin": {
+    "veetr": "./veetr"
+  },
   "license": "MIT"
 }

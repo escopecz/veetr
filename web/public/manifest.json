@@ -1,6 +1,5 @@
 {
-  "name": "Luna Sailing Dashboard",
-  "short_name": "Luna Sailing",
+  "name": "Veetr",
   "description": "Real-time sailing dashboard with BLE connectivity",
   "start_url": "/sailing-dashboard/",
   "display": "standalone",

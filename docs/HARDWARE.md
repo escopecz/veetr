@@ -1,10 +1,10 @@
-# Luna Sailing Dashboard - Hardware Documentation
+# Veetr - Hardware Documentation
 
 Technical documentation for the ESP32-based sailing sensor hardware and dashboard integration.
 
 ## Hardware Overview
 
-The Luna Sailing Dashboard uses an ESP32 microcontroller with multiple sensors to provide comprehensive sailing data via Bluetooth Low Energy (BLE) to a web-based dashboard.
+The Veetr uses an ESP32 microcontroller with multiple sensors to provide comprehensive sailing data via Bluetooth Low Energy (BLE) to a web-based dashboard.
 
 ## Hardware Components
 
@@ -198,12 +198,12 @@ This hardware platform provides a robust foundation for comprehensive sailing da
 
 ## ESP32 Compatibility
 
-This dashboard is designed to work with the Luna Sailing ESP32 firmware that transmits data via BLE with these characteristics:
+This dashboard is designed to work with the Veetr ESP32 firmware that transmits data via BLE with these characteristics:
 
 - **Service UUID:** `12345678-1234-1234-1234-123456789abc`
 - **Data UUID:** `87654321-4321-4321-4321-cba987654321`
 - **Command UUID:** `11111111-2222-3333-4444-555555555555`
-- **Device Name:** `Luna_Sailing`
+- **Device Name:** `Veetr`
 
 ## Data Format
 
@@ -222,13 +222,13 @@ The ESP32 sends comprehensive sailing data in JSON format:
   "accelY": 0.3828125,        // Y-axis acceleration (m/s²)
   "accelZ": -4.09765625,      // Z-axis acceleration (m/s²)
   "rssi": -26,                // Bluetooth signal strength (dBm)
-  "deviceName": "Luna_Sailing"  // Device identification
+  "deviceName": "Veetr"  // Device identification
 }
 ```
 
 ### BLE Commands
 
-The Luna Sailing Dashboard supports bidirectional communication via a dedicated command characteristic. This allows web applications to configure device settings and trigger actions remotely.
+The Veetr supports bidirectional communication via a dedicated command characteristic. This allows web applications to configure device settings and trigger actions remotely.
 
 #### Command Characteristic
 
@@ -250,7 +250,7 @@ Calibrates the heel angle sensor by setting the current tilt as the new zero poi
 ```json
 {
   "action": "setDeviceName",
-  "deviceName": "Luna_Port_Side"
+  "deviceName": "Veetr_Port_Side"
 }
 ```
 Sets the BLE device name used for Bluetooth discovery. This is essential for distinguishing between multiple ESP32 devices. Limited to 1-20 characters, alphanumeric, underscore, hyphen, and space only.
@@ -272,8 +272,8 @@ Placeholder commands for future regatta timing functionality.
 
 The device name feature is particularly useful for sailing applications with multiple sensors:
 
-- **Fleet Management:** "Luna_01", "Luna_02", "Luna_03"
-- **Multi-Hull Boats:** "Luna_Port", "Luna_Starboard"
+- **Fleet Management:** "Veetr_01", "Veetr_02", "Veetr_03"
+- **Multi-Hull Boats:** "Veetr_Port", "Veetr_Starboard"
 - **Multiple Locations:** "Luna_Mast", "Luna_Cockpit"
 - **Development/Testing:** "Luna_Dev", "Luna_Prod"
 

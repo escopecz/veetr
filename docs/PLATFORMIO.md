@@ -1,4 +1,4 @@
-# PlatformIO Configuration for Luna Sailing Dashboard
+# PlatformIO Configuration for Veetr
 
 This project uses PlatformIO for ESP32 firmware development with a unified configuration at the root level.
 
