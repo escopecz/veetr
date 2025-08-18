@@ -45,24 +45,24 @@ export default function Settings() {
     setCurrentView(view)
   }
 
-  const handleResetHeelAngle = async () => {
+  const handleCalibrateLevel = async () => {
     if (!state.isConnected) {
       alert('Please connect to Veetr device first')
       return
     }
 
-    if (window.confirm('Reset heel angle? This will calibrate the current position as level (0°).')) {
+    if (window.confirm('Calibrate vessel level position? This will set the current orientation as level (0°) across all axes.')) {
       setActionInProgress('resetHeel')
       try {
         const success = await sendCommand({ action: 'resetHeelAngle' })
         if (success) {
-          alert('Heel angle reset successfully!')
+          alert('Vessel level calibration completed successfully!')
         } else {
-          alert('Failed to reset heel angle. Please try again.')
+          alert('Failed to calibrate level position. Please try again.')
         }
       } catch (error) {
-        console.error('Failed to reset heel angle:', error)
-        alert('Error resetting heel angle')
+        console.error('Failed to calibrate level:', error)
+        alert('Error calibrating level position')
       } finally {
         setActionInProgress(null)
       }
@@ -253,12 +253,12 @@ export default function Settings() {
                 <h4>Calibration</h4>
                 <button 
                   className="menu-item" 
-                  onClick={handleResetHeelAngle}
+                  onClick={handleCalibrateLevel}
                   disabled={actionInProgress !== null || !state.isConnected}
                 >
-                  {actionInProgress === 'resetHeel' ? 'Resetting...' : 'Reset Heel Angle'}
+                  {actionInProgress === 'resetHeel' ? 'Calibrating...' : 'Vessel is Level'}
                 </button>
-                <p className="help-text">Calibrates current position as level (0°)</p>
+                <p className="help-text">Calibrates current position as level across all axes (heel, pitch, roll)</p>
               </div>
 
               <div className="menu-section">

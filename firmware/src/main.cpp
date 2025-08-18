@@ -131,7 +131,7 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
           String action = doc["action"];
           
           if (action == "resetHeelAngle") {
-            // Reset heel angle by saving current tilt as delta
+            // Calibrate vessel level position (sets current orientation as zero reference)
             if (imuAvailable) {
               // Get current rotation vector for calibration
               if (imu.dataAvailable()) {
@@ -145,12 +145,12 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
                 float roll = atan2(2.0f * (real * i + j * k), 1.0f - 2.0f * (i * i + j * j)) * 180.0f / PI;
                 heelAngleDelta = roll;
                 preferences.putFloat("delta", heelAngleDelta);
-                Serial.printf("Heel angle reset to %.2f degrees\n", heelAngleDelta);
+                Serial.printf("Vessel level calibrated - offset set to %.2f degrees\n", heelAngleDelta);
               } else {
-                Serial.println("Heel angle reset failed - can't read IMU sensor");
+                Serial.println("Level calibration failed - can't read IMU sensor");
               }
             } else {
-              Serial.println("Heel angle reset failed - IMU sensor not available");
+              Serial.println("Level calibration failed - IMU sensor not available");
             }
           }
           else if (action == "regattaSetPort") {
@@ -608,7 +608,7 @@ void setup() {
   heelAngleDelta = preferences.getFloat("delta", 0.0f);
   deadWindAngle = preferences.getInt("deadWindAngle", 40);
   String deviceName = preferences.getString("deviceName", "Veetr");
-  Serial.print("[Boot] Loaded heelAngleDelta from NVS: ");
+  Serial.print("[Boot] Loaded level calibration offset from NVS: ");
   Serial.println(heelAngleDelta);
   Serial.print("[Boot] Loaded deadWindAngle from NVS: ");
   Serial.println(deadWindAngle);
@@ -630,7 +630,7 @@ void setup() {
   if (imu.begin()) {
     Serial.println("BNO080 begin() successful, configuring sensor...");
     
-    // Enable rotation vector for heel angle calculation first
+    // Enable rotation vector for tilt/heel angle calculation
     imu.enableRotationVector(50); // 50ms = 20Hz update rate
     Serial.println("Rotation vector configuration sent");
     
@@ -1292,7 +1292,7 @@ void readSensors() {
         currentData.tilt = zeroedTilt;
         
         #ifdef DEBUG_BNO080
-        Serial.printf("[BNO080] Roll: %.2f°, Heel: %.2f°\n", roll, zeroedTilt);
+        Serial.printf("[BNO080] Raw Roll: %.2f°, Calibrated Heel: %.2f°\n", roll, zeroedTilt);
         #endif
         
         // Read magnetometer data with fresh data detection
