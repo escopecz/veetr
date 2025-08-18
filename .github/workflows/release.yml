@@ -1,27 +1,131 @@
-name: Build and Release
+name: Complete Release Pipeline
 
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'  # Triggers on semver tags like 0.0.0, 1.2.3, etc.
-  workflow_dispatch:  # Allow manual triggering
+      - '[0-9]+.[0-9]+.[0-9]+'  # Triggers on semver tags like 0.0.1, 1.2.3, etc.
+      - '[0-9]+.[0-9]+.[0-9]+-*'  # Also includes pre-release tags like 1.0.0-beta.1
 
 jobs:
-  build-firmware:
+  validate-and-build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+      checks: write
+      deployments: write
+      issues: write
+      packages: write
+      pages: write
+      repository-projects: write
+      security-events: write
+      statuses: write
+    
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      branch-name: ${{ steps.branch.outputs.branch }}
     
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Cache pip
-      uses: actions/cache@v4
+    - uses: actions/checkout@v4
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-
+        fetch-depth: 0  # Fetch full history to access all branches
+    
+    - name: Extract version from tag
+      id: version
+      run: |
+        VERSION=${{ github.ref_name }}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "🏷️ Processing release for version: $VERSION"
+    
+    - name: Find corresponding branch
+      id: branch
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        BRANCH_NAME="bump-$VERSION"
+        
+        # Check if the branch exists
+        if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "✅ Found corresponding branch: $BRANCH_NAME"
+        else
+          echo "❌ Error: Could not find branch $BRANCH_NAME for tag $VERSION"
+          exit 1
+        fi
+    
+    - name: Checkout release branch
+      run: |
+        BRANCH_NAME="${{ steps.branch.outputs.branch }}"
+        git checkout origin/$BRANCH_NAME
+    
+    - name: Validate version consistency
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        echo "🔍 Validating version consistency across all files..."
+        
+        # Check root package.json
+        ROOT_VERSION=$(node -e "console.log(require('./package.json').version)")
+        echo "Root package.json version: $ROOT_VERSION"
+        
+        # Check web package.json
+        WEB_VERSION=$(node -e "console.log(require('./web/package.json').version)")
+        echo "Web package.json version: $WEB_VERSION"
+        
+        # Check TypeScript version file
+        TS_VERSION=$(grep "const VERSION = " web/src/utils/version.ts | sed "s/.*const VERSION = '\\(.*\\)'.*/\\1/")
+        echo "TypeScript version.ts version: $TS_VERSION"
+        
+        # Check firmware version
+        FW_VERSION=$(grep "#define FIRMWARE_VERSION" firmware/src/main.cpp | sed 's/.*"\(.*\)".*/\1/')
+        echo "Firmware main.cpp version: $FW_VERSION"
+        
+        # Validate all versions match the tag
+        ERRORS=0
+        
+        if [ "$ROOT_VERSION" != "$VERSION" ]; then
+          echo "❌ Root package.json version ($ROOT_VERSION) doesn't match tag ($VERSION)"
+          ERRORS=$((ERRORS + 1))
+        fi
+        
+        if [ "$WEB_VERSION" != "$VERSION" ]; then
+          echo "❌ Web package.json version ($WEB_VERSION) doesn't match tag ($VERSION)"
+          ERRORS=$((ERRORS + 1))
+        fi
+        
+        if [ "$TS_VERSION" != "$VERSION" ]; then
+          echo "❌ TypeScript version ($TS_VERSION) doesn't match tag ($VERSION)"
+          ERRORS=$((ERRORS + 1))
+        fi
+        
+        if [ "$FW_VERSION" != "$VERSION" ]; then
+          echo "❌ Firmware version ($FW_VERSION) doesn't match tag ($VERSION)"
+          ERRORS=$((ERRORS + 1))
+        fi
+        
+        if [ $ERRORS -eq 0 ]; then
+          echo "✅ All versions are consistent with tag $VERSION"
+        else
+          echo "❌ Found $ERRORS version inconsistencies"
+          exit 1
+        fi
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install web dependencies and build
+      run: |
+        echo "📦 Installing web dependencies..."
+        cd web && npm install
+        echo "🏗️ Building web application..."
+        npm run build
+    
+    - name: Setup Python for PlatformIO
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
     - name: Cache PlatformIO
       uses: actions/cache@v4
       with:
@@ -31,40 +135,19 @@ jobs:
         key: ${{ runner.os }}-pio-${{ hashFiles('**/platformio.ini') }}
         restore-keys: |
           ${{ runner.os }}-pio-
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-
+    
     - name: Install PlatformIO
       run: |
+        echo "⚡ Installing PlatformIO..."
         python -m pip install --upgrade pip
         pip install platformio
-
-    - name: Extract version from tag
-      id: version
-      run: |
-        if [ "${{ github.ref_type }}" = "tag" ]; then
-          VERSION=${{ github.ref_name }}
-        else
-          VERSION="0.0.0-dev-$(date +%Y%m%d)-$(echo ${{ github.sha }} | cut -c1-7)"
-        fi
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Building version: $VERSION"
-
-    - name: Update firmware version
-      run: |
-        VERSION="${{ steps.version.outputs.version }}"
-        sed -i 's/#define FIRMWARE_VERSION.*/#define FIRMWARE_VERSION "'$VERSION'"/' firmware/src/main.cpp
-        echo "Updated firmware version to: $VERSION"
-        grep "FIRMWARE_VERSION" firmware/src/main.cpp
-
+    
     - name: Build firmware
       run: |
-        pio run --project-dir . --environment esp32doit-devkit-v1
-
-    - name: Prepare firmware artifact
+        echo "🔧 Building firmware..."
+        pio run --environment esp32doit-devkit-v1
+    
+    - name: Prepare firmware artifacts
       run: |
         VERSION="${{ steps.version.outputs.version }}"
         mkdir -p release-artifacts
@@ -82,19 +165,44 @@ jobs:
         }
         EOF
         
+        echo "📦 Prepared artifacts:"
         ls -la release-artifacts/
-
+    
     - name: Upload firmware artifacts
       uses: actions/upload-artifact@v4
       with:
         name: firmware-${{ steps.version.outputs.version }}
         path: release-artifacts/
         retention-days: 90
+    
+    - name: Check for existing Pull Request
+      id: pr
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        BRANCH_NAME="${{ steps.branch.outputs.branch }}"
+        
+        echo "🔍 Checking for existing PR for branch: $BRANCH_NAME"
+        
+        # Check if PR already exists
+        PR_NUMBER=$(gh pr list --head "$BRANCH_NAME" --base main --json number --jq '.[0].number' 2>/dev/null || echo "")
+        
+        if [ -n "$PR_NUMBER" ]; then
+          echo "✅ Found existing PR #$PR_NUMBER for branch $BRANCH_NAME"
+          echo "🎯 PR URL: https://github.com/escopecz/sailing-dashboard/pull/$PR_NUMBER"
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "pr_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "❌ No existing PR found for branch $BRANCH_NAME"
+          echo "ℹ️ This might be expected if the PR was already merged"
+          echo "🔗 Manual PR URL: https://github.com/escopecz/sailing-dashboard/compare/main...$BRANCH_NAME"
+          echo "pr_exists=false" >> $GITHUB_OUTPUT
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   create-release:
-    needs: [build-firmware]
+    needs: [validate-and-build]
     runs-on: ubuntu-latest
-    if: github.ref_type == 'tag'  # Only create releases for tags
     
     permissions:
       contents: write
@@ -102,23 +210,19 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-
-    - name: Extract version from tag
-      id: version
-      run: |
-        VERSION=${{ github.ref_name }}
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
+      with:
+        fetch-depth: 0
 
     - name: Download firmware artifacts
       uses: actions/download-artifact@v4
       with:
-        name: firmware-${{ steps.version.outputs.version }}
+        name: firmware-${{ needs.validate-and-build.outputs.version }}
         path: firmware-artifacts/
 
     - name: Generate release notes
       id: release_notes
       run: |
-        VERSION="${{ steps.version.outputs.version }}"
+        VERSION="${{ needs.validate-and-build.outputs.version }}"
         
         # Get commit messages since last tag
         LAST_TAG=$(git tag --sort=-version:refname | grep -v "^$VERSION$" | head -1)
@@ -126,7 +230,7 @@ jobs:
           LAST_TAG=$(git rev-list --max-parents=0 HEAD)
         fi
         
-        echo "Generating changelog from $LAST_TAG to $VERSION"
+        echo "📝 Generating changelog from $LAST_TAG to $VERSION"
         
         # Extract changes by category
         FEATURES=$(git log --oneline $LAST_TAG..HEAD --grep="feat\|add\|implement" --pretty="- %s" | head -10)
@@ -146,7 +250,7 @@ jobs:
         
         Built on $BUILD_DATE from commit [\`$COMMIT_SHORT\`](https://github.com/escopecz/sailing-dashboard/commit/${{ github.sha }})
         
-        ## � New Features
+        ## 🆕 New Features
         
         $FEATURES
         
@@ -197,19 +301,30 @@ jobs:
         **Full Changelog**: https://github.com/escopecz/sailing-dashboard/compare/$LAST_TAG...$VERSION
         EOF
         
-        echo "Generated release notes for $VERSION"
+        echo "✅ Generated release notes for $VERSION"
 
-    - name: Create Release
+    - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.version.outputs.version }}
-        name: Veetr ${{ steps.version.outputs.version }}
+        tag_name: ${{ needs.validate-and-build.outputs.version }}
+        name: Veetr ${{ needs.validate-and-build.outputs.version }}
         body_path: release-notes.md
         draft: false
         prerelease: false
         files: |
-          firmware-artifacts/veetr-${{ steps.version.outputs.version }}.bin
-          firmware-artifacts/veetr-${{ steps.version.outputs.version }}.elf
+          firmware-artifacts/veetr-${{ needs.validate-and-build.outputs.version }}.bin
+          firmware-artifacts/veetr-${{ needs.validate-and-build.outputs.version }}.elf
           firmware-artifacts/firmware-info.json
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Release Summary
+      run: |
+        echo "🎉 Release pipeline completed successfully!"
+        echo "📋 Summary:"
+        echo "   ✅ Version ${{ needs.validate-and-build.outputs.version }} validated"
+        echo "   ✅ Web and firmware builds successful"
+        echo "   ✅ Pull Request created"
+        echo "   ✅ GitHub Release published"
+        echo ""
+        echo "🔗 Release: https://github.com/escopecz/sailing-dashboard/releases/tag/${{ needs.validate-and-build.outputs.version }}"
