@@ -68,7 +68,7 @@ jobs:
         echo "TypeScript version.ts version: $TS_VERSION"
         
         # Check firmware version
-        FW_VERSION=$(grep "#define FIRMWARE_VERSION" firmware/src/main.cpp | sed 's/.*"\\(.*\\)".*/\\1/')
+        FW_VERSION=$(grep "#define FIRMWARE_VERSION" firmware/src/main.cpp | sed 's/.*"\(.*\)".*/\1/')
         echo "Firmware main.cpp version: $FW_VERSION"
         
         # Validate all versions match the tag
