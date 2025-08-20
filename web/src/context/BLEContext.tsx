@@ -326,6 +326,18 @@ export function BLEProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'UPDATE_DEVICE_NAME', payload: device.name })
       }
 
+      // Request firmware version after connection is established
+      setTimeout(async () => {
+        try {
+          const command = JSON.stringify({ cmd: 'GET_FW_VERSION' })
+          const encoder = new TextEncoder()
+          await commandCharacteristic.writeValue(encoder.encode(command))
+          console.log('Firmware version requested')
+        } catch (error) {
+          console.error('Failed to request firmware version:', error)
+        }
+      }, 2000) // Wait 2 seconds to ensure connection is stable
+
       // RSSI now comes from ESP32 data stream, no need for periodic monitoring
 
     } catch (error) {
@@ -374,9 +386,22 @@ export function BLEProvider({ children }: { children: ReactNode }) {
     try {
       const target = event.target as BluetoothRemoteGATTCharacteristic
       const value = new TextDecoder().decode(target.value!)
+      
+      // Filter out obviously corrupted data
+      if (!value || value.length < 2 || !value.startsWith('{')) {
+        console.warn('[BLE] Received corrupted data, ignoring:', value)
+        return
+      }
+      
       console.log('[BLE] Raw data received:', value)
 
-      const data = JSON.parse(value)
+      let data
+      try {
+        data = JSON.parse(value)
+      } catch (parseError) {
+        console.warn('[BLE] Failed to parse JSON, ignoring corrupted message:', value)
+        return
+      }
       
       // Handle firmware version message
       if (data.type === 'firmware_version') {

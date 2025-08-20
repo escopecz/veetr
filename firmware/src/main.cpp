@@ -37,6 +37,7 @@ bool deviceConnected = false;
 bool oldDeviceConnected = false;
 int bleRSSI = 0; // BLE signal strength
 uint16_t connectedDeviceCount = 0; // Track number of connected devices
+bool bleSending = false; // Prevent concurrent BLE transmissions
 
 // BNO080 IMU Sensor (I2C)
 #define BNO080_SDA 21
@@ -64,6 +65,7 @@ HardwareSerial gpsSerial(GPS_UART);
 TinyGPSPlus gps;
 
 // Function prototypes (declared early for use in callbacks)
+bool safeBLESend(const String& data, bool isCommand = false);
 void setupBLE();
 void restartBLE();
 void setupBLEServer();
@@ -71,6 +73,46 @@ void preTransmission();
 void postTransmission();
 void generateRandomBLEAddress();
 void resetBLEForNewName(const String& newName);
+
+// Safe BLE transmission function to prevent data corruption
+bool safeBLESend(const String& data, bool isCommand) {
+  // Check if we have a valid connection and characteristic
+  if (!pServer || pServer->getConnectedCount() == 0 || !pSensorDataCharacteristic) {
+    return false;
+  }
+  
+  // Wait for any ongoing transmission to complete (max 100ms timeout)
+  unsigned long startTime = millis();
+  while (bleSending && (millis() - startTime) < 100) {
+    delay(1);
+  }
+  
+  // If still sending after timeout, skip this transmission
+  if (bleSending) {
+    Serial.println("[BLE] Transmission timeout, skipping...");
+    return false;
+  }
+  
+  // Set sending flag
+  bleSending = true;
+  
+  try {
+    // Convert string to byte array to avoid encoding issues
+    std::vector<uint8_t> dataBytes(data.begin(), data.end());
+    pSensorDataCharacteristic->setValue(dataBytes);
+    pSensorDataCharacteristic->notify();
+    
+    // Small delay to ensure transmission completes
+    delay(isCommand ? 10 : 5);
+    
+    bleSending = false;
+    return true;
+  } catch (...) {
+    bleSending = false;
+    Serial.println("[BLE] Transmission failed");
+    return false;
+  }
+}
 
 // BLE Server Callbacks
 class MyServerCallbacks: public NimBLEServerCallbacks {
@@ -87,9 +129,12 @@ class MyServerCallbacks: public NimBLEServerCallbacks {
         doc["version"] = FIRMWARE_VERSION;
         String versionData;
         serializeJson(doc, versionData);
-        pSensorDataCharacteristic->setValue(versionData.c_str());
-        pSensorDataCharacteristic->notify();
-        Serial.printf("Sent firmware version on connect: %s\n", FIRMWARE_VERSION);
+        
+        if (safeBLESend(versionData, true)) {
+          Serial.printf("Sent firmware version on connect: %s\n", FIRMWARE_VERSION);
+        } else {
+          Serial.println("Failed to send firmware version on connect");
+        }
       }
       
       // Continue advertising if we haven't reached max connections
@@ -255,10 +300,10 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             String responseStr;
             serializeJson(response, responseStr);
             
-            if (pSensorDataCharacteristic) {
-              pSensorDataCharacteristic->setValue(responseStr.c_str());
-              pSensorDataCharacteristic->notify();
+            if (safeBLESend(responseStr, true)) {
               Serial.printf("Sent firmware version: %s\n", FIRMWARE_VERSION);
+            } else {
+              Serial.println("Failed to send firmware version response");
             }
           }
           else if (doc["cmd"] == "START_FW_UPDATE") {
@@ -274,10 +319,8 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               response["message"] = "Failed to initialize update";
               String responseStr;
               serializeJson(response, responseStr);
-              if (pSensorDataCharacteristic) {
-                pSensorDataCharacteristic->setValue(responseStr.c_str());
-                pSensorDataCharacteristic->notify();
-              }
+              
+              safeBLESend(responseStr, true);
             } else {
               Serial.println("OTA update initialized successfully");
               // Send acknowledgment
@@ -285,10 +328,8 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               response["type"] = "update_ready";
               String responseStr;
               serializeJson(response, responseStr);
-              if (pSensorDataCharacteristic) {
-                pSensorDataCharacteristic->setValue(responseStr.c_str());
-                pSensorDataCharacteristic->notify();
-              }
+              
+              safeBLESend(responseStr, true);
             }
           }
           else if (doc["cmd"] == "FW_CHUNK") {
@@ -306,10 +347,8 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             response["index"] = chunkIndex;
             String responseStr;
             serializeJson(response, responseStr);
-            if (pSensorDataCharacteristic) {
-              pSensorDataCharacteristic->setValue(responseStr.c_str());
-              pSensorDataCharacteristic->notify();
-            }
+            
+            safeBLESend(responseStr, true);
           }
           else if (doc["cmd"] == "VERIFY_FW") {
             Serial.println("Verifying firmware...");
@@ -320,10 +359,8 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             response["success"] = true;
             String responseStr;
             serializeJson(response, responseStr);
-            if (pSensorDataCharacteristic) {
-              pSensorDataCharacteristic->setValue(responseStr.c_str());
-              pSensorDataCharacteristic->notify();
-            }
+            
+            safeBLESend(responseStr, true);
           }
           else if (doc["cmd"] == "APPLY_FW") {
             Serial.println("Applying firmware update...");
@@ -340,10 +377,8 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               response["message"] = "Failed to apply update";
               String responseStr;
               serializeJson(response, responseStr);
-              if (pSensorDataCharacteristic) {
-                pSensorDataCharacteristic->setValue(responseStr.c_str());
-                pSensorDataCharacteristic->notify();
-              }
+              
+              safeBLESend(responseStr, true);
             }
           }
         }
@@ -618,10 +653,14 @@ void updateBLEData() {
     // Send to all connected devices
     // Double-check connection state before sending
     if (pServer->getConnectedCount() > 0) {
-      // Create byte array to avoid string encoding issues
-      std::vector<uint8_t> data(jsonData.begin(), jsonData.end());
-      pSensorDataCharacteristic->setValue(data);
-      pSensorDataCharacteristic->notify();
+      if (safeBLESend(jsonData, false)) {
+        #ifdef DEBUG_BLE_DATA
+        Serial.printf("[BLE] Successfully sent %d bytes to %d devices\n", 
+                      jsonData.length(), connectedDeviceCount);
+        #endif
+      } else {
+        Serial.println("[BLE] Failed to send sensor data");
+      }
     } else {
       Serial.println("[BLE] No connected devices found, skipping transmission");
     }
