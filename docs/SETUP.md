@@ -19,13 +19,13 @@ Complete setup instructions for the Luna Sailing Dashboard project.
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/escopecz/sailing-dashboard.git
-cd sailing-dashboard
+git clone https://github.com/escopecz/veetr.git
+cd veetr
 ```
 
 ### 2. Open in VS Code
 ```bash
-code sailing-dashboard.code-workspace
+code veetr.code-workspace
 ```
 This opens the multi-folder workspace with proper configuration.
 

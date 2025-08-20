@@ -28,7 +28,7 @@ When you download a release, you'll see several files:
 
 ### Option 1: Using ESPTool (Recommended)
 
-1. **Download the latest firmware** from the [releases page](https://github.com/escopecz/sailing-dashboard/releases)
+1. **Download the latest firmware** from the [releases page](https://github.com/escopecz/veetr/releases)
 2. **Install ESPTool** if you haven't already:
    ```bash
    pip install esptool
@@ -47,8 +47,8 @@ If you have the source code and PlatformIO installed:
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/escopecz/sailing-dashboard.git
-   cd sailing-dashboard
+   git clone https://github.com/escopecz/veetr.git
+   cd veetr
    ```
 2. **Checkout the desired version**:
    ```bash
@@ -89,7 +89,7 @@ After updating, you can verify the firmware version by:
 
 If you encounter issues:
 
-1. Check the [Issues page](https://github.com/escopecz/sailing-dashboard/issues) for known problems
+1. Check the [Issues page](https://github.com/escopecz/veetr/issues) for known problems
 2. Create a new issue with details about your problem
 3. Include your firmware version, device type, and error messages
 

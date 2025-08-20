@@ -6,9 +6,9 @@ Veetr provides open source software and hardware for tracking wind speed, direct
 
 ### 1. Setup Development Environment
 ```bash
-git clone https://github.com/escopecz/sailing-dashboard.git
-cd sailing-dashboard
-code sailing-dashboard.code-workspace
+git clone https://github.com/escopecz/veetr.git
+cd veetr
+code veetr.code-workspace
 ```
 
 ### 2. Install Task Buttons Extension
@@ -35,7 +35,7 @@ pio device monitor         # Serial monitor
 ## Project Structure
 
 ```
-sailing-dashboard/
+veetr/
 ├── web/                     # React/TypeScript web dashboard
 ├── firmware/                # ESP32 firmware source code
 ├── docs/                    # Detailed documentation

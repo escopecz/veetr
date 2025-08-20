@@ -5,7 +5,7 @@ This project uses PlatformIO for ESP32 firmware development with a unified confi
 ## Project Structure
 
 ```
-sailing-dashboard/
+veetr/
 ├── platformio.ini           # PlatformIO configuration (root level)
 ├── firmware/
 │   ├── src/                 # Source code

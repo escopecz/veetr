@@ -18,7 +18,7 @@ export interface FirmwareAsset {
   filename: string
 }
 
-const GITHUB_REPO = 'escopecz/sailing-dashboard'
+const GITHUB_REPO = 'escopecz/veetr'
 const GITHUB_API_BASE = 'https://api.github.com'
 
 export async function getLatestRelease(): Promise<GitHubRelease | null> {
