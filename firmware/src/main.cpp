@@ -310,13 +310,28 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             int totalSize = doc["size"];
             Serial.printf("Starting firmware update, size: %d bytes\n", totalSize);
             
-            // Initialize OTA update
-            if (!Update.begin(totalSize)) {
-              Serial.println("OTA update initialization failed");
+            // Check if we have enough space for OTA update
+            size_t freeSpace = ESP.getFreeSketchSpace();
+            Serial.printf("Available OTA space: %d bytes\n", freeSpace);
+            
+            if (totalSize > freeSpace) {
+              Serial.printf("Firmware too large! Required: %d, Available: %d\n", totalSize, freeSpace);
+              DynamicJsonDocument response(128);
+              response["type"] = "update_error";
+              response["message"] = "Firmware too large for available space";
+              String responseStr;
+              serializeJson(response, responseStr);
+              safeBLESend(responseStr, true);
+              return;
+            }
+            
+            // Initialize OTA update with U_FLASH type explicitly
+            if (!Update.begin(totalSize, U_FLASH)) {
+              Serial.printf("OTA update initialization failed: %s\n", Update.errorString());
               // Send error response
               DynamicJsonDocument response(128);
               response["type"] = "update_error";
-              response["message"] = "Failed to initialize update";
+              response["message"] = Update.errorString();
               String responseStr;
               serializeJson(response, responseStr);
               
@@ -404,6 +419,14 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
           }
           else if (doc["cmd"] == "VERIFY_FW") {
             Serial.println("Verifying firmware...");
+            Serial.printf("Update progress: %d bytes written\n", Update.progress());
+            Serial.printf("Update size: %d bytes\n", Update.size());
+            Serial.printf("Update remaining: %d bytes\n", Update.remaining());
+            
+            // Check for errors before ending
+            if (Update.hasError()) {
+              Serial.printf("Update has error before verification: %s\n", Update.errorString());
+            }
             
             // End the update process to verify it
             bool updateSuccess = Update.end(true); // true = restart if successful
@@ -411,6 +434,9 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             
             if (!updateSuccess || hasError) {
               Serial.printf("Firmware verification failed. Error: %s\n", Update.errorString());
+              Serial.printf("Update success: %s, Has error: %s\n", 
+                           updateSuccess ? "true" : "false", 
+                           hasError ? "true" : "false");
             } else {
               Serial.println("Firmware verification successful!");
             }
