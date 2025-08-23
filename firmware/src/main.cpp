@@ -405,42 +405,42 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
           else if (doc["cmd"] == "VERIFY_FW") {
             Serial.println("Verifying firmware...");
             
-            // Check if the update is valid
-            bool isValid = Update.isFinished() && !Update.hasError();
+            // End the update process to verify it
+            bool updateSuccess = Update.end(true); // true = restart if successful
+            bool hasError = Update.hasError();
             
-            if (!isValid) {
+            if (!updateSuccess || hasError) {
               Serial.printf("Firmware verification failed. Error: %s\n", Update.errorString());
+            } else {
+              Serial.println("Firmware verification successful!");
             }
             
             DynamicJsonDocument response(128);
             response["type"] = "verify_complete";
-            response["success"] = isValid;
-            if (!isValid) {
+            response["success"] = updateSuccess && !hasError;
+            if (!updateSuccess || hasError) {
               response["error"] = Update.errorString();
             }
             String responseStr;
             serializeJson(response, responseStr);
             
             safeBLESend(responseStr, true);
+            
+            // If verification successful, restart the device
+            if (updateSuccess && !hasError) {
+              Serial.println("Firmware update completed successfully! Restarting in 2 seconds...");
+              delay(2000);
+              ESP.restart();
+            }
           }
           else if (doc["cmd"] == "APPLY_FW") {
             Serial.println("Applying firmware update...");
             
-            // In a real implementation, apply the update and restart
-            if (Update.end(true)) {
-              Serial.println("Firmware update completed successfully! Restarting...");
-              delay(1000);
-              ESP.restart();
-            } else {
-              Serial.println("Firmware update failed");
-              DynamicJsonDocument response(128);
-              response["type"] = "update_error";
-              response["message"] = "Failed to apply update";
-              String responseStr;
-              serializeJson(response, responseStr);
-              
-              safeBLESend(responseStr, true);
-            }
+            // This command is now redundant since verification handles the restart
+            // But we'll keep it for compatibility
+            Serial.println("Firmware already applied during verification. Restarting...");
+            delay(1000);
+            ESP.restart();
           }
         }
       }
