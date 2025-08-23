@@ -20,7 +20,7 @@ export const FIRMWARE_COMMANDS = {
 export class BLEFirmwareUpdater {
   private characteristic: BluetoothRemoteGATTCharacteristic
   private onProgress: FirmwareUpdateCallback
-  private chunkSize = 512 // ESP32 typical BLE MTU minus headers
+  private chunkSize = 300 // Conservative but fast: 300 bytes raw -> 400 base64 chars + JSON overhead ≈ 450 bytes total
 
   constructor(
     characteristic: BluetoothRemoteGATTCharacteristic,
@@ -131,15 +131,13 @@ export class BLEFirmwareUpdater {
         message: `Transferring firmware... ${percentage}%`
       })
 
-      // Small delay to prevent overwhelming the ESP32
-      await this.delay(50)
+      // No delay - ESP32 can handle continuous transfers
     }
   }
 
   private async sendFirmwareChunk(chunkIndex: number, chunkData: ArrayBuffer): Promise<void> {
     // Create command with binary data
-    // In a real implementation, you'd need a binary protocol
-    // For now, we'll use base64 encoding (not efficient but works for demo)
+    // Base64 encoding increases size by ~33%, plus JSON overhead
     const base64Data = this.arrayBufferToBase64(chunkData)
     
     const command = JSON.stringify({
@@ -149,7 +147,15 @@ export class BLEFirmwareUpdater {
     })
 
     const encoder = new TextEncoder()
-    await this.characteristic.writeValue(encoder.encode(command))
+    const encodedCommand = encoder.encode(command)
+    
+    // Validate size before sending
+    if (encodedCommand.length > 512) {
+      throw new Error(`Command too large: ${encodedCommand.length} bytes (max 512). Consider reducing chunk size.`)
+    }
+    
+    console.log(`Sending chunk ${chunkIndex}: ${chunkData.byteLength} bytes raw -> ${encodedCommand.length} bytes encoded`)
+    await this.characteristic.writeValue(encodedCommand)
   }
 
   private async verifyFirmware(): Promise<void> {
@@ -165,8 +171,9 @@ export class BLEFirmwareUpdater {
     const encoder = new TextEncoder()
     await this.characteristic.writeValue(encoder.encode(command))
     
-    // Wait for verification
-    await this.delay(2000)
+    // Wait longer for verification - firmware verification can take time
+    console.log('Waiting for firmware verification...')
+    await this.delay(5000)
   }
 
   private async applyUpdate(): Promise<void> {
@@ -175,15 +182,16 @@ export class BLEFirmwareUpdater {
       bytesTransferred: 0,
       totalBytes: 0,
       stage: 'verifying',
-      message: 'Applying firmware update...'
+      message: 'Applying firmware update (device will restart)...'
     })
 
     const command = JSON.stringify({ cmd: FIRMWARE_COMMANDS.APPLY_UPDATE })
     const encoder = new TextEncoder()
     await this.characteristic.writeValue(encoder.encode(command))
     
-    // ESP32 will restart after this command
-    await this.delay(3000)
+    // Wait for application - device may restart during this process
+    console.log('Waiting for firmware application and device restart...')
+    await this.delay(10000)
   }
 
   private arrayBufferToBase64(buffer: ArrayBuffer): string {

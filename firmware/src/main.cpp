@@ -336,27 +336,88 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             int chunkIndex = doc["index"];
             String base64Data = doc["data"];
             
-            // Decode base64 data
-            // Note: This is a simplified implementation
-            // In production, you'd want better base64 decoding
             Serial.printf("Received firmware chunk %d\n", chunkIndex);
             
-            // For demo purposes, just acknowledge receipt
-            DynamicJsonDocument response(128);
-            response["type"] = "chunk_ack";
-            response["index"] = chunkIndex;
-            String responseStr;
-            serializeJson(response, responseStr);
+            // Simple base64 decode using Arduino's built-in capabilities
+            // Calculate decoded length (roughly 3/4 of base64 length)
+            int maxDecodedLen = (base64Data.length() * 3) / 4 + 1;
+            uint8_t* decodedData = new uint8_t[maxDecodedLen];
             
-            safeBLESend(responseStr, true);
+            // Use a simple base64 decode - for now, let's use a basic implementation
+            // This is simplified - in production, use a proper base64 library
+            int decodedLen = 0;
+            const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            
+            for (int i = 0; i < base64Data.length(); i += 4) {
+              uint32_t value = 0;
+              int padding = 0;
+              
+              // Decode 4 base64 characters into 3 bytes
+              for (int j = 0; j < 4; j++) {
+                if (i + j < base64Data.length()) {
+                  char c = base64Data[i + j];
+                  if (c == '=') {
+                    padding++;
+                  } else {
+                    // Find character index
+                    int idx = 0;
+                    for (int k = 0; k < 64; k++) {
+                      if (chars[k] == c) {
+                        idx = k;
+                        break;
+                      }
+                    }
+                    value = (value << 6) | idx;
+                  }
+                } else {
+                  padding++;
+                }
+              }
+              
+              // Extract bytes
+              if (padding < 3 && decodedLen < maxDecodedLen) decodedData[decodedLen++] = (value >> 16) & 0xFF;
+              if (padding < 2 && decodedLen < maxDecodedLen) decodedData[decodedLen++] = (value >> 8) & 0xFF;
+              if (padding < 1 && decodedLen < maxDecodedLen) decodedData[decodedLen++] = value & 0xFF;
+            }
+            
+            // Write chunk to flash
+            size_t written = Update.write(decodedData, decodedLen);
+            delete[] decodedData;
+            
+            if (written != decodedLen) {
+              Serial.printf("Failed to write chunk %d: %d/%d bytes written\n", chunkIndex, written, decodedLen);
+              DynamicJsonDocument response(128);
+              response["type"] = "chunk_error";
+              response["index"] = chunkIndex;
+              String responseStr;
+              serializeJson(response, responseStr);
+              safeBLESend(responseStr, true);
+            } else {
+              Serial.printf("Chunk %d written successfully: %d bytes\n", chunkIndex, decodedLen);
+              DynamicJsonDocument response(128);
+              response["type"] = "chunk_ack";
+              response["index"] = chunkIndex;
+              String responseStr;
+              serializeJson(response, responseStr);
+              safeBLESend(responseStr, true);
+            }
           }
           else if (doc["cmd"] == "VERIFY_FW") {
             Serial.println("Verifying firmware...");
             
-            // In a real implementation, verify the firmware checksum
+            // Check if the update is valid
+            bool isValid = Update.isFinished() && !Update.hasError();
+            
+            if (!isValid) {
+              Serial.printf("Firmware verification failed. Error: %s\n", Update.errorString());
+            }
+            
             DynamicJsonDocument response(128);
             response["type"] = "verify_complete";
-            response["success"] = true;
+            response["success"] = isValid;
+            if (!isValid) {
+              response["error"] = Update.errorString();
+            }
             String responseStr;
             serializeJson(response, responseStr);
             

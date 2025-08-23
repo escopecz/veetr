@@ -63,58 +63,23 @@ export async function getFirmwareAsset(release: GitHubRelease): Promise<Firmware
 }
 
 export async function downloadFirmware(asset: FirmwareAsset): Promise<ArrayBuffer> {
-  console.log('Attempting to download firmware:', asset.filename, 'from:', asset.downloadUrl)
-  
-  // GitHub's API supports CORS, so we'll use the API endpoint instead of direct download
+  console.log('Downloading firmware:', asset.filename)
+
   try {
-    // Get the release info from GitHub API to find the asset
-    const releaseResponse = await fetch(`${GITHUB_API_BASE}/repos/${GITHUB_REPO}/releases/tags/${asset.version}`)
-    if (!releaseResponse.ok) {
-      throw new Error(`Failed to get release info: ${releaseResponse.status}`)
-    }
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(asset.downloadUrl)}`
+    console.log('Downloading via CORS proxy...')
     
-    const releaseData = await releaseResponse.json()
-    const assetInfo = releaseData.assets.find((a: any) => a.name === asset.filename)
-    
-    if (!assetInfo) {
-      throw new Error(`Asset ${asset.filename} not found in release`)
+    const response = await fetch(proxyUrl)
+    if (response.ok) {
+      const data = await response.arrayBuffer()
+      console.log(`Firmware downloaded successfully: ${data.byteLength} bytes`)
+      return data
+    } else {
+      throw new Error(`Proxy failed with status: ${response.status}`)
     }
-
-    // Download using GitHub API with proper Accept header for binary content
-    const downloadResponse = await fetch(assetInfo.url, {
-      headers: {
-        'Accept': 'application/octet-stream',
-        'User-Agent': 'veetr-firmware-updater'
-      }
-    })
-
-    if (!downloadResponse.ok) {
-      throw new Error(`GitHub API download failed: ${downloadResponse.status}`)
-    }
-
-    const data = await downloadResponse.arrayBuffer()
-    console.log(`Firmware downloaded successfully via GitHub API: ${data.byteLength} bytes`)
-    return data
-
   } catch (error) {
-    console.error('GitHub API download failed, trying fallback methods:', error)
-    
-    // Fallback: Try a reliable CORS proxy as backup
-    try {
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(asset.downloadUrl)}`
-      console.log('Trying CORS proxy fallback...')
-      
-      const response = await fetch(proxyUrl)
-      if (response.ok) {
-        const data = await response.arrayBuffer()
-        console.log(`Firmware downloaded via proxy: ${data.byteLength} bytes`)
-        return data
-      }
-    } catch (proxyError) {
-      console.error('Proxy fallback also failed:', proxyError)
-    }
-    
-    throw new Error(`Failed to download firmware: ${error instanceof Error ? error.message : 'Unknown error'}. This may be due to GitHub API rate limits or network issues.`)
+    console.error('CORS proxy failed:', error)
+    throw new Error(`Failed to download firmware: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
 
