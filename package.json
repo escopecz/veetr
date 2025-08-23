@@ -1,6 +1,6 @@
 {
   "name": "veetr",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Veetr - hardware and web dashboard",
   "private": true,
   "workspaces": [
