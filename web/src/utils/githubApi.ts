@@ -35,17 +35,24 @@ export async function getLatestRelease(): Promise<GitHubRelease | null> {
 }
 
 export async function getFirmwareAsset(release: GitHubRelease): Promise<FirmwareAsset | null> {
-  // Look for firmware binary in release assets
+  console.log('Available assets in release:', release.assets.map(a => a.name))
+  
+  // Look for firmware binary in release assets - prioritize .bin files
   const firmwareAsset = release.assets.find(asset => 
-    asset.name.endsWith('.bin') || 
-    asset.name.includes('firmware') ||
-    asset.name.includes('esp32')
+    asset.name.endsWith('.bin') && !asset.name.includes('info')
+  ) || release.assets.find(asset => 
+    asset.name.includes('firmware') && asset.name.endsWith('.bin')
+  ) || release.assets.find(asset => 
+    asset.name.includes('esp32') && asset.name.endsWith('.bin')
   )
 
   if (!firmwareAsset) {
-    console.warn('No firmware asset found in release')
+    console.warn('No firmware binary (.bin) asset found in release')
+    console.warn('Available assets:', release.assets.map(a => ({ name: a.name, size: a.size })))
     return null
   }
+
+  console.log('Selected firmware asset:', firmwareAsset.name, 'Size:', firmwareAsset.size)
 
   return {
     version: release.tag_name,
@@ -56,11 +63,59 @@ export async function getFirmwareAsset(release: GitHubRelease): Promise<Firmware
 }
 
 export async function downloadFirmware(asset: FirmwareAsset): Promise<ArrayBuffer> {
-  const response = await fetch(asset.downloadUrl)
-  if (!response.ok) {
-    throw new Error(`Failed to download firmware: ${response.status}`)
+  console.log('Attempting to download firmware:', asset.filename, 'from:', asset.downloadUrl)
+  
+  // GitHub's API supports CORS, so we'll use the API endpoint instead of direct download
+  try {
+    // Get the release info from GitHub API to find the asset
+    const releaseResponse = await fetch(`${GITHUB_API_BASE}/repos/${GITHUB_REPO}/releases/tags/${asset.version}`)
+    if (!releaseResponse.ok) {
+      throw new Error(`Failed to get release info: ${releaseResponse.status}`)
+    }
+    
+    const releaseData = await releaseResponse.json()
+    const assetInfo = releaseData.assets.find((a: any) => a.name === asset.filename)
+    
+    if (!assetInfo) {
+      throw new Error(`Asset ${asset.filename} not found in release`)
+    }
+
+    // Download using GitHub API with proper Accept header for binary content
+    const downloadResponse = await fetch(assetInfo.url, {
+      headers: {
+        'Accept': 'application/octet-stream',
+        'User-Agent': 'veetr-firmware-updater'
+      }
+    })
+
+    if (!downloadResponse.ok) {
+      throw new Error(`GitHub API download failed: ${downloadResponse.status}`)
+    }
+
+    const data = await downloadResponse.arrayBuffer()
+    console.log(`Firmware downloaded successfully via GitHub API: ${data.byteLength} bytes`)
+    return data
+
+  } catch (error) {
+    console.error('GitHub API download failed, trying fallback methods:', error)
+    
+    // Fallback: Try a reliable CORS proxy as backup
+    try {
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(asset.downloadUrl)}`
+      console.log('Trying CORS proxy fallback...')
+      
+      const response = await fetch(proxyUrl)
+      if (response.ok) {
+        const data = await response.arrayBuffer()
+        console.log(`Firmware downloaded via proxy: ${data.byteLength} bytes`)
+        return data
+      }
+    } catch (proxyError) {
+      console.error('Proxy fallback also failed:', proxyError)
+    }
+    
+    throw new Error(`Failed to download firmware: ${error instanceof Error ? error.message : 'Unknown error'}. This may be due to GitHub API rate limits or network issues.`)
   }
-  return await response.arrayBuffer()
 }
 
 export function compareVersions(current: string, latest: string): boolean {
