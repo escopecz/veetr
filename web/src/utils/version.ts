@@ -1,6 +1,6 @@
 // Version configuration - single source of truth
 // This version is synced from the root package.json
-const VERSION = '0.0.8'
+const VERSION = '0.0.9'
 export const APP_NAME = 'Veetr'
 export const APP_VERSION = `${APP_NAME} v${VERSION}`
 
