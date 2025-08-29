@@ -139,8 +139,13 @@ class MyServerCallbacks: public NimBLEServerCallbacks {
       
       // Continue advertising if we haven't reached max connections
       if (connectedDeviceCount < CONFIG_BT_NIMBLE_MAX_CONNECTIONS) {
+        delay(100); // Small delay before restarting advertising
         NimBLEDevice::startAdvertising();
-        Serial.println("Continuing advertising for additional connections...");
+        Serial.printf("Continuing advertising for additional connections... (%d/%d connected)\n", 
+                     connectedDeviceCount, CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
+      } else {
+        Serial.printf("Maximum connections reached (%d/%d)\n", 
+                     connectedDeviceCount, CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
       }
     };
 
@@ -150,12 +155,15 @@ class MyServerCallbacks: public NimBLEServerCallbacks {
         deviceConnected = false;
         bleRSSI = 0; // Reset RSSI when all devices disconnected
       }
-      Serial.printf("BLE Client disconnected (remaining: %d)\n", connectedDeviceCount);
+      Serial.printf("BLE Client disconnected (remaining: %d/%d)\n", 
+                   connectedDeviceCount, CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
       
-      // Restart advertising when a device disconnects
+      // Always restart advertising when a device disconnects to allow new connections
       delay(500);
-      NimBLEDevice::startAdvertising();
-      Serial.println("Restarting advertising...");
+      if (!NimBLEDevice::getAdvertising()->isAdvertising()) {
+        NimBLEDevice::startAdvertising();
+        Serial.println("Restarting advertising after disconnection...");
+      }
     }
 };
 
@@ -634,6 +642,7 @@ void setupBLE() {
   // Get device name from preferences
   String deviceName = preferences.getString("deviceName", "Veetr");
   Serial.printf("[BLE] Initializing as '%s'\n", deviceName.c_str());
+  Serial.printf("[BLE] Max connections configured: %d\n", CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
   
   // Initialize NimBLE with device name
   NimBLEDevice::init(deviceName.c_str());
@@ -663,6 +672,8 @@ void restartBLE() {
   
   // Initialize NimBLE with new device name
   Serial.printf("[BLE Restart] Initializing NimBLE with name: '%s'\n", deviceName.c_str());
+  Serial.printf("[BLE Restart] Max connections configured: %d\n", CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
+  
   NimBLEDevice::init(deviceName.c_str());
   
   // Set TX power for balance between range and power consumption
@@ -706,10 +717,14 @@ void setupBLEServer() {
   pAdvertising->setMinPreferred(0x06);  // 7.5ms intervals
   pAdvertising->setMaxPreferred(0x12);  // 22.5ms intervals
   
+  // Configure advertising for multiple connections
+  pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);  // Undirected connectable
+  
   // Include device name in advertising data
   String deviceName = preferences.getString("deviceName", "Veetr");
   pAdvertising->setName(deviceName.c_str());
   
+  Serial.printf("[BLE] Starting advertising for up to %d connections...\n", CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
   pAdvertising->start();
 }
 
