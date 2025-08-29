@@ -15,6 +15,7 @@ export interface SailingData {
   trueWindSpeedMax: number
   trueWindSpeedAvg: number
   trueWindDirection: number
+  trueWindAngle: number
   tilt: number
   tiltPortMax: number
   tiltStarboardMax: number
@@ -103,6 +104,7 @@ const initialState: BLEState = {
     trueWindSpeedMax: 0,
     trueWindSpeedAvg: 0,
     trueWindDirection: 0,
+    trueWindAngle: 0,
     tilt: 0,
     tiltPortMax: 0,
     tiltStarboardMax: 0,
@@ -175,6 +177,7 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
           trueWindSpeedMax: 0,
           trueWindSpeedAvg: 0,
           trueWindDirection: 0,
+          trueWindAngle: 0,
           tilt: 0,
           tiltPortMax: 0,
           tiltStarboardMax: 0,
@@ -423,6 +426,7 @@ export function BLEProvider({ children }: { children: ReactNode }) {
         trueWindSpeedMax: data.TWSMax || 0,
         trueWindSpeedAvg: data.TWSAvg || 0,
         trueWindDirection: data.TWD || 0, // True Wind Direction
+        trueWindAngle: data.TWA || 0,    // True Wind Angle
         tilt: data.heel || 0,            // Heel angle
         tiltPortMax: data.heelPortMax || 0,
         tiltStarboardMax: data.heelStarboardMax || 0,

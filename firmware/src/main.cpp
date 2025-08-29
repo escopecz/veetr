@@ -1726,6 +1726,21 @@ String getSensorDataJson() {
   
   if (!isnan(currentData.trueWindDirection) && currentData.trueWindDirection >= 0 && currentData.trueWindDirection <= 359) {
     doc["TWD"] = round(currentData.trueWindDirection); // True Wind Direction (integer)
+    
+    // Calculate True Wind Angle (TWA) - relative angle between vessel heading and true wind
+    if (currentData.HDM >= 0 && currentData.HDM <= 359) {
+      float twa = currentData.trueWindDirection - currentData.HDM;
+      
+      // Normalize TWA to range -180 to +180 degrees
+      if (twa > 180) {
+        twa -= 360;
+      } else if (twa < -180) {
+        twa += 360;
+      }
+      
+      // Convert to absolute angle (0-180) for sailing display
+      doc["TWA"] = round(abs(twa));
+    }
   }
   
   // Heel angle - only include if IMU is available
