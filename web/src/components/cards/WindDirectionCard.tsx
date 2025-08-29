@@ -72,8 +72,8 @@ export default function WindDirectionCard({
             const angle = i * 10;
             const isCardinal = angle % 90 === 0;
             const isMajor = angle % 30 === 0;
-            const radius = isCardinal ? 190 : isMajor ? 195 : 200;
-            const endRadius = 205;
+            const radius = isCardinal ? 165 : isMajor ? 170 : 175; // Start inside outer circle
+            const endRadius = 180; // End at outer circle
             const x1 = 250 + radius * Math.sin((angle * Math.PI) / 180);
             const y1 = 250 - radius * Math.cos((angle * Math.PI) / 180);
             const x2 = 250 + endRadius * Math.sin((angle * Math.PI) / 180);
@@ -97,7 +97,7 @@ export default function WindDirectionCard({
             const angle = i * 30;
             if (angle === 0) return null; // Skip 0° as we have "N" marker (bow)
             
-            const radius = 195; // Position outside the outer circle but with more margin from viewBox edges
+            const radius = 195; // Position outside the outer circle
             
             // Create labels for both port and starboard sides
             const labels = [];
