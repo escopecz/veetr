@@ -5,8 +5,8 @@ import { useSmoothRotation } from '../../hooks/useSmoothRotation'
 interface WindDirectionCardProps {
   windDirection: number
   windSpeed: number
-  trueWindDirection: number
   trueWindSpeed: number
+  trueWindAngle: number
   deadWindAngle: number
   heading: number
 }
@@ -14,14 +14,14 @@ interface WindDirectionCardProps {
 export default function WindDirectionCard({ 
   windDirection, 
   windSpeed: _windSpeed, 
-  trueWindDirection, 
   trueWindSpeed, 
+  trueWindAngle,
   deadWindAngle,
   heading 
 }: WindDirectionCardProps) {
   // Use smooth rotation for all rotating elements
   const smoothWindDirection = useSmoothRotation(windDirection, { duration: 800 })
-  const smoothTrueWindDirection = useSmoothRotation(trueWindDirection, { duration: 800 })
+  const smoothTrueWindAngle = useSmoothRotation(trueWindAngle, { duration: 800 })
   const smoothHeading = useSmoothRotation(heading, { duration: 1000 })
 
   return (
@@ -165,34 +165,23 @@ export default function WindDirectionCard({
             <path
               d="M 240,70 L 250,250 L 260,70"
               fill="#ffffff"
-              stroke="#ffff00"
-              strokeWidth="3"
+              stroke="none"
+              strokeWidth="0"
               opacity="0.95"
             />
-            <circle cx="250" cy="80" r="8" fill="#ffffff" stroke="#ffff00" strokeWidth="2" />
+            <circle cx="250" cy="80" r="8" fill="#ffffff" stroke="none" strokeWidth="0" />
             {/* Removed APP label for apparent wind arrow */}
           </g>
           
-          {/* True wind arrow */}
-          {trueWindSpeed > 0 && (
-            <g transform={`rotate(${smoothTrueWindDirection} 250 250)`}>
+          {/* True wind angle indicator - triangle spanning from outer to inner circle */}
+          {trueWindSpeed > 0 && trueWindAngle > 0 && (
+            <g transform={`rotate(${smoothTrueWindAngle} 250 250)`}>
               <path
-                d="M 235,70 L 250,250 L 265,70"
-                fill="#f59e0b"
-                stroke="#d97706"
-                strokeWidth="3"
-                opacity="0.8"
+                d="M 240,70 L 250,100 L 260,70 Z"
+                fill="rgba(255,255,255,0.9)"
+                stroke="rgba(255,255,255,0.5)"
+                strokeWidth="1"
               />
-              <circle cx="250" cy="80" r="6" fill="#f59e0b" stroke="#d97706" strokeWidth="2" />
-              <text 
-                x="270" 
-                y="65" 
-                fill="#f59e0b" 
-                fontSize="10" 
-                fontWeight="bold"
-              >
-                TRUE
-              </text>
             </g>
           )}
           

@@ -22,8 +22,8 @@ export default function Dashboard() {
           <WindDirectionCard
             windDirection={sailingData.windDirection}
             windSpeed={sailingData.windSpeed}
-            trueWindDirection={sailingData.trueWindDirection}
             trueWindSpeed={sailingData.trueWindSpeed}
+            trueWindAngle={sailingData.trueWindAngle}
             deadWindAngle={sailingData.deadWindAngle}
             heading={sailingData.heading}
           />
