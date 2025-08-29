@@ -1681,65 +1681,74 @@ void readSensors() {
 
 // Generate JSON string with current sensor data using marine standard terminology
 String getSensorDataJson() {
-  DynamicJsonDocument doc(300); // Increased size to accommodate marine standard fields
+  DynamicJsonDocument doc(400); // Larger size to accommodate all fields including acceleration and device name
   
-  // Always present GPS fields (marine standard)
-  doc["SOG"] = isnan(currentData.speed) ? 0.0 : currentData.speed; // Speed Over Ground
+  // Core sailing data (rounded to reduce JSON size)
+  doc["SOG"] = round((isnan(currentData.speed) ? 0.0 : currentData.speed) * 10) / 10.0; // Speed Over Ground
   
-  // GPS coordinates and course
+  // GPS coordinates (reduced precision for BLE efficiency)
   if (gps.location.isValid()) {
-    doc["lat"] = gps.location.lat();
-    doc["lon"] = gps.location.lng();
+    doc["lat"] = round(gps.location.lat() * 100000) / 100000.0; // 5 decimal places
+    doc["lon"] = round(gps.location.lng() * 100000) / 100000.0; // 5 decimal places
   } else {
     doc["lat"] = 0.0;
     doc["lon"] = 0.0;
   }
   
   if (gps.course.isValid()) {
-    doc["COG"] = gps.course.deg(); // Course Over Ground
+    doc["COG"] = round(gps.course.deg()); // Course Over Ground (integer)
   } else {
-    doc["COG"] = 0.0;
+    doc["COG"] = 0;
   }
   
   // GPS quality indicators
   doc["satellites"] = (gps.charsProcessed() > 10 && gps.satellites.isValid()) ? gps.satellites.value() : 0;
   
   if (gps.hdop.isValid()) {
-    doc["hdop"] = gps.hdop.hdop();
+    doc["hdop"] = round(gps.hdop.hdop() * 10) / 10.0; // 1 decimal place
   } else {
     doc["hdop"] = 99.9; // Invalid HDOP value
   }
   
   // Wind data - only include if sensor is connected and working
   if (!isnan(currentData.windSpeed)) {
-    doc["AWS"] = currentData.windSpeed; // Apparent Wind Speed
+    doc["AWS"] = round(currentData.windSpeed * 10) / 10.0; // Apparent Wind Speed (1 decimal)
   }
   
   if (currentData.windDirection >= 0 && currentData.windDirection <= 359) {
-    doc["AWD"] = currentData.windDirection; // Apparent Wind Direction
+    doc["AWD"] = round(currentData.windDirection); // Apparent Wind Direction (integer)
+  }
+  
+  // True wind data - only include if calculated successfully
+  if (!isnan(currentData.trueWindSpeed)) {
+    doc["TWS"] = round(currentData.trueWindSpeed * 10) / 10.0; // True Wind Speed (1 decimal)
+  }
+  
+  if (!isnan(currentData.trueWindDirection) && currentData.trueWindDirection >= 0 && currentData.trueWindDirection <= 359) {
+    doc["TWD"] = round(currentData.trueWindDirection); // True Wind Direction (integer)
   }
   
   // Heel angle - only include if IMU is available
   if (imuAvailable && !isnan(currentData.tilt)) {
-    doc["heel"] = currentData.tilt; // Vessel heel angle
+    doc["heel"] = round(currentData.tilt * 10) / 10.0; // Vessel heel angle (1 decimal)
   }
   
   // Magnetic heading - only include if IMU is available and has valid data
   if (imuAvailable && currentData.HDM >= 0 && currentData.HDM <= 359) {
-    doc["HDM"] = currentData.HDM; // Magnetic heading in degrees
+    doc["HDM"] = round(currentData.HDM); // Magnetic heading in degrees (integer)
   }
   
   // Acceleration data - only include if IMU is available and has valid data
   if (imuAvailable && !isnan(currentData.accelX)) {
-    doc["accelX"] = currentData.accelX; // Acceleration X-axis in m/s²
-    doc["accelY"] = currentData.accelY; // Acceleration Y-axis in m/s²
-    doc["accelZ"] = currentData.accelZ; // Acceleration Z-axis in m/s²
+    doc["accelX"] = round(currentData.accelX * 100) / 100.0; // Acceleration X-axis in m/s² (2 decimals)
+    doc["accelY"] = round(currentData.accelY * 100) / 100.0; // Acceleration Y-axis in m/s² (2 decimals)
+    doc["accelZ"] = round(currentData.accelZ * 100) / 100.0; // Acceleration Z-axis in m/s² (2 decimals)
   }
   
-  // BLE connection quality
+  // BLE connection quality (reduced precision)
   doc["rssi"] = bleRSSI;
   
-  // Device identification (BLE device name)
+  // Device identification (proper device name)
   String deviceName = preferences.getString("deviceName", "Veetr");
   doc["deviceName"] = deviceName;
   
