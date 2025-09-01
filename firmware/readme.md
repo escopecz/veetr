@@ -285,7 +285,7 @@ await resetHeelAngle();
 
 ## Hardware Components
 
-- ESP32 DEVKIT V1 DOIT (main controller)
+- ESP32 DevKitC WROOM-32U (main controller with external antenna)
 - NEO-7M GPS Module with external antenna
 - Ultrasonic Wind Speed and Direction Sensor (RS485) - **Auto-detects sensor format**
 - GY-BNO080 9-Axis IMU Sensor (I2C)

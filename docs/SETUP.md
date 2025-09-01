@@ -11,7 +11,7 @@ Complete setup instructions for the Luna Sailing Dashboard project.
 - **Git** - for version control
 
 ### Hardware Requirements:
-- **ESP32 DevKit** (DOIT ESP32 DevKit V1 recommended)
+- **ESP32 DevKitC WROOM-32U** (with external antenna)
 - **USB Cable** for programming
 - **Sailing sensors** (optional for testing)
 

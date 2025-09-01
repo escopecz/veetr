@@ -9,10 +9,11 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
 ## Hardware Components
 
 ### 🔧 Main Controller:
-- **ESP32 DOIT DevKit V1** - Main microcontroller
+- **ESP32 DevKitC WROOM-32U** - Main microcontroller
   - Dual-core 240MHz processor
   - 320KB RAM, 4MB Flash
   - Built-in WiFi and Bluetooth
+  - External antenna connector for enhanced marine range
   - Multiple GPIO pins for sensors
 
 ### 📡 Sensors:
@@ -61,7 +62,8 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
 - **Service**: Custom sailing data service
 - **Characteristics**: Wind, GPS, IMU, battery, configuration
 - **Connection**: Up to 4 simultaneous connections
-- **Range**: ~10-30 meters (line of sight)
+- **Range**: ~10-50 meters (enhanced with external antenna)
+- **Marine Optimization**: External antenna provides superior performance in marine environments
 
 ### Sensor Interfaces:
 - **I2C**: IMU sensor (SDA: GPIO21, SCL: GPIO22)
@@ -74,7 +76,7 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
 
 ### ESP32 Pin Connections:
 ```
-ESP32 DOIT DevKit V1 Pinout:
+ESP32 DevKitC WROOM-32U Pinout:
 ┌─────────────────────────────┐
 │  3V3  [ ][ ] VIN            │
 │  GND  [ ][ ] GND            │

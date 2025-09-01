@@ -19,7 +19,7 @@ veetr/
 ## Configuration Details
 
 ### Target Hardware:
-- **Board**: ESP32 DOIT DevKit V1
+- **Board**: ESP32 DevKitC WROOM-32U
 - **Platform**: Espressif32 v6.4.0+
 - **Framework**: Arduino
 - **Monitor Speed**: 115200 baud
