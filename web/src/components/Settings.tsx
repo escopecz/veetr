@@ -215,6 +215,17 @@ export default function Settings() {
               </div>
               
               <div className="menu-section">
+                <div className="menu-item main-menu-item theme-menu-item">
+                  <span className="menu-icon">🌙</span>
+                  <div className="menu-item-content">
+                    <h4>Theme</h4>
+                    <p>Switch between light and dark mode</p>
+                  </div>
+                  <div className="theme-toggle-container">
+                    <ThemeToggle variant="menu" />
+                  </div>
+                </div>
+
                 <button 
                   className="menu-item main-menu-item" 
                   onClick={() => navigateToView('bluetooth')}
@@ -223,18 +234,6 @@ export default function Settings() {
                   <div className="menu-item-content">
                     <h4>Bluetooth</h4>
                     <p>Connection and device pairing</p>
-                  </div>
-                  <span className="menu-arrow">›</span>
-                </button>
-                
-                <button 
-                  className="menu-item main-menu-item" 
-                  onClick={() => navigateToView('calibration')}
-                >
-                  <span className="menu-icon">⚙️</span>
-                  <div className="menu-item-content">
-                    <h4>Calibration</h4>
-                    <p>Calibrate after installation</p>
                   </div>
                   <span className="menu-arrow">›</span>
                 </button>
@@ -250,6 +249,18 @@ export default function Settings() {
                   </div>
                   <span className="menu-arrow">›</span>
                 </button>
+
+                <button 
+                  className="menu-item main-menu-item" 
+                  onClick={() => navigateToView('calibration')}
+                >
+                  <span className="menu-icon">⚙️</span>
+                  <div className="menu-item-content">
+                    <h4>Calibration</h4>
+                    <p>Calibrate after installation</p>
+                  </div>
+                  <span className="menu-arrow">›</span>
+                </button>
                 
                 <button 
                   className="menu-item main-menu-item" 
@@ -262,17 +273,6 @@ export default function Settings() {
                   </div>
                   <span className="menu-arrow">›</span>
                 </button>
-                
-                <div className="menu-item main-menu-item theme-menu-item">
-                  <span className="menu-icon">🌙</span>
-                  <div className="menu-item-content">
-                    <h4>Theme</h4>
-                    <p>Switch between light and dark mode</p>
-                  </div>
-                  <div className="theme-toggle-container">
-                    <ThemeToggle variant="menu" />
-                  </div>
-                </div>
               </div>
             </>
           )}
@@ -504,9 +504,7 @@ export default function Settings() {
               </div>
               
               <div className="menu-section">
-                <h4>Version Information</h4>
                 <div className="version-info">
-                  <p><strong>Veetr Dashboard</strong></p>
                   <p>Version: {APP_VERSION}</p>
                   {state.deviceName && (
                     <p>Connected Device: {state.deviceName}</p>

@@ -1,8 +1,7 @@
 // Version configuration - single source of truth
 // This version is synced from the root package.json
 const VERSION = '0.0.10'
-export const APP_NAME = 'Veetr'
-export const APP_VERSION = `${APP_NAME} v${VERSION}`
+export const APP_VERSION = `${VERSION}`
 
 // Helper function to get version for different contexts
 export function getVersionString(includeAppName = true): string {
