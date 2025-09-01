@@ -6,6 +6,7 @@ import ApparentAngleCard from './cards/ApparentAngleCard'
 import TrueWindAngleCard from './cards/TrueWindAngleCard'
 import SatellitesCard from './cards/SatellitesCard'
 import WindDirectionCard from './cards/WindDirectionCard'
+import HeadingCard from './cards/HeadingCard'
 import CompactConnectionButton from './CompactConnectionButton'
 import Settings from './Settings'
 import './Dashboard.css'
@@ -54,6 +55,9 @@ export default function Dashboard() {
             hdop={sailingData.hdop}
             lat={sailingData.lat}
             lon={sailingData.lon}
+          />
+          <HeadingCard 
+            heading={sailingData.heading}
           />
         </div>
       </div>
