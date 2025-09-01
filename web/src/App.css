@@ -16,8 +16,8 @@
   --text-accent: #718096;
   --border-color: rgba(0, 0, 0, 0.1);
   --shadow-color: rgba(0, 0, 0, 0.1);
-  --accent-color: #718096;
-  --success-color: #38a169;
+  --accent-color: #000000;
+  --success-color: #000000;
   --warning-color: #d69e2e;
   --error-color: #e53e3e;
   --compass-stroke: #a9a9a9;
@@ -34,8 +34,8 @@
   --text-accent: #a0aec0;
   --border-color: rgba(255, 255, 255, 0.1);
   --shadow-color: rgba(0, 0, 0, 0.3);
-  --accent-color: #a0aec0;
-  --success-color: #68d391;
+  --accent-color: #ffffff;
+  --success-color: #ffffff;
   --warning-color: #f6e05e;
   --error-color: #fc8181;
   --compass-stroke: #a9a9a9;
