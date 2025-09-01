@@ -2,6 +2,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  color: var(--text-primary);
 }
 
 .status-indicator {
@@ -10,6 +11,7 @@
   justify-content: center;
   gap: 0.5rem;
   font-size: 0.9rem;
+  color: var(--text-primary);
 }
 
 .status-dot {
@@ -20,20 +22,20 @@
 }
 
 .status-indicator.disconnected .status-dot {
-  background-color: #ef4444;
+  background-color: var(--error-color);
 }
 
 .status-indicator.connecting .status-dot {
-  background-color: #f59e0b;
+  background-color: var(--warning-color);
   animation: pulse 1.5s infinite;
 }
 
 .status-indicator.connected .status-dot {
-  background-color: #10b981;
+  background-color: var(--success-color);
 }
 
 .status-indicator.error .status-dot {
-  background-color: #ef4444;
+  background-color: var(--error-color);
   animation: pulse 1.5s infinite;
 }
 
@@ -47,9 +49,9 @@
 }
 
 .connect-button {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
   padding: 0.5rem 1rem;
   border-radius: 8px;
   cursor: pointer;
@@ -58,8 +60,8 @@
 }
 
 .connect-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: var(--bg-card);
+  border-color: var(--accent-color);
 }
 
 .connect-button:disabled {
@@ -89,11 +91,11 @@
   min-width: 0;
   margin: 0 auto;
   display: block;
-  background: rgba(255,255,255,0.10);
+  background: var(--bg-secondary);
   backdrop-filter: blur(10px);
-  color: #fff;
-  border: none;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px var(--shadow-color);
   transition: background 0.2s, box-shadow 0.2s;
   font-weight: 600;
   font-size: 0.85em;
@@ -106,10 +108,9 @@
   cursor: pointer;
 }
 
-.connection-status-btn:hover, .connection-status-btn:focus {
-  background: rgba(255,255,255,0.18);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-  outline: none;
+.connection-status-btn:hover {
+  background: var(--bg-card);
+  box-shadow: 0 4px 16px var(--shadow-color);
 }
 
 @media (max-width: 768px) {
@@ -149,12 +150,12 @@
 /* Touch device optimizations */
 @media (hover: none) and (pointer: coarse) {
   .connect-button:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
   }
   
   .connect-button:active {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--bg-card);
     transform: scale(0.98);
   }
 }
@@ -168,6 +169,7 @@
   margin-top: 0.3rem;
   font-size: 0.75rem;
   opacity: 0.9;
+  color: var(--text-primary);
 }
 
 .signal-bars {
@@ -179,7 +181,7 @@
 
 .signal-bar {
   width: 3px;
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: var(--border-color);
   border-radius: 1px;
   transition: background-color 0.3s ease;
 }
@@ -201,11 +203,11 @@
 }
 
 .signal-bar.active {
-  background-color: #10b981;
+  background-color: var(--success-color);
 }
 
 .signal-text {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
   font-weight: 500;
   text-transform: capitalize;
 }
@@ -213,7 +215,7 @@
 /* Last Message Time */
 .last-message-time {
   font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-secondary);
   margin-top: 0.2rem;
   text-align: center;
 }

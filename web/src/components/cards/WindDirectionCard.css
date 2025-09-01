@@ -24,10 +24,6 @@
     box-sizing: border-box;
   }
   .wind-direction-card {
-    max-width: 98vh;
-    max-height: 98vh;
-    width: 98vh;
-    height: 98vh;
     aspect-ratio: 1/1;
     margin: 0 auto;
     min-width: 0;
@@ -63,7 +59,7 @@
   height: 100% !important;
   max-width: 100%;
   max-height: 100%;
-  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 4px 20px var(--shadow-color));
   display: block;
 }
 
@@ -73,7 +69,8 @@
   margin-top: 0.1rem;
   padding: 0.3rem;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
 }
 
 .wind-data-item {
@@ -89,26 +86,21 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  color: var(--text-secondary);
 }
 
 .wind-value {
   font-size: 4rem;
   font-weight: 900;
-  color: #fff;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  color: var(--text-primary);
+  text-shadow: 0 2px 10px var(--shadow-color);
   line-height: 0.7;
-}
-
-/* Enhanced compass styling */
-.compass-svg circle {
-  stroke: rgba(255, 255, 255, 0.4);
-  stroke-width: 3;
 }
 
 .compass-svg text {
   font-size: 16px;
   font-weight: bold;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 3px var(--shadow-color);
 }
 
 /* Large Desktop (1400px+) */
@@ -368,4 +360,60 @@
   .wind-direction-card::before {
     animation-duration: 90s;
   }
+}
+
+/* SVG Element Styling - using CSS variables for compass visibility */
+.compass-outer-ring {
+  stroke: var(--compass-stroke);
+  fill: none;
+}
+
+.compass-inner-ring {
+  stroke: var(--compass-stroke);
+  fill: none;
+  opacity: 0.7;
+}
+
+.compass-north-pointer {
+  fill: var(--compass-fill);
+}
+
+.compass-north-text {
+  fill: var(--text-primary);
+}
+
+.compass-tick-marks {
+  stroke: var(--compass-stroke);
+}
+
+.compass-degree-labels {
+  fill: var(--text-primary);
+}
+
+.boat-shape {
+  fill: var(--text-secondary);
+  stroke: var(--text-primary);
+}
+
+.boat-center {
+  fill: var(--text-primary);
+  stroke: var(--bg-card);
+}
+
+.dead-wind-zone {
+  stroke: var(--error-color);
+}
+
+.apparent-wind-arrow {
+  fill: var(--accent-color);
+}
+
+.apparent-wind-circle {
+  fill: var(--accent-color);
+}
+
+.true-wind-indicator {
+  fill: var(--success-color);
+  stroke: var(--success-color);
+  opacity: 0.8;
 }

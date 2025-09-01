@@ -30,8 +30,6 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #0a4a7c 0%, #1e3a8a 100%);
-  color: white;
   min-height: 100vh;
   overflow-x: hidden;
 }

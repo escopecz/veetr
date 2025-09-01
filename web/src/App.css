@@ -5,15 +5,53 @@
   box-sizing: border-box;
 }
 
+/* CSS Custom Properties for theming */
+:root {
+  /* Light theme (default - better for sunlight) */
+  --bg-primary: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+  --bg-secondary: rgba(255, 255, 255, 0.4);
+  --bg-card: rgba(255, 255, 255, 0.6);
+  --text-primary: #2d3748;
+  --text-secondary: #4a5568;
+  --text-accent: #718096;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --accent-color: #718096;
+  --success-color: #38a169;
+  --warning-color: #d69e2e;
+  --error-color: #e53e3e;
+  --compass-stroke: #a9a9a9;
+  --compass-fill: #a9a9a9;
+}
+
+[data-theme="dark"] {
+  /* Dark theme - for low light conditions */
+  --bg-primary: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+  --bg-secondary: rgba(255, 255, 255, 0.05);
+  --bg-card: rgba(255, 255, 255, 0.1);
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
+  --text-accent: #a0aec0;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --accent-color: #a0aec0;
+  --success-color: #68d391;
+  --warning-color: #f6e05e;
+  --error-color: #fc8181;
+  --compass-stroke: #a9a9a9;
+  --compass-fill: #a9a9a9;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #0a4a7c 0%, #1e3a8a 100%);
-  color: white;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   min-height: 100vh;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 code {
@@ -29,71 +67,37 @@ code {
   overflow-x: hidden;
 }
 
-.app-header {
-  padding: 0.5rem 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.05);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.app-header h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
 .app-main {
   flex: 1;
   display: flex;
   align-items: stretch;
-  min-height: calc(100vh - 80px);
+  min-height: 100vh;
+}
+
+/* Light theme specific optimizations for sunlight readability */
+[data-theme="light"] {
+  /* High contrast text for better sunlight visibility */
+  --text-primary: #0d1421;
+  --text-secondary: #1a202c;
+  --text-accent: #1a365d;
 }
 
 /* Responsive design */
 @media (max-width: 768px) {
-  .app-header {
-    flex-direction: column;
-    gap: 1rem;
-    padding: 1rem;
-  }
-  
-  .app-header h1 {
-    font-size: 1.3rem;
-  }
-  
   .app-main {
-    min-height: calc(100vh - 120px);
+    min-height: 100vh;
   }
 }
 
 @media (max-width: 599px) {
-  .app-header {
-    padding: 0.75rem;
-  }
-  
-  .app-header h1 {
-    font-size: 1.2rem;
-  }
-  
   .app-main {
-    min-height: calc(100vh - 100px);
+    min-height: 100vh;
   }
 }
 
 @media (max-width: 480px) {
-  .app-header {
-    padding: 0.5rem;
-  }
-  
-  .app-header h1 {
-    font-size: 1.1rem;
+  .app-main {
+    min-height: 100vh;
   }
 }
 

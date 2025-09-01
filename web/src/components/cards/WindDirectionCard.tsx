@@ -33,8 +33,7 @@ export default function WindDirectionCard({
             cx="250" 
             cy="250" 
             r="180" 
-            fill="none" 
-            stroke="rgba(255,255,255,0.3)" 
+            className="compass-outer-ring"
             strokeWidth="4"
           />
           
@@ -43,8 +42,7 @@ export default function WindDirectionCard({
             cx="250" 
             cy="250" 
             r="150" 
-            fill="none" 
-            stroke="rgba(255,255,255,0.2)" 
+            className="compass-inner-ring"
             strokeWidth="2"
           />
           
@@ -52,13 +50,12 @@ export default function WindDirectionCard({
           <g transform={`rotate(${-smoothHeading} 250 250)`}>
             <path
               d="M 245,99 L 250,84 L 255,99 Z"
-              fill="rgba(255,255,255,0.3)"
-              stroke="none"
+              className="compass-north-pointer"
             />
             <text 
               x="250" 
               y="115" 
-              fill="#ffffff" 
+              className="compass-north-text"
               fontSize="12" 
               fontWeight="bold"
               textAnchor="middle"
@@ -86,7 +83,7 @@ export default function WindDirectionCard({
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke="rgba(255,255,255,0.4)"
+                className="compass-tick-marks"
                 strokeWidth={isCardinal ? "3" : isMajor ? "2" : "1"}
               />
             );
@@ -111,7 +108,7 @@ export default function WindDirectionCard({
                   key={`starboard-${angle}`}
                   x={x1}
                   y={y1 + 4}
-                  fill="rgba(255,255,255,0.8)"
+                  className="compass-degree-labels"
                   fontSize="12"
                   fontWeight="bold"
                   textAnchor="middle"
@@ -129,7 +126,7 @@ export default function WindDirectionCard({
                     key={`port-${angle}`}
                     x={x2}
                     y={y2 + 4}
-                    fill="rgba(255,255,255,0.8)"
+                    className="compass-degree-labels"
                     fontSize="12"
                     fontWeight="bold"
                     textAnchor="middle"
@@ -146,16 +143,16 @@ export default function WindDirectionCard({
           {/* Boat shape at center */}
           <path
             d="M 250,222 Q 264,250 257,278 Q 250,285 243,278 Q 236,250 250,222 Z"
-            fill="#404040"
-            stroke="#e0e0e0"
+            fill="var(--text-secondary)"
+            stroke="var(--text-primary)"
             strokeWidth="2"
           />
-          <circle cx="250" cy="250" r="5" fill="#000" stroke="#fff" strokeWidth="2" />
+          <circle cx="250" cy="250" r="5" fill="var(--text-primary)" stroke="var(--bg-card)" strokeWidth="2" />
           
           {/* Dead wind zone (red V) - drawn after boat to appear on top */}
           <path
             d={`M 250,250 L ${250 + 180 * Math.sin((deadWindAngle * Math.PI) / 180)},${250 - 180 * Math.cos((deadWindAngle * Math.PI) / 180)} M 250,250 L ${250 - 180 * Math.sin((deadWindAngle * Math.PI) / 180)},${250 - 180 * Math.cos((deadWindAngle * Math.PI) / 180)}`}
-            stroke="#ef4444"
+            stroke="var(--error-color)"
             strokeWidth="4"
             opacity="0.6"
           />
@@ -164,12 +161,12 @@ export default function WindDirectionCard({
           <g transform={`rotate(${smoothWindDirection} 250 250)`}>
             <path
               d="M 240,70 L 250,250 L 260,70"
-              fill="#ffffff"
+              fill="var(--accent-color)"
               stroke="none"
               strokeWidth="0"
               opacity="0.95"
             />
-            <circle cx="250" cy="80" r="8" fill="#ffffff" stroke="none" strokeWidth="0" />
+            <circle cx="250" cy="80" r="8" fill="var(--accent-color)" stroke="none" strokeWidth="0" />
             {/* Removed APP label for apparent wind arrow */}
           </g>
           
@@ -178,9 +175,10 @@ export default function WindDirectionCard({
             <g transform={`rotate(${smoothTrueWindAngle} 250 250)`}>
               <path
                 d="M 240,70 L 250,100 L 260,70 Z"
-                fill="rgba(255,255,255,0.9)"
-                stroke="rgba(255,255,255,0.5)"
+                fill="var(--success-color)"
+                stroke="var(--success-color)"
                 strokeWidth="1"
+                opacity="0.8"
               />
             </g>
           )}

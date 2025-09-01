@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useBLE } from '../context/BLEContext'
 import { FirmwareUpdateCard } from './cards/FirmwareUpdateCard'
+import ThemeToggle from './ThemeToggle'
 import { APP_VERSION } from '../utils/version'
 import './Settings.css'
 
@@ -249,6 +250,17 @@ export default function Settings() {
                   </div>
                   <span className="menu-arrow">›</span>
                 </button>
+                
+                <div className="menu-item main-menu-item theme-menu-item">
+                  <span className="menu-icon">🌙</span>
+                  <div className="menu-item-content">
+                    <h4>Theme</h4>
+                    <p>Switch between light and dark mode</p>
+                  </div>
+                  <div className="theme-toggle-container">
+                    <ThemeToggle variant="menu" />
+                  </div>
+                </div>
               </div>
             </>
           )}

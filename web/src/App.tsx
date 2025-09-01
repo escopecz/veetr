@@ -1,16 +1,19 @@
 import { BLEProvider } from './context/BLEContext'
+import { ThemeProvider } from './context/ThemeContext'
 import Dashboard from './components/Dashboard'
 import './App.css'
 
 function App() {
   return (
-    <BLEProvider>
-      <div className="app">
-        <main className="app-main">
-          <Dashboard />
-        </main>
-      </div>
-    </BLEProvider>
+    <ThemeProvider>
+      <BLEProvider>
+        <div className="app">
+          <main className="app-main">
+            <Dashboard />
+          </main>
+        </div>
+      </BLEProvider>
+    </ThemeProvider>
   )
 }
 

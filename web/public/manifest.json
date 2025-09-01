@@ -3,8 +3,8 @@
   "description": "Real-time sailing dashboard with BLE connectivity",
   "start_url": "/veetr/",
   "display": "standalone",
-  "background_color": "#0a4a7c",
-  "theme_color": "#0a4a7c",
+  "background_color": "#e3f2fd",
+  "theme_color": "#3182ce",
   "icons": [
     {
       "src": "/veetr/favicon.svg",

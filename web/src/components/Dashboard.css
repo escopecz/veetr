@@ -150,24 +150,22 @@
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  border: none;
-  border-radius: 12px;
-  padding: 0.4rem;
+  background: transparent;
+  backdrop-filter: none;
   transition: all 0.3s ease;
   min-height: 0;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   overflow: hidden;
-  margin: 0.05rem;
+  color: var(--text-primary);
+  box-shadow: none;
 }
 
 .card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  border-color: var(--accent-color);
 }
 
 .card-title {
@@ -176,6 +174,7 @@
   opacity: 0.8;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  color: var(--text-secondary);
 }
 
 .card-value {
@@ -189,11 +188,20 @@
   justify-content: center;
   flex-direction: column;
   line-height: 0.9;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 2px 8px var(--shadow-color);
   padding: 0.1rem;
-  color: white;
+  color: var(--text-primary);
   box-sizing: border-box;
   overflow: hidden;
+}
+
+[data-theme="light"] .card-value {
+  font-weight: 900; /* Extra bold for sunlight visibility */
+  text-shadow: 0 1px 2px var(--bg-card);
+}
+
+[data-theme="light"] .card-title {
+  font-weight: 700; /* Bolder titles for sunlight */
 }
 
 .value-unit-row {
@@ -205,7 +213,7 @@
 }
 
 .value-number {
-  font-size: 1em;
+  font-size: 1.5em;
   font-weight: 900;
   line-height: 1;
 }
@@ -270,7 +278,7 @@
 .gps-label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
   letter-spacing: 0.5px;
   text-align: left;
   flex: 1;
@@ -279,8 +287,8 @@
 .gps-value {
   font-size: 0.8rem;
   font-weight: 700;
-  color: white;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  color: var(--text-primary);
+  text-shadow: 0 1px 4px var(--shadow-color);
   text-align: right;
   flex: 1;
 }
