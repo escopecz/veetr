@@ -7,11 +7,11 @@ import './Settings.css'
 
 export default function Settings() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [currentView, setCurrentView] = useState<'main' | 'configuration' | 'regatta' | 'about'>('main')
+  const [currentView, setCurrentView] = useState<'main' | 'bluetooth' | 'calibration' | 'regatta' | 'about'>('main')
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)
   const [deviceName, setDeviceName] = useState('')
   const menuRef = useRef<HTMLDivElement>(null)
-  const { state, sendCommand } = useBLE()
+  const { state, sendCommand, connect, disconnect } = useBLE()
 
   // Pre-fill device name when connected device name is available
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function Settings() {
     }
   }
 
-  const navigateToView = (view: 'main' | 'configuration' | 'regatta' | 'about') => {
+  const navigateToView = (view: 'main' | 'bluetooth' | 'calibration' | 'regatta' | 'about') => {
     setCurrentView(view)
   }
 
@@ -217,12 +217,24 @@ export default function Settings() {
               <div className="menu-section">
                 <button 
                   className="menu-item main-menu-item" 
-                  onClick={() => navigateToView('configuration')}
+                  onClick={() => navigateToView('bluetooth')}
+                >
+                  <span className="menu-icon">📶</span>
+                  <div className="menu-item-content">
+                    <h4>Bluetooth</h4>
+                    <p>Connection and device pairing</p>
+                  </div>
+                  <span className="menu-arrow">›</span>
+                </button>
+                
+                <button 
+                  className="menu-item main-menu-item" 
+                  onClick={() => navigateToView('calibration')}
                 >
                   <span className="menu-icon">⚙️</span>
                   <div className="menu-item-content">
-                    <h4>Configuration</h4>
-                    <p>Calibration and device settings</p>
+                    <h4>Calibration</h4>
+                    <p>Calibrate after installation</p>
                   </div>
                   <span className="menu-arrow">›</span>
                 </button>
@@ -265,7 +277,7 @@ export default function Settings() {
             </>
           )}
 
-          {currentView === 'configuration' && (
+          {currentView === 'bluetooth' && (
             <>
               <div className="menu-header">
                 <button 
@@ -275,7 +287,104 @@ export default function Settings() {
                 >
                   ‹
                 </button>
-                <h3>Configuration</h3>
+                <h3>Bluetooth</h3>
+                <button 
+                  className="close-button" 
+                  onClick={() => setMenuOpen(false)}
+                  aria-label="Close menu"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="menu-section">
+                <div className="bluetooth-status">
+                  {state.isConnected ? (
+                    <div className="connection-info">
+                      <div className="status-indicator connected">
+                        <span className="status-dot"></span>
+                        <span className="status-text">Connected</span>
+                      </div>
+                      {state.rssi !== null && (
+                        <p className="signal-strength">Signal: {state.rssi}dBm ({state.signalQuality})</p>
+                      )}
+                      {state.lastMessageTime && (
+                        <p className="last-update">
+                          Last update: {Math.floor((Date.now() - state.lastMessageTime) / 1000)}s ago
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="connection-info">
+                      <div className="status-indicator disconnected">
+                        <span className="status-dot"></span>
+                        <span className="status-text">
+                          {state.isConnecting ? 'Connecting...' : 'Disconnected'}
+                        </span>
+                      </div>
+                      {state.error && (
+                        <p className="error-message">Error: {state.error}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                <button 
+                  className={`menu-item connection-button ${state.isConnected ? 'connected' : 'disconnected'}`}
+                  onClick={() => state.isConnected ? disconnect() : connect()}
+                  disabled={state.isConnecting}
+                >
+                  {state.isConnecting 
+                    ? 'Connecting...' 
+                    : state.isConnected 
+                      ? 'Disconnect' 
+                      : 'Connect to Veetr'
+                  }
+                </button>
+              </div>
+
+              <div className="menu-section">
+                <div className="input-group">
+                  <label htmlFor="deviceName">Device Name:</label>
+                  <input 
+                    id="deviceName"
+                    type="text"
+                    value={deviceName}
+                    onChange={(e) => setDeviceName(e.target.value)}
+                    placeholder={state.deviceName || "Veetr_Port_Side"}
+                    maxLength={20}
+                    disabled={actionInProgress !== null}
+                  />
+                  <button 
+                    onClick={handleSetDeviceName}
+                    disabled={actionInProgress !== null || !state.isConnected || !deviceName.trim()}
+                    className="action-button"
+                  >
+                    {actionInProgress === 'setDeviceName' ? 'Setting...' : 'Set Name'}
+                  </button>
+                </div>
+                <p className="help-text">Device will restart after name change. Allowed: letters, numbers, underscore, hyphen, space</p>
+              </div>
+
+              {!state.isConnected && (
+                <div className="connection-warning">
+                  <p>⚠️ Connect to Veetr device to configure settings</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {currentView === 'calibration' && (
+            <>
+              <div className="menu-header">
+                <button 
+                  className="back-button" 
+                  onClick={() => navigateToView('main')}
+                  aria-label="Back to main menu"
+                >
+                  ‹
+                </button>
+                <h3>Calibration</h3>
                 <button 
                   className="close-button" 
                   onClick={() => setMenuOpen(false)}
@@ -286,7 +395,6 @@ export default function Settings() {
               </div>
               
               <div className="menu-section">
-                <h4>Calibration</h4>
                 <button 
                   className="menu-item" 
                   onClick={handleCalibrateLevel}
@@ -304,36 +412,6 @@ export default function Settings() {
                   {actionInProgress === 'resetCompass' ? 'Calibrating...' : 'Set Compass North'}
                 </button>
                 <p className="help-text">Point vessel's bow to north, then press to calibrate compass heading</p>
-              </div>
-
-              <div className="menu-section">
-                <h4>Device Configuration</h4>
-                
-                {state.deviceName && (
-                  <p className="help-text" style={{ marginBottom: '8px', color: 'rgba(255, 255, 255, 0.8)' }}>
-                    Current device: <strong>{state.deviceName}</strong>
-                  </p>
-                )}
-                
-                <div className="input-group">
-                  <label htmlFor="deviceName">New Device Name:</label>
-                  <input 
-                    id="deviceName"
-                    type="text"
-                    value={deviceName}
-                    onChange={(e) => setDeviceName(e.target.value)}
-                    placeholder={state.deviceName || "Veetr_Port_Side"}
-                    maxLength={20}
-                    disabled={actionInProgress !== null}
-                  />
-                  <button 
-                    onClick={handleSetDeviceName}
-                    disabled={actionInProgress !== null || !state.isConnected || !deviceName.trim()}
-                  >
-                    {actionInProgress === 'setDeviceName' ? 'Setting...' : 'Set Name'}
-                  </button>
-                </div>
-                <p className="help-text">Device will restart after name change. Allowed: letters, numbers, underscore, hyphen, space</p>
               </div>
 
               {!state.isConnected && (

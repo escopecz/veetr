@@ -112,6 +112,7 @@
   line-height: 1;
   width: 32px;
   height: 32px;
+  min-height: auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -388,7 +389,6 @@
   color: var(--text-primary);
 }
 
-.connection-button,
 .action-button,
 .calibrate-button {
   background: var(--bg-secondary) !important;
@@ -396,7 +396,6 @@
   border: 1px solid var(--border-color) !important;
 }
 
-.connection-button:hover,
 .action-button:hover,
 .calibrate-button:hover {
   background: var(--bg-card) !important;
@@ -448,4 +447,77 @@
 
 .theme-toggle-container {
   margin-left: 8px;
+}
+
+/* Bluetooth Section */
+.bluetooth-status {
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.connection-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-indicator.connected .status-dot {
+  background: var(--success-color);
+}
+
+.status-indicator.disconnected .status-dot {
+  background: var(--error-color);
+}
+
+.device-name,
+.signal-strength,
+.last-update {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.error-message {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--error-color);
+}
+
+.connection-button {
+  font-weight: 600;
+}
+
+.connection-button.connected {
+  background: var(--error-color);
+  color: white;
+}
+
+.connection-button.connected:hover:not(:disabled) {
+  background: var(--error-color);
+  opacity: 0.9;
+}
+
+.connection-button.disconnected {
+  background: var(--error-color);
+  color: white;
+}
+
+.connection-button.disconnected:hover:not(:disabled) {
+  background: var(--error-color);
+  opacity: 0.9;
 }

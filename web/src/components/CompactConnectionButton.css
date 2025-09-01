@@ -1,0 +1,88 @@
+/* Compact Connection Button Styles */
+.compact-connection-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: auto;
+  box-sizing: border-box;
+}
+
+/* Disconnected state - Red button with "Connect" text */
+.compact-connection-btn.disconnected {
+  background: var(--error-color);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.compact-connection-btn.disconnected:hover:not(:disabled) {
+  background: var(--error-color);
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.compact-connection-btn.disconnected:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Connected state - Small green circle */
+.compact-connection-btn.connected {
+  background: var(--success-color);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  padding: 0;
+  box-shadow: 0 2px 6px var(--shadow-color);
+}
+
+.compact-connection-btn.connected:hover:not(:disabled) {
+  background: var(--success-color);
+  opacity: 0.9;
+  transform: scale(1.1);
+  box-shadow: 0 3px 8px var(--shadow-color);
+}
+
+.connection-dot {
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0.9;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .compact-connection-btn {
+    top: 5px;
+    left: 5px;
+  }
+  
+  .compact-connection-btn.disconnected {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+  
+  .compact-connection-btn.connected {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .connection-dot {
+    width: 6px;
+    height: 6px;
+  }
+}
