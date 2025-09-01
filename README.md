@@ -52,6 +52,7 @@ veetr/
 - 🧭 **Compass Heading** - Real-time boat heading
 - 📱 **Web Dashboard** - Modern responsive interface
 - 🔗 **BLE Connectivity** - Direct ESP32 to browser communication
+- 🔒 **Discovery Security** - Button-activated BLE for secure marine deployment
 - ⚙️ **Task Buttons** - One-click build and deployment
 
 ## Technology Stack
@@ -83,7 +84,8 @@ For detailed information, see the [docs/](./docs/) directory:
 2. **⚡ Build Firmware** - Click button or `pio run`
 3. **📤 Upload to ESP32** - Click button or `pio run --target upload` 
 4. **📺 Monitor Serial** - Click button or `pio device monitor`
-5. **🔗 Test BLE Connection** - Open dashboard and connect to ESP32
+5. **� Activate Discovery** - Press and hold BOOT button (GPIO0) for 1+ seconds
+6. **�🔗 Test BLE Connection** - Open dashboard and connect to ESP32
 
 ## Browser Support
 

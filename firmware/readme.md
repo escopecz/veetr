@@ -594,15 +594,17 @@ The Luna Sailing Dashboard uses Bluetooth Low Energy (BLE) for communication bet
    - Wait 10-15 seconds for full system initialization
    - The ESP32 will start advertising as "Luna_Sailing"
 
-2. **Verify BLE Advertising**
-   - The ESP32 automatically starts BLE advertising on boot
-   - Device becomes discoverable to nearby BLE clients
+2. **Activate Discovery Mode**
+   - Press and hold the BOOT button (GPIO0) for 1+ seconds
+   - The built-in LED (GPIO2) will turn on to indicate discovery mode is active
+   - Device becomes discoverable to nearby BLE clients for 5 minutes
    - Range: typically 10-30 meters in open space
 
 3. **Connect from Client Device**
    - Use a BLE-compatible browser or application
    - Search for "Luna_Sailing" in available BLE devices
    - Select device and confirm pairing
+   - **Note**: Discovery mode expires after 5 minutes for security
    - Connection establishment takes 2-5 seconds
 
 #### Sensor Initialization Status
@@ -640,16 +642,40 @@ Once connected, the ESP32 automatically sends JSON data every 1 second:
 - Each client receives independent data stream
 - No limit on number of concurrent connections (within BLE stack limits)
 
+#### BLE Discovery Security Mode
+
+For enhanced security when deployed on boats, the ESP32 implements a button-activated discovery mode:
+
+**Default Behavior:**
+- BLE advertising is automatically disabled after 5 minutes of operation
+- Device becomes "invisible" to BLE scanners for security
+- Ideal for unattended deployment on boats in marinas or at anchor
+
+**Manual Discovery Activation:**
+- Press and hold the BOOT button (GPIO0) for 1+ seconds
+- Built-in LED (GPIO2) turns on to confirm discovery mode is active
+- BLE advertising enabled for exactly 5 minutes
+- Press BOOT button again to deactivate early if needed
+
+**Security Benefits:**
+- Prevents unauthorized BLE scanning when device is unattended
+- Perfect for marine environments where device may be left alone for hours/days
+- Only advertises when intentionally activated by user
+- Visual LED confirmation prevents accidental activation
+
 ### BLE Troubleshooting
 
 #### Common BLE Connection Issues
 
 - **Can't find the Luna_Sailing BLE device**
+  - **First**: Press and hold the BOOT button (GPIO0) for 1+ seconds to activate discovery mode
+  - Verify the built-in LED (GPIO2) turns on (discovery mode active)
   - Make sure the ESP32 is powered on and fully booted (wait 15-20 seconds)
   - Try restarting the ESP32 by pressing the reset button
   - Move closer to the ESP32 - BLE range is typically 10-30 meters in open space
   - Ensure you're using a supported browser (Chrome, Edge, or Opera)
   - Check that Bluetooth is enabled on your device
+  - **Remember**: Discovery mode expires after 5 minutes - press BOOT button again if needed
 
 - **Browser shows "Bluetooth not supported" error**
   - Make sure you're using Chrome, Edge, or Opera (not Safari or Firefox)

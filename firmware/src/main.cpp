@@ -56,6 +56,17 @@ bool imuAvailable = false; // Track if IMU is working
 #define GPS_TX 17
 #define GPS_UART 1
 
+// Discovery Mode Configuration
+#define DISCOVERY_BUTTON_PIN 0     // GPIO0 (BOOT button on ESP32 dev boards)
+#define DISCOVERY_LED_PIN 2        // GPIO2 for discovery status LED (built-in LED)
+#define DISCOVERY_TIMEOUT_MS (5 * 60 * 1000)  // 5 minutes timeout
+
+bool discoveryModeActive = false;
+unsigned long discoveryModeStartTime = 0;
+bool lastButtonState = HIGH;
+unsigned long lastButtonDebounceTime = 0;
+const unsigned long debounceDelay = 50;
+
 // RS485 Wind Sensor
 HardwareSerial rs485(RS485_UART);
 ModbusMaster windSensor;
@@ -73,6 +84,10 @@ void preTransmission();
 void postTransmission();
 void generateRandomBLEAddress();
 void resetBLEForNewName(const String& newName);
+void handleDiscoveryButton();
+void startDiscoveryMode();
+void stopDiscoveryMode();
+void updateDiscoveryStatus();
 
 // Safe BLE transmission function to prevent data corruption
 bool safeBLESend(const String& data, bool isCommand) {
@@ -137,15 +152,19 @@ class MyServerCallbacks: public NimBLEServerCallbacks {
         }
       }
       
-      // Continue advertising if we haven't reached max connections
-      if (connectedDeviceCount < CONFIG_BT_NIMBLE_MAX_CONNECTIONS) {
+      // Continue advertising if we haven't reached max connections AND discovery mode is active
+      if (connectedDeviceCount < CONFIG_BT_NIMBLE_MAX_CONNECTIONS && discoveryModeActive) {
         delay(100); // Small delay before restarting advertising
         NimBLEDevice::startAdvertising();
         Serial.printf("Continuing advertising for additional connections... (%d/%d connected)\n", 
                      connectedDeviceCount, CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
       } else {
-        Serial.printf("Maximum connections reached (%d/%d)\n", 
-                     connectedDeviceCount, CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
+        if (connectedDeviceCount >= CONFIG_BT_NIMBLE_MAX_CONNECTIONS) {
+          Serial.printf("Maximum connections reached (%d/%d)\n", 
+                       connectedDeviceCount, CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
+        } else {
+          Serial.println("Discovery mode not active, not advertising for new connections");
+        }
       }
     };
 
@@ -158,11 +177,13 @@ class MyServerCallbacks: public NimBLEServerCallbacks {
       Serial.printf("BLE Client disconnected (remaining: %d/%d)\n", 
                    connectedDeviceCount, CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
       
-      // Always restart advertising when a device disconnects to allow new connections
+      // Restart advertising when a device disconnects only if discovery mode is active
       delay(500);
-      if (!NimBLEDevice::getAdvertising()->isAdvertising()) {
+      if (!NimBLEDevice::getAdvertising()->isAdvertising() && discoveryModeActive) {
         NimBLEDevice::startAdvertising();
-        Serial.println("Restarting advertising after disconnection...");
+        Serial.println("Restarting advertising after disconnection (discovery mode active)...");
+      } else if (!discoveryModeActive) {
+        Serial.println("Discovery mode not active, not restarting advertising");
       }
     }
 };
@@ -520,6 +541,75 @@ void updateBLERSSI() {
   }
 }
 
+// Discovery Mode Functions
+void handleDiscoveryButton() {
+  int reading = digitalRead(DISCOVERY_BUTTON_PIN);
+  
+  // Check if button state changed (with debouncing)
+  if (reading != lastButtonState) {
+    lastButtonDebounceTime = millis();
+  }
+  
+  if ((millis() - lastButtonDebounceTime) > debounceDelay) {
+    // Button has been stable for debounce delay
+    if (reading == LOW && lastButtonState == HIGH) {
+      // Button pressed (falling edge)
+      if (!discoveryModeActive) {
+        startDiscoveryMode();
+      } else {
+        stopDiscoveryMode();
+      }
+    }
+  }
+  
+  lastButtonState = reading;
+}
+
+void startDiscoveryMode() {
+  Serial.println("[DISCOVERY] Starting discovery mode for 5 minutes...");
+  discoveryModeActive = true;
+  discoveryModeStartTime = millis();
+  
+  // Turn on discovery LED
+  digitalWrite(DISCOVERY_LED_PIN, HIGH);
+  
+  // Start BLE advertising if not already active
+  if (!NimBLEDevice::getAdvertising()->isAdvertising()) {
+    NimBLEDevice::startAdvertising();
+    Serial.println("[DISCOVERY] BLE advertising started");
+  }
+}
+
+void stopDiscoveryMode() {
+  Serial.println("[DISCOVERY] Stopping discovery mode");
+  discoveryModeActive = false;
+  
+  // Turn off discovery LED
+  digitalWrite(DISCOVERY_LED_PIN, LOW);
+  
+  // Stop BLE advertising if no devices are connected
+  if (pServer && pServer->getConnectedCount() == 0) {
+    NimBLEDevice::getAdvertising()->stop();
+    Serial.println("[DISCOVERY] BLE advertising stopped (no connected devices)");
+  }
+}
+
+void updateDiscoveryStatus() {
+  if (discoveryModeActive) {
+    // Check if discovery timeout has elapsed
+    if (millis() - discoveryModeStartTime > DISCOVERY_TIMEOUT_MS) {
+      stopDiscoveryMode();
+    } else {
+      // Blink LED to show discovery is active
+      static unsigned long lastBlink = 0;
+      if (millis() - lastBlink > 1000) { // Blink every second
+        digitalWrite(DISCOVERY_LED_PIN, !digitalRead(DISCOVERY_LED_PIN));
+        lastBlink = millis();
+      }
+    }
+  }
+}
+
 // ModbusMaster callback functions for RS485 control
 void preTransmission() { 
   digitalWrite(RS485_DE, HIGH); 
@@ -710,22 +800,20 @@ void setupBLEServer() {
   // Start the service
   pService->start();
 
-  // Start advertising
+  // Configure advertising for multiple connections (but don't start yet)
   NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true);
   pAdvertising->setMinPreferred(0x06);  // 7.5ms intervals
   pAdvertising->setMaxPreferred(0x12);  // 22.5ms intervals
-  
-  // Configure advertising for multiple connections
   pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);  // Undirected connectable
   
   // Include device name in advertising data
   String deviceName = preferences.getString("deviceName", "Veetr");
   pAdvertising->setName(deviceName.c_str());
   
-  Serial.printf("[BLE] Starting advertising for up to %d connections...\n", CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
-  pAdvertising->start();
+  Serial.printf("[BLE] BLE server configured for up to %d connections\n", CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
+  Serial.println("[BLE] Advertising NOT started - requires discovery mode activation");
 }
 
 // Update BLE with current sensor data
@@ -887,6 +975,13 @@ void setup() {
   Serial.printf("[Boot] Initializing BLE with device name: '%s'\n", deviceName.c_str());
   setupBLE();
   
+  // Initialize Discovery Mode GPIO
+  pinMode(DISCOVERY_BUTTON_PIN, INPUT_PULLUP);  // Button with internal pullup
+  pinMode(DISCOVERY_LED_PIN, OUTPUT);           // LED output
+  digitalWrite(DISCOVERY_LED_PIN, LOW);         // Start with LED off
+  Serial.printf("[Boot] Discovery button: GPIO%d, LED: GPIO%d\n", DISCOVERY_BUTTON_PIN, DISCOVERY_LED_PIN);
+  Serial.println("[Boot] Press and hold discovery button to enable BLE discovery for 5 minutes");
+  
   // Initialize GPS module
   gpsSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
   Serial.println("GPS module initialized");
@@ -936,6 +1031,10 @@ void setup() {
 }
 
 void loop() {
+  // Handle discovery button and mode
+  handleDiscoveryButton();
+  updateDiscoveryStatus();
+  
   // Check if it's time to update data
   if (millis() >= nextUpdate) {
     // Read sensor data
@@ -957,6 +1056,10 @@ void loop() {
       if (deviceConnected) {
         Serial.printf("BLE✓(%d) ", connectedDeviceCount);
         if (bleRSSI != 0) Serial.printf("RSSI:%ddBm ", bleRSSI);
+      }
+      if (discoveryModeActive) {
+        unsigned long remaining = (DISCOVERY_TIMEOUT_MS - (millis() - discoveryModeStartTime)) / 1000;
+        Serial.printf("Discovery:%lus ", remaining);
       }
       if (!isnan(currentData.speed) && currentData.speed > 0) 
         Serial.printf("Spd:%.1fkt ", currentData.speed);

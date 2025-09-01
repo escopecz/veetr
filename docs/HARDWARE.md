@@ -66,7 +66,9 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
 ### Sensor Interfaces:
 - **I2C**: IMU sensor (SDA: GPIO21, SCL: GPIO22)
 - **UART**: GPS module (RX: GPIO16, TX: GPIO17)
-- **RS485**: Wind sensor (DE/RE: GPIO4, RX: GPIO2, TX: GPIO0)
+- **RS485**: Wind sensor (DE/RE: GPIO14, RX: GPIO32, TX: GPIO33)
+- **Discovery Button**: GPIO0 (Built-in BOOT button)
+- **Status LED**: GPIO2 (Built-in LED)
 
 ## Installation and Wiring
 
@@ -78,13 +80,13 @@ ESP32 DOIT DevKit V1 Pinout:
 │  GND  [ ][ ] GND            │
 │  TX2  [ ][ ] GPIO13         │
 │  RX2  [ ][ ] GPIO12         │
-│GPIO22 [ ][ ] GPIO14         │ ← I2C SCL (IMU)
+│GPIO22 [ ][ ] GPIO14         │ ← I2C SCL (IMU) / RS485 DE/RE
 │GPIO21 [ ][ ] GPIO27         │ ← I2C SDA (IMU)
 │GPIO17 [ ][ ] GPIO26         │ ← UART TX (GPS)
 │GPIO16 [ ][ ] GPIO25         │ ← UART RX (GPS)
-│GPIO4  [ ][ ] GPIO33         │ ← RS485 DE/RE
-│GPIO0  [ ][ ] GPIO32         │ ← RS485 TX
-│GPIO2  [ ][ ] GPIO35         │ ← RS485 RX
+│GPIO4  [ ][ ] GPIO33         │                   / RS485 TX
+│GPIO0  [ ][ ] GPIO32         │ ← BOOT Button     / RS485 RX
+│GPIO2  [ ][ ] GPIO35         │ ← Status LED
 │GPIO15 [ ][ ] GPIO34         │
 │GPIO8  [ ][ ] GPIO39         │
 │GPIO7  [ ][ ] GPIO36         │
@@ -117,9 +119,9 @@ RX      →  GPIO17 (TX2)
 #### Wind Sensor (RS485):
 ```
 RS485   →  ESP32
-A+      →  GPIO0 (via RS485 transceiver)
-B-      →  GPIO2 (via RS485 transceiver)
-DE/RE   →  GPIO4
+A+      →  GPIO33 (via RS485 transceiver)
+B-      →  GPIO32 (via RS485 transceiver)
+DE/RE   →  GPIO14
 VCC     →  12V or 24V (sensor dependent)
 GND     →  GND
 ```
@@ -278,6 +280,36 @@ The device name feature is particularly useful for sailing applications with mul
 - **Development/Testing:** "Luna_Dev", "Luna_Prod"
 
 When you change the device name, the ESP32 immediately restarts its BLE advertising with the new name, making it instantly discoverable under the new identifier.
+
+## BLE Discovery Security Mode
+
+For enhanced security, especially when the device is deployed unattended on a boat, the ESP32 implements a secure discovery mode:
+
+### How It Works:
+- **Default State**: BLE advertising is disabled after 5 minutes of operation
+- **Discovery Activation**: Press and hold the **BOOT button** (GPIO0) for 1+ seconds
+- **Visual Feedback**: The built-in LED (GPIO2) turns on when discovery mode is active
+- **Time Limit**: Discovery mode automatically expires after 5 minutes
+- **Manual Deactivation**: Press the BOOT button again to turn off discovery mode early
+
+### Usage Instructions:
+1. **To Connect from Web Dashboard:**
+   - Press and hold the BOOT button on the ESP32 for 1+ seconds
+   - Verify the built-in LED turns on (discovery mode active)
+   - Open the web dashboard and click "Connect"
+   - The ESP32 will appear in the device list for up to 5 minutes
+   - Connect to the device normally
+
+2. **Security Benefits:**
+   - Prevents unauthorized BLE scanning when device is unattended
+   - Ideal for boats moored at marinas or anchored overnight
+   - Only advertises BLE when intentionally activated
+   - LED provides clear visual confirmation of discovery state
+
+3. **Troubleshooting:**
+   - If device doesn't appear in BLE scan: Press the BOOT button to activate discovery
+   - If LED doesn't turn on: Check that firmware includes discovery mode feature
+   - If discovery expires: Simply press BOOT button again to restart 5-minute window
 
 ## Development
 

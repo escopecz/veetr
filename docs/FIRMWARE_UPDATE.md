@@ -77,8 +77,10 @@ After updating, you can verify the firmware version by:
 
 ### Connection Issues
 - Make sure Bluetooth is enabled on your device
+- **Activate Discovery Mode**: Press and hold the BOOT button (GPIO0) for 1+ seconds
+- Verify the built-in LED (GPIO2) turns on to confirm discovery mode is active
 - Clear your browser cache and try again
-- Check that the ESP32 is powered on and advertising
+- Check that the ESP32 is powered on and in discovery mode (LED should be on)
 
 ### Manual Installation Issues
 - Verify the correct port/COM number for your ESP32

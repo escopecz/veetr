@@ -123,10 +123,14 @@ cd web && npm run dev
 ```
 
 ### 3. Connect via Bluetooth
-1. Open dashboard at http://localhost:5174
-2. Click **"Connect to Luna"** button
-3. Select ESP32 device from Bluetooth pairing dialog
-4. Monitor real-time sailing data
+1. **Activate Discovery Mode**: Press and hold the BOOT button (GPIO0) on ESP32 for 1+ seconds
+2. **Verify Status**: Check that the built-in LED (GPIO2) turns on
+3. Open dashboard at https://escopecz.github.io/veetr
+4. Click **"Connect to Luna"** button
+5. Select ESP32 device from Bluetooth pairing dialog
+6. Monitor real-time sailing data
+
+**Note**: Discovery mode automatically expires after 5 minutes for security. Press BOOT button again if needed.
 
 ### 4. Monitor Debug Output
 ```bash
@@ -148,9 +152,12 @@ pio device monitor
 - Press reset button during upload if needed
 
 ### Web Bluetooth Not Working:
+- **First**: Press and hold BOOT button (GPIO0) to activate discovery mode
+- Verify built-in LED turns on (discovery active)
 - Use Chrome, Edge, or Opera browser
 - Enable Web Bluetooth in browser flags if needed
 - Ensure HTTPS or localhost origin
+- Clear browser cache if device not found
 
 ### Build Errors:
 - Check Node.js version (v16+)
