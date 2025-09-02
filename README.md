@@ -1,65 +1,40 @@
 # Veetr
 
-Veetr provides open source software and hardware for tracking wind speed, direction, speed over ground, GPS tracking, heading, heel and other data in real time during a sail. Great fit for daysailers or weekendsailers.
-
-## Quick Start ⚡
-
-### 1. Setup Development Environment
-```bash
-git clone https://github.com/escopecz/veetr.git
-cd veetr
-code veetr.code-workspace
-```
-
-### 2. Install Task Buttons Extension
-Install the **Task Buttons** extension in VS Code for one-click development.
-
-### 3. Use Task Buttons
-Look for these buttons in your VS Code status bar:
-- **🌐 Web Dev** - Start React development server
-- **⚡ FW Build** - Build ESP32 firmware  
-- **📤 FW Upload** - Upload firmware to ESP32
-- **📺 Monitor** - Open serial monitor
-
-### 4. Alternative Commands
-```bash
-# Web development
-cd web && npm install && npm run dev
-
-# Firmware development  
-pio run                    # Build
-pio run --target upload    # Upload to ESP32
-pio device monitor         # Serial monitor
-```
-
-## Project Structure
-
-```
-veetr/
-├── web/                     # React/TypeScript web dashboard
-├── firmware/                # ESP32 firmware source code
-├── docs/                    # Detailed documentation
-├── platformio.ini           # PlatformIO configuration
-├── package.json             # Root workspace configuration
-└── .vscode/                 # VS Code tasks and settings
-```
+Veetr provides open source software and hardware for tracking wind speed, direction, speed over ground, GPS tracking, heading, heel and other data in real time during a sail. Great fit for day-sailers or weekend-sailers.
 
 ## Features
+- Real time measurements of:
+    - SOG (Speed Over Ground) using GPS
+    - AWS (Aparent Wind Speed) using the wind sensor
+    - AWA (Aparent Wind Angle) using the wind sensor
+    - TWS (True Wind Speed) calculated from SOG and AWS and AWA
+    - TWA (True Wind Angle) calculated from SOG and AWA
+    - Heel (Heeling angle) using the 9-axes sensor
+    - HDG (Heading angle to magnetic north) using the 9-axes sensor
+- OTA (Over the air) updates of the firmware. The app will allow you to update the firmware of the device when a new version is available
+- The app is a PWA (Progressive Web App). It means you can use it in your browser, you can install it on your desktop as a real app. The advantage is that it is always up to date after refresh. No need for app stores and their limitations
+- The app is also responsive. It looks great on any screen size and orientation
+- There is also light and dark mode for sunny days and night passages
+- Up to 4 devices can connect at the same time
+- Regatta starting procedure allows you to pin 2 placess and the app will tell you how far are you from the line between the 2 points. It allows you to be as close to the starting line as possible without worying about being over.
 
-- 🛰️ **Real-time GPS Data** - Speed, course, position, satellite count
-- 💨 **Wind Monitoring** - Apparent and true wind speed/direction
-- ⚖️ **Heel Angle** - Precise boat tilt monitoring
-- 🧭 **Compass Heading** - Real-time boat heading
-- 📱 **Web Dashboard** - Modern responsive interface
-- 🔗 **BLE Connectivity** - Direct ESP32 to browser communication
-- 🔒 **Discovery Security** - Button-activated BLE for secure marine deployment
-- ⚙️ **Task Buttons** - One-click build and deployment
+## Why Veetr?
+- **Open source software** - free firmware and app to use, install, host yourself and/or modify
+- **Open hardware** - get the necessary boards from Aliexpress yourself if you want to avoid additional fees
+- **Cheap** compared to other projects - you can get the electronic components for $250 (price from 2025-09-02)
+- Your boat doesn't need any electronics inside. You can power it with any powerbank with USB-C cable.
+- **Low power consumption** A 100Ah powerbank can power the device with 1 second refresh rate for around 24 hours
+- **No moving parts** The windmetter is ultrasonic. Very precise and works nicely even in small wind speeds
+- **Lightweight** The wind sensor dimensions are 66x64 mm and weights 89 grams.
+- **Quality sensors** This project is cheap but still uses high quality sensors. It could have been even cheaper but it would compromise on quality.
+- **Security** The bluethooth device is discoverable only when you press a phisical button for 5 minutes. No one else will be able to connect otherwise.
+
 
 ## Technology Stack
 
 ### Web Dashboard:
 - **React 18** + TypeScript + Vite
-- **Tailwind CSS** for styling
+- **Progressive Web App** for mobile installation
 - **Web Bluetooth API** for BLE communication
 
 ### ESP32 Firmware:
@@ -71,26 +46,13 @@ veetr/
 
 For detailed information, see the [docs/](./docs/) directory:
 
-- **[Setup Guide](./docs/SETUP.md)** - Complete installation and configuration
+- **[Setup Guide](./docs/SETUP.md)** - Step-by-step user setup for sailors
+- **[Development Guide](./docs/DEVELOPMENT.md)** - Developer workflow and contribution guide
+- **[Hardware Guide](./docs/HARDWARE.md)** - ESP32 wiring and sensor specifications
 - **[Firmware Update Guide](./docs/FIRMWARE_UPDATE.md)** - How to update ESP32 firmware
-- **[Hardware Guide](./docs/HARDWARE.md)** - ESP32 wiring and sensor setup
 - **[PlatformIO Guide](./docs/PLATFORMIO.md)** - Firmware development details
 - **[Storage Architecture](./docs/STORAGE.md)** - Data storage and persistence
 - **[Version Management](./docs/VERSION_MANAGEMENT.md)** - Release and versioning workflow
-
-## Development Workflow
-
-1. **🌐 Start Web Dev Server** - Click button or `cd web && npm run dev`
-2. **⚡ Build Firmware** - Click button or `pio run`
-3. **📤 Upload to ESP32** - Click button or `pio run --target upload` 
-4. **📺 Monitor Serial** - Click button or `pio device monitor`
-5. **� Activate Discovery** - Press and hold BOOT button (GPIO0) for 1+ seconds
-6. **�🔗 Test BLE Connection** - Open dashboard and connect to ESP32
-
-## Browser Support
-
-- ✅ **Chrome, Edge, Opera** - Full Web Bluetooth support
-- ❌ **Firefox, Safari** - No Web Bluetooth support yet
 
 ## License
 

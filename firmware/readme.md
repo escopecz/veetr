@@ -302,52 +302,29 @@ Auto-detection occurs at startup by attempting communication with each format an
 
 ## Getting Started
 
-### Setup
+### Development Setup
 
-#### Software Prerequisites
+For complete development environment setup, daily workflow, and contribution guidelines, see the **[Development Guide](../docs/DEVELOPMENT.md)**.
 
-1. **Development Environment**
-   - [Visual Studio Code](https://code.visualstudio.com/) (VS Code)
-   - [PlatformIO IDE Extension](https://platformio.org/install/ide?install=vscode)
-   - [Git](https://git-scm.com/downloads) (optional, for cloning the repository)
-
-2. **Required USB Drivers**
-   - For Windows: [CP210x USB to UART Bridge VCP Drivers](https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers)
-   - For macOS: Drivers are usually pre-installed
-   - For Linux: Usually included in the kernel, but you may need to add your user to the `dialout` group:
-     ```bash
-     sudo usermod -a -G dialout $USER
-     # Log out and log back in for changes to take effect
-     ```
+This firmware documentation focuses on ESP32-specific implementation details and BLE protocol specifications.
 
 #### Hardware Setup
 
 1. **Wire the Sensors to ESP32**
-   - **GPS Module (NEO-7M)**
-     - VCC → 3.3V on ESP32
-     - GND → GND on ESP32
-     - TX → GPIO 16 (RX2) on ESP32
-     - RX → GPIO 17 (TX2) on ESP32
-   
-   - **BNO080 IMU Sensor**
-     - VCC → 3.3V on ESP32
-     - GND → GND on ESP32
-     - SCL → GPIO 22 on ESP32
-     - SDA → GPIO 21 on ESP32
-   
-   - **Wind Sensor (via RS485 converter)**
-     - Connect RS485 converter to ESP32:
-       - VCC → 5V on ESP32
-       - GND → GND on ESP32
-       - RX → GPIO 25 (TX) on ESP32
-       - TX → GPIO 26 (RX) on ESP32
-     - Connect wind sensor to RS485 converter (A to A, B to B)
+For detailed hardware wiring and sensor specifications, see the **[Hardware Guide](../docs/HARDWARE.md)**.
 
-2. **Power Supply**
-   - For testing: USB connection to computer
-   - For deployment: 5V power bank or boat's 12V supply with a voltage regulator
+1. **Wire the Sensors to ESP32**
+   - **GPS Module**: UART connection (GPIO16/17)
+   - **BNO080 IMU**: I2C connection (GPIO21/22)  
+   - **Wind Sensor**: RS485 connection (GPIO32/33/14)
+
+2. **Connect ESP32 to Computer**
+   - Use USB cable for programming and power during development
+   - For deployment: 5V power bank (portable) or boat's 12V supply with voltage regulator
 
 #### Software Installation
+
+For complete software setup, see the **[Development Guide](../docs/DEVELOPMENT.md)**.
 
 1. **Clone this repository**
    ```bash
@@ -385,29 +362,7 @@ Auto-detection occurs at startup by attempting communication with each format an
      pio pkg install --library "4-20ma/ModbusMaster"
      ```
 
-4. **Build the firmware**
-   - In VS Code, click on the PlatformIO icon in the sidebar
-   - Select "Project Tasks" > "Build" or use the VS Code task
-   - Wait for the build to complete
-   - Check the terminal output for any errors
-
-5. **Connect ESP32 to your computer**
-   - Use a micro-USB cable to connect the ESP32 to your computer
-   - Check that the board is recognized:
-     - Windows: Check Device Manager under "Ports (COM & LPT)"
-     - macOS: Run `ls /dev/cu.*` in Terminal
-     - Linux: Run `ls /dev/ttyUSB*` in Terminal
-
-6. **Upload the firmware to ESP32**
-   - In VS Code, select "Project Tasks" > "Upload" or use the VS Code task
-   - If you encounter upload issues:
-     - Press and hold the BOOT button on the ESP32 while initiating the upload
-     - Release the BOOT button after the upload begins
-   - Wait for the upload to complete (you should see "Success" in the terminal)
-
-7. **Restart the ESP32**
-   - Press the RST (Reset) button on the ESP32 or
-   - Disconnect and reconnect the USB cable
+For build, upload, and testing procedures, see the **[Development Guide](../docs/DEVELOPMENT.md)**.
 
 ### Connecting to the Dashboard
 
@@ -719,7 +674,7 @@ For enhanced security when deployed on boats, the ESP32 implements a button-acti
 - **Wind data not appearing in JSON**
   - Verify wind sensor is connected to RS485 converter
   - Check RS485 converter connections to ESP32 pins 32/33
-  - Ensure wind sensor has proper power supply (typically 12V)
+  - Ensure wind sensor has proper power supply (5-12V, 5V power bank works)
   - Check serial console for auto-detection messages during startup
   - System automatically tries both IEEE754 and integer formats
   - Wind sensor data only appears in JSON when sensor is detected and working
@@ -828,56 +783,9 @@ For enhanced security when deployed on boats, the ESP32 implements a button-acti
 - Implements robust error handling for missing or failed sensors
 - Provides standardized marine JSON API over BLE notifications
 
-### Building and Uploading
+For build, upload, and development procedures, see the **[Development Guide](../docs/DEVELOPMENT.md)** and **[PlatformIO Guide](../docs/PLATFORMIO.md)**.
 
-#### Using VS Code Tasks (Recommended)
-
-VS Code with PlatformIO extension provides several tasks that can be executed from the UI:
-
-1. Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS) to open the command palette
-2. Type "Tasks: Run Task" and select it
-3. Choose one of the following tasks:
-   - **Build**: Compiles the firmware
-   - **Upload Firmware**: Compiles and uploads the firmware to the ESP32
-   - **Upload Filesystem**: Uploads the web files to the ESP32's filesystem
-   - **Monitor**: Opens a serial monitor to view ESP32 debug output
-   - **Clean**: Cleans the build directory
-
-#### Using PlatformIO CLI
-
-If you prefer the command line, you can use the following commands:
-
-```bash
-# Build the project
-pio run
-
-# Upload firmware
-pio run --target upload
-
-# Upload filesystem (web files)
-pio run --target uploadfs
-
-# Monitor serial output
-pio device monitor
-
-# Clean build files
-pio run --target clean
-```
-
-#### Troubleshooting Upload Issues
-
-If you encounter issues when uploading:
-
-1. Make sure the ESP32 is properly connected via USB
-2. Check that you have the correct USB driver installed
-3. On Windows, check Device Manager to verify the COM port
-4. On macOS/Linux, check that you have permission to access the serial port:
-   ```bash
-   # macOS/Linux
-   ls -l /dev/tty*
-   sudo chmod 666 /dev/ttyUSB0  # Replace with your port
-   ```
-5. Try pressing the BOOT button on the ESP32 while initiating the upload
+For build, upload, and development procedures, see the **[Development Guide](../docs/DEVELOPMENT.md)** and **[PlatformIO Guide](../docs/PLATFORMIO.md)**.
 
 ## License
 

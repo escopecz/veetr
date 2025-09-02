@@ -279,7 +279,7 @@ RS485   →  ESP32
 A+      →  GPIO33 (via RS485 transceiver)
 B-      →  GPIO32 (via RS485 transceiver)
 DE/RE   →  GPIO14
-VCC     →  12V or 24V (sensor dependent)
+VCC     →  5-12V DC (5V power bank compatible)
 GND     →  GND
 ```
 

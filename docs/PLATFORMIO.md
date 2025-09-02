@@ -37,17 +37,14 @@ veetr/
 - **Optimization**: `-Os` (size optimization)
 - **BLE Configuration**: 4 max connections, optimized logging
 
-## Development Options
+## Development Workflow
 
-### 🎯 Recommended: VS Code Task Buttons
-The easiest way to work with PlatformIO in this project:
+For complete development setup and daily workflow, see the **[Development Guide](./DEVELOPMENT.md)**.
 
-1. **⚡ FW Build** - Compile firmware
-2. **📤 FW Upload** - Upload to ESP32
-3. **📺 Monitor** - Serial monitor
-4. **🧹 Clean** - Clean build files
+This document focuses on PlatformIO-specific configuration and troubleshooting.
 
-### Alternative: Command Line
+## Build Commands Reference
+
 From the root directory (not the firmware subdirectory):
 ```bash
 pio run                    # Build firmware
@@ -56,7 +53,7 @@ pio device monitor         # Serial monitor
 pio run --target clean     # Clean build files
 ```
 
-### Alternative: PlatformIO IDE
+## PlatformIO IDE Integration
 For full PlatformIO IDE experience:
 ```bash
 cd firmware && code .
