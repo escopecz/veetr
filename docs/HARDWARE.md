@@ -9,32 +9,170 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
 ## Hardware Components
 
 ### 🔧 Main Controller:
-- **ESP32 DevKitC WROOM-32U** - Main microcontroller
-  - Dual-core 240MHz processor
-  - 320KB RAM, 4MB Flash
-  - Built-in WiFi and Bluetooth
-  - External antenna connector for enhanced marine range
-  - Multiple GPIO pins for sensors
+
+#### ESP32 DevKitC WROOM-32U Development Board
+- **Purchase Link:** https://www.aliexpress.com/item/1005008851115917.html?spm=a2g0o.order_list.order_list_main.53.49dc18021aQY6A
+- **Product Name:** ESP32 DevKitC WIFI+Bluetooth Development Board WROOM & WIFI Module with 2.4G Antenna Optional ESP32-WROOM-32U Development Board
+- **Board Type:** ESP32 DevKitC WROOM-32U
+- **Module:** ESP32-WROOM-32U (with external antenna connector)
+- **Processor:** Tensilica Xtensa Dual-Core 32-bit LX6 microprocessor
+- **Clock Speed:** Up to 240MHz (adjustable for power management)
+- **Operating Voltage:** 3.3V (with onboard voltage regulator for 5V input)
+- **Flash Memory:** 4MB (for firmware and file storage)
+- **SRAM:** 520KB (for runtime variables and program execution)
+- **Connectivity:**
+  - Wi-Fi: 802.11 b/g/n (2.4 GHz) with external antenna connector - not used in this marine application
+  - Bluetooth: v4.2 BR/EDR + BLE (using BLE for low power marine communication)
+  - **External Antenna:** U.FL/IPEX connector for 2.4G antenna (recommended for marine use)
+- **GPIO Pins:** 36 total pins (34 usable as GPIO)
+- **ADC:** 12-bit resolution, 18 channels (for analog sensor reading)
+- **DAC:** 8-bit resolution, 2 channels
+- **Communication Interfaces:**
+  - SPI: 4 interfaces (for high-speed sensor communication)
+  - I2C: 2 interfaces (used for IMU sensor)
+  - I2S: 2 interfaces (for audio applications)
+  - UART: 3 interfaces (used for GPS and RS485 communication)
+  - CAN: 1 interface
+- **PWM:** 16 channels (software configurable)
+- **Capacitive Touch:** 10 GPIO pins support touch sensing
+- **Form Factor:** Breadboard-friendly with dual-row pin layout
+- **USB Interface:** USB-C for programming and power
+- **Power Management:** Onboard AMS1117 3.3V regulator
+- **Reset/Boot:** Physical buttons for reset and flash mode
+- **LED Indicators:** Built-in power and programmable LEDs
+- **Marine Suitability:** Robust design suitable for marine electronics projects
+- **Antenna Options:** Can be ordered with or without external 2.4G antenna (external antenna recommended for marine applications to improve BLE range and reliability)
+
+#### ESP32 Pinout Reference
+```
+                    ESP32 DevKitC WROOM-32U
+                   +--------------------+
+              3V3 -|3V3              GND|- GND
+              EN  -|EN               IO23|- IO23/VSPI_MOSI
+              VP  -|IO36/VP         IO22|- IO22/I2C_SCL
+              VN  -|IO39/VN         IO1 |- IO1/TX0
+              IO34-|IO34            IO3 |- IO3/RX0
+              IO35-|IO35            IO21|- IO21/I2C_SDA
+              IO32-|IO32            GND |- GND
+              IO33-|IO33            IO19|- IO19/VSPI_MISO
+              IO25-|IO25            IO18|- IO18/VSPI_CLK
+              IO26-|IO26            IO5 |- IO5/VSPI_CS
+              IO27-|IO27            IO17|- IO17
+              IO14-|IO14/HSPI_CLK   IO16|- IO16
+              IO12-|IO12/HSPI_MISO  IO4 |- IO4
+              GND -|GND             IO0 |- IO0
+              IO13-|IO13/HSPI_MOSI  IO2 |- IO2
+              SD2 -|SD2             IO15|- IO15/HSPI_CS
+              SD3 -|SD3             SD1 |- SD1
+              CMD -|CMD             SD0 |- SD0
+              5V  -|5V              CLK |- CLK
+                   +--------------------+
+                         USB-C PORT
+```
+
+#### Pin Categories
+| Pin Category | Pin Numbers | Description |
+|--------------|-------------|-------------|
+| Power Pins | 3V3, 5V, GND | 3.3V and 5V power outputs, Ground pins |
+| ADC Pins | IO32-IO39, IO0-IO5 | Analog-to-Digital Converter |
+| DAC Pins | IO25, IO26 | Digital-to-Analog Converter |
+| Touch Pins | IO0, IO2, IO4, IO12-IO15, IO27, IO32, IO33 | Capacitive touch sensors |
+| SPI Pins | VSPI: IO5(CS), IO18(CLK), IO19(MISO), IO23(MOSI)<br>HSPI: IO15(CS), IO14(CLK), IO12(MISO), IO13(MOSI) | Serial Peripheral Interface |
+| I2C Pins | IO21(SDA), IO22(SCL) | Inter-Integrated Circuit |
+| UART Pins | UART0: IO1(TX), IO3(RX)<br>UART1: IO9(TX), IO10(RX)<br>UART2: IO16(TX), IO17(RX) | Serial communication |
+| PWM Pins | All GPIOs | Pulse Width Modulation (software configurable) |
 
 ### 📡 Sensors:
 
-#### GPS Module:
-- **Interface**: UART (Serial)
-- **Function**: Position, speed over ground (SOG), course over ground (COG)
-- **Library**: TinyGPS++
-- **Update Rate**: 1-10Hz configurable
+#### 1. ADXL345 3-Axis Accelerometer (IMU/Tilt Sensor)
+- **Purchase Link:** https://www.aliexpress.com/item/1005009120073421.html?spm=a2g0o.order_list.order_list_main.79.49dc18021aQY6A
+- **Model:** ADXL345 Triple Axis Accelerometer
+- **Interface:** I2C and SPI (using I2C in this project)
+- **Resolution:** 13-bit (providing detailed motion data)
+- **Range:** ±2g, ±4g, ±8g, ±16g (selectable for different sensitivity needs)
+- **Output Data Rate:** 0.1 Hz to 3200 Hz (configurable for marine conditions)
+- **Power Consumption:** Ultra low power for marine battery efficiency
+- **Operating Voltage:** 2.0V to 3.6V (perfect for ESP32 3.3V operation)
+- **Temperature Range:** -40°C to +85°C (suitable for marine environments)
+- **Applications in this project:**
+  - Real-time boat roll and pitch measurement
+  - Heeling angle calculation for sailing optimization
+  - Stability monitoring and alert system
+  - Motion compensation for other sensor readings
 
-#### IMU Sensor (BNO080):
-- **Interface**: I2C
-- **Function**: Heel angle, acceleration, compass heading
-- **Library**: SparkFun BNO080 Cortex Based IMU
-- **Features**: 9-axis sensor fusion, calibration storage
+#### 2. QMC5883 3-Axis Magnetometer (Electronic Compass)
+- **Purchase Link:** https://www.aliexpress.com/item/1005007983831569.html?spm=a2g0o.order_list.order_list_main.85.49dc18021aQY6A
+- **Model:** QMC5883 3-Axis Magnetometer
+- **Interface:** I2C (standard compass interface)
+- **Resolution:** 12-bit ADC for precise heading measurements
+- **Magnetic Field Range:** ±30 gauss (suitable for marine magnetic fields)
+- **Sensitivity:** 12000 LSB/gauss (high precision for accurate heading)
+- **Output Data Rate:** 10, 50, 100, 200 Hz (configurable for stability)
+- **Operating Voltage:** 2.16V to 3.6V (ESP32 compatible)
+- **Temperature Range:** -40°C to +85°C (marine environment suitable)
+- **Calibration:** Software calibration for magnetic deviation compensation
+- **Applications in this project:**
+  - Magnetic heading (HDG) measurement
+  - Course over ground reference
+  - Magnetic variation compensation
+  - Navigation aid and waypoint navigation
 
-#### Wind Sensor:
-- **Interface**: RS485/Modbus
-- **Function**: Wind speed and direction
-- **Library**: ModbusMaster
-- **Protocol**: Modbus RTU over RS485
+#### 3. RS485 Wind Sensor
+- **Purchase Link:** https://www.aliexpress.com/item/1005006995633516.html?spm=a2g0o.order_list.order_list_main.91.49dc18021aQY6A
+- **Model:** Ultrasonic Wind Speed and Direction Sensor (RS485)
+- **Interface:** RS485 Modbus RTU protocol
+- **Communication:** Half-duplex serial communication at 9600 baud
+- **Measurements:**
+  - Wind Speed: 0-30 m/s (0-60 knots) ±0.3 m/s accuracy
+  - Wind Direction: 0-359° ±3° accuracy
+- **Update Rate:** 1-10 Hz configurable (1 second default for marine stability)
+- **Operating Voltage:** 12-24V DC (requires external power supply)
+- **Power Consumption:** <2W typical operation
+- **Operating Temperature:** -40°C to +80°C (marine grade)
+- **Protection Rating:** IP65 (weather resistant for marine mounting)
+- **Installation:** Masthead or deck mounting with clear 360° exposure
+- **Cable Length:** Up to 1000m RS485 transmission distance
+- **Applications in this project:**
+  - Real-time apparent wind speed and direction
+  - True wind calculation with GPS speed and heading
+  - Wind trend analysis and logging
+  - Sailing performance optimization data
+
+#### 4. GPS Module (Future Integration)
+- **Planned Model:** Standard UART GPS module
+- **Interface:** UART serial communication
+- **Data Format:** NMEA 0183 standard sentences
+- **Update Rate:** 1-10 Hz configurable
+- **Accuracy:** <3 meters typical
+- **Applications in planned features:**
+  - Speed over ground (SOG)
+  - Course over ground (COG)
+  - Position fixing and logging
+  - True wind calculation support
+  - Navigation and waypoint features
+
+### 🔌 Communication Modules:
+
+#### RS485 to TTL Converter Module
+- **Purchase Link:** https://www.aliexpress.com/item/1005006995633516.html (often included with wind sensor)
+- **Model:** MAX485 or SP3485 based converter
+- **Function:** Convert ESP32 UART signals to RS485 differential signals
+- **Interface:** 
+  - TTL Side: 3.3V/5V UART (RX, TX, DE/RE)
+  - RS485 Side: A+/B- differential pair
+- **Operating Voltage:** 3.3V to 5V (ESP32 compatible)
+- **Data Rate:** Up to 2.5 Mbps (more than sufficient for 9600 baud wind sensor)
+- **Protection:** Built-in ESD protection for marine environment
+- **Connections to ESP32:**
+  - VCC → 3.3V or 5V
+  - GND → Ground
+  - DI (Data Input) → ESP32 TX pin
+  - RO (Receiver Output) → ESP32 RX pin
+  - DE/RE (Driver Enable/Receiver Enable) → ESP32 GPIO control pin
+- **Connections to Wind Sensor:**
+  - A+ → Wind sensor A+ (positive differential)
+  - B- → Wind sensor B- (negative differential)
+  - GND → Wind sensor ground (if available)
 
 ## System Architecture
 
