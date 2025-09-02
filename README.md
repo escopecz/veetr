@@ -3,32 +3,32 @@
 Veetr provides open source software and hardware for tracking wind speed, direction, speed over ground, GPS tracking, heading, heel and other data in real time during a sail. Great fit for day-sailers or weekend-sailers.
 
 ## Features
-- Real time measurements of:
-    - SOG (Speed Over Ground) using GPS
-    - AWS (Aparent Wind Speed) using the wind sensor
-    - AWA (Aparent Wind Angle) using the wind sensor
-    - TWS (True Wind Speed) calculated from SOG and AWS and AWA
-    - TWA (True Wind Angle) calculated from SOG and AWA
-    - Heel (Heeling angle) using the 9-axes sensor
-    - HDG (Heading angle to magnetic north) using the 9-axes sensor
-- OTA (Over the air) updates of the firmware. The app will allow you to update the firmware of the device when a new version is available
-- The app is a PWA (Progressive Web App). It means you can use it in your browser, you can install it on your desktop as a real app. The advantage is that it is always up to date after refresh. No need for app stores and their limitations
-- The app is also responsive. It looks great on any screen size and orientation
-- There is also light and dark mode for sunny days and night passages
-- Up to 4 devices can connect at the same time
-- Regatta starting procedure allows you to pin 2 placess and the app will tell you how far are you from the line between the 2 points. It allows you to be as close to the starting line as possible without worying about being over.
+- Real-time measurements of:
+    - **SOG** (Speed Over Ground) using GPS
+    - **AWS** (Apparent Wind Speed) using the wind sensor
+    - **AWA** (Apparent Wind Angle) using the wind sensor
+    - **TWS** (True Wind Speed) calculated from SOG, AWS, and AWA
+    - **TWA** (True Wind Angle) calculated from SOG and AWA
+    - **Heel** (Heeling angle) using the 9-axis sensor
+    - **HDG** (Heading angle to magnetic north) using the 9-axis sensor
+- **OTA** (Over The Air) updates of the firmware. The app will allow you to update the firmware of the device when a new version is available
+- The [app](https://escopecz.github.io/veetr) is a PWA (Progressive Web App). It means you can use it in your browser, you can install it on your desktop as a real app. The advantage is that it is always up to date after refresh. No need for app stores and their limitations
+- The [app](https://escopecz.github.io/veetr) is also **responsive**. It looks great on any screen size and orientation
+- There is also **light and dark mode** for sunny days and night passages
+- Up to **4 devices** can connect at the same time
+- Regatta starting procedure allows you to pin 2 places and the app will tell you how far you are from the line between the 2 points. It allows you to be as close to the starting line as possible without worrying about being over.
 
 ## Why Veetr?
 - **Open source software** - free firmware and app to use, install, host yourself and/or modify
 - **Open hardware** - get the necessary boards from Aliexpress yourself if you want to avoid additional fees
+- **3D printed case** - print it yourself or with your nerdy friend
 - **Cheap** compared to other projects - you can get the electronic components for $250 (price from 2025-09-02)
 - Your boat doesn't need any electronics inside. You can power it with any powerbank with USB-C cable.
-- **Low power consumption** A 100Ah powerbank can power the device with 1 second refresh rate for around 24 hours
-- **No moving parts** The windmetter is ultrasonic. Very precise and works nicely even in small wind speeds
-- **Lightweight** The wind sensor dimensions are 66x64 mm and weights 89 grams.
-- **Quality sensors** This project is cheap but still uses high quality sensors. It could have been even cheaper but it would compromise on quality.
-- **Security** The bluethooth device is discoverable only when you press a phisical button for 5 minutes. No one else will be able to connect otherwise.
-
+- **Low power consumption**: A 10Ah powerbank can power the device with 1-second refresh rate for around 24 hours
+- **No moving parts**: The wind meter is ultrasonic. Very precise and works nicely even in small wind speeds
+- **Lightweight**: The wind sensor dimensions are 66x64 mm and weighs 89 grams.
+- **Quality sensors**: This project is cheap but still uses high-quality sensors. It could have been even cheaper but it would compromise on quality.
+- **Security**: The Bluetooth device is discoverable only when you press a physical button for 5 minutes. No one else will be able to connect otherwise.
 
 ## Technology Stack
 
