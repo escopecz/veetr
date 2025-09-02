@@ -11,7 +11,7 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
 ### 🔧 Main Controller:
 
 #### ESP32 DevKitC WROOM-32U Development Board
-- **Purchase Link:** https://www.aliexpress.com/item/1005008851115917.html?spm=a2g0o.order_list.order_list_main.53.49dc18021aQY6A
+- **Purchase Link:** https://www.aliexpress.com/item/1005008851115917.html
 - **Product Name:** ESP32 DevKitC WIFI+Bluetooth Development Board WROOM & WIFI Module with 2.4G Antenna Optional ESP32-WROOM-32U Development Board
 - **Board Type:** ESP32 DevKitC WROOM-32U
 - **Module:** ESP32-WROOM-32U (with external antenna connector)
@@ -84,52 +84,55 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
 
 ### 📡 Sensors:
 
-#### 1. ADXL345 3-Axis Accelerometer (IMU/Tilt Sensor)
-- **Purchase Link:** https://www.aliexpress.com/item/1005009120073421.html?spm=a2g0o.order_list.order_list_main.79.49dc18021aQY6A
-- **Model:** ADXL345 Triple Axis Accelerometer
-- **Interface:** I2C and SPI (using I2C in this project)
-- **Resolution:** 13-bit (providing detailed motion data)
-- **Range:** ±2g, ±4g, ±8g, ±16g (selectable for different sensitivity needs)
-- **Output Data Rate:** 0.1 Hz to 3200 Hz (configurable for marine conditions)
-- **Power Consumption:** Ultra low power for marine battery efficiency
-- **Operating Voltage:** 2.0V to 3.6V (perfect for ESP32 3.3V operation)
-- **Temperature Range:** -40°C to +85°C (suitable for marine environments)
+#### 1. GY-BNO080 BNO085 AR VR IMU High Accuracy Nine-Axis 9DOF AHRS Sensor Module
+- **Purchase Link:** [AliExpress BNO080 IMU Module](https://www.aliexpress.com/item/1005009534826428.html)
+- **Model:** GY-BNO080 BNO085 AR VR IMU High Accuracy Nine-Axis 9DOF AHRS Sensor Module
+- **Chipset:** Bosch BNO080 9-axis IMU with integrated sensor fusion
+- **Interface:** I2C (primary) and SPI support
+- **Sensors Integrated:**
+  - **3-axis Accelerometer:** ±2g, ±4g, ±8g, ±16g selectable range
+  - **3-axis Gyroscope:** ±250, ±500, ±1000, ±2000 dps selectable range
+  - **3-axis Magnetometer:** Built-in compass functionality
+- **Sensor Fusion:** Hardware-based AHRS (Attitude and Heading Reference System)
+- **Output Data:**
+  - Absolute orientation (quaternions, Euler angles)
+  - Linear acceleration (gravity compensated)
+  - Angular velocity
+  - Magnetic heading
+  - Calibrated sensor data
+- **Resolution:** 16-bit for all sensors
+- **Update Rate:** Up to 1000Hz (configurable, typically 100Hz for marine use)
+- **Operating Voltage:** 3.3V (ESP32 compatible)
+- **Current Consumption:** ~12.3mA typical operation
+- **Temperature Range:** -40°C to +85°C (marine environment rated)
+- **Calibration:** Automatic dynamic calibration with calibration status reporting
+- **Marine Advantages:**
+  - Single-chip solution eliminates sensor synchronization issues
+  - Hardware sensor fusion provides stable, drift-free orientation
+  - Built-in calibration algorithms for magnetic interference compensation
+  - High accuracy suitable for precision sailing applications
 - **Applications in this project:**
-  - Real-time boat roll and pitch measurement
+  - Real-time boat roll, pitch, and yaw measurement
+  - Magnetic heading (compass) with automatic calibration
   - Heeling angle calculation for sailing optimization
-  - Stability monitoring and alert system
-  - Motion compensation for other sensor readings
+  - Stability monitoring and motion analysis
+  - True wind calculation support with attitude compensation
 
-#### 2. QMC5883 3-Axis Magnetometer (Electronic Compass)
-- **Purchase Link:** https://www.aliexpress.com/item/1005007983831569.html?spm=a2g0o.order_list.order_list_main.85.49dc18021aQY6A
-- **Model:** QMC5883 3-Axis Magnetometer
-- **Interface:** I2C (standard compass interface)
-- **Resolution:** 12-bit ADC for precise heading measurements
-- **Magnetic Field Range:** ±30 gauss (suitable for marine magnetic fields)
-- **Sensitivity:** 12000 LSB/gauss (high precision for accurate heading)
-- **Output Data Rate:** 10, 50, 100, 200 Hz (configurable for stability)
-- **Operating Voltage:** 2.16V to 3.6V (ESP32 compatible)
-- **Temperature Range:** -40°C to +85°C (marine environment suitable)
-- **Calibration:** Software calibration for magnetic deviation compensation
-- **Applications in this project:**
-  - Magnetic heading (HDG) measurement
-  - Course over ground reference
-  - Magnetic variation compensation
-  - Navigation aid and waypoint navigation
-
-#### 3. RS485 Wind Sensor
-- **Purchase Link:** https://www.aliexpress.com/item/1005006995633516.html?spm=a2g0o.order_list.order_list_main.91.49dc18021aQY6A
-- **Model:** Ultrasonic Wind Speed and Direction Sensor (RS485)
+#### 2. RS485 Wind Sensor
+- **Purchase Link:** https://www.aliexpress.com/item/1005008095979289.html
+- **Model:** Ultrasonic wind speed and direction sensor Miniature size Output RS485 Power supply 5 ~ 12V DC
+- **Design:** Miniature size for compact marine installations
 - **Interface:** RS485 Modbus RTU protocol
 - **Communication:** Half-duplex serial communication at 9600 baud
 - **Measurements:**
   - Wind Speed: 0-30 m/s (0-60 knots) ±0.3 m/s accuracy
   - Wind Direction: 0-359° ±3° accuracy
 - **Update Rate:** 1-10 Hz configurable (1 second default for marine stability)
-- **Operating Voltage:** 12-24V DC (requires external power supply)
-- **Power Consumption:** <2W typical operation
+- **Operating Voltage:** 5-12V DC (lower power requirement than standard models)
+- **Power Consumption:** <1W typical operation (energy efficient for marine use)
 - **Operating Temperature:** -40°C to +80°C (marine grade)
 - **Protection Rating:** IP65 (weather resistant for marine mounting)
+- **Size Advantage:** Miniature design reduces wind resistance and installation complexity
 - **Installation:** Masthead or deck mounting with clear 360° exposure
 - **Cable Length:** Up to 1000m RS485 transmission distance
 - **Applications in this project:**
@@ -138,23 +141,36 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
   - Wind trend analysis and logging
   - Sailing performance optimization data
 
-#### 4. GPS Module (Future Integration)
-- **Planned Model:** Standard UART GPS module
-- **Interface:** UART serial communication
-- **Data Format:** NMEA 0183 standard sentences
-- **Update Rate:** 1-10 Hz configurable
-- **Accuracy:** <3 meters typical
+#### 3. GPS Module (Future Integration)
+- **Purchase Link:** https://www.aliexpress.com/item/1005006495478139.html
+- **Antenna** https://www.aliexpress.com/item/1005005449884811.html
+- **Model:** GY-NEO8MV2 Module with Flight Control EEPROM MWC APM2.5 Large Antenna
+- **Chipset:** u-blox NEO-8M GNSS receiver
+- **Interface:** UART serial communication (3.3V/5V compatible)
+- **Antenna:** Large ceramic patch antenna for enhanced reception
+- **EEPROM:** Built-in configuration storage for flight control applications
+- **Data Format:** NMEA 0183 standard sentences (GGA, RMC, VTG, etc.)
+- **Update Rate:** 1-10 Hz configurable (default 1Hz)
+- **Accuracy:** <2.5 meters CEP (Circular Error Probable)
+- **Sensitivity:** -167 dBm (excellent for marine conditions)
+- **Acquisition:** Cold start <29s, Hot start <1s
+- **Operating Voltage:** 3.3V-5V (ESP32 compatible)
+- **Current Consumption:** ~45mA active, ~20mA backup mode
+- **Temperature Range:** -40°C to +85°C (marine environment rated)
+- **Supported Systems:** GPS, GLONASS, Galileo, BeiDou
 - **Applications in planned features:**
-  - Speed over ground (SOG)
-  - Course over ground (COG)
-  - Position fixing and logging
-  - True wind calculation support
-  - Navigation and waypoint features
+  - Speed over ground (SOG) with high precision
+  - Course over ground (COG) for navigation
+  - Position fixing and track logging
+  - True wind calculation with GPS speed compensation
+  - Waypoint navigation and routing
+  - Anchor drag alarm functionality
+  - Time synchronization for data logging
 
 ### 🔌 Communication Modules:
 
 #### RS485 to TTL Converter Module
-- **Purchase Link:** https://www.aliexpress.com/item/1005006995633516.html (often included with wind sensor)
+- **Purchase Link:** https://www.aliexpress.com/item/32688467460.html
 - **Model:** MAX485 or SP3485 based converter
 - **Function:** Convert ESP32 UART signals to RS485 differential signals
 - **Interface:** 
@@ -209,6 +225,7 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
 - **RS485**: Wind sensor (DE/RE: GPIO14, RX: GPIO32, TX: GPIO33)
 - **Discovery Button**: GPIO0 (Built-in BOOT button)
 - **Status LED**: GPIO2 (Built-in LED)
+- **Anchor Light LED**: GPIO25 (Masthead LED control)
 
 ## Installation and Wiring
 

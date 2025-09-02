@@ -67,11 +67,14 @@ The project provides sailors on small racing vessels with real-time performance 
 | --------- | --------- | -------- |
 | BNO080 IMU Sensor | IO21 (SDA) | I2C Data |
 | BNO080 IMU Sensor | IO22 (SCL) | I2C Clock |
-| RS485 Wind Sensor | IO16 (TX2) | Serial TX to RS485 converter |
-| RS485 Wind Sensor | IO17 (RX2) | Serial RX from RS485 converter |
-| RS485 Control | IO4 | DE/RE pin for half-duplex control |
-| GPS Module (future) | IO25 (TX) | Serial TX for GPS communication |
-| GPS Module (future) | IO26 (RX) | Serial RX for GPS communication |
+| RS485 Wind Sensor | IO32 (RX2) | Serial RX from RS485 converter |
+| RS485 Wind Sensor | IO33 (TX2) | Serial TX to RS485 converter |
+| RS485 Control | IO14 | DE/RE pin for half-duplex control |
+| GPS Module (future) | IO16 (RX) | Serial RX for GPS communication |
+| GPS Module (future) | IO17 (TX) | Serial TX for GPS communication |
+| Anchor Light | IO25 | PWM LED control (masthead) |
+| Discovery Button | IO0 | Built-in BOOT button |
+| Status LED | IO2 | Built-in LED |
 
 ## Software Architecture Reference
 
