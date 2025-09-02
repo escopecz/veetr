@@ -278,8 +278,8 @@ The device name feature is particularly useful for sailing applications with mul
 
 - **Fleet Management:** "Veetr_01", "Veetr_02", "Veetr_03"
 - **Multi-Hull Boats:** "Veetr_Port", "Veetr_Starboard"
-- **Multiple Locations:** "Luna_Mast", "Luna_Cockpit"
-- **Development/Testing:** "Luna_Dev", "Luna_Prod"
+- **Multiple Locations:** "Veetr_Mast", "Veetr_Cockpit"
+- **Development/Testing:** "Veetr_Dev", "Veetr_Prod"
 
 When you change the device name, the ESP32 immediately restarts its BLE advertising with the new name, making it instantly discoverable under the new identifier.
 

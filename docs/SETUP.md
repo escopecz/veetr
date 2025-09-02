@@ -1,6 +1,6 @@
-# Luna Sailing Dashboard - Setup Guide
+# Veetr Sailing Dashboard - Setup Guide
 
-Complete setup instructions for the Luna Sailing Dashboard project.
+Complete setup instructions for the Veetr Sailing Dashboard project.
 
 ## Prerequisites
 
@@ -126,7 +126,7 @@ cd web && npm run dev
 1. **Activate Discovery Mode**: Press and hold the BOOT button (GPIO0) on ESP32 for 1+ seconds
 2. **Verify Status**: Check that the built-in LED (GPIO2) turns on
 3. Open dashboard at https://escopecz.github.io/veetr
-4. Click **"Connect to Luna"** button
+4. Click **"Connect to Veetr"** button
 5. Select ESP32 device from Bluetooth pairing dialog
 6. Monitor real-time sailing data
 

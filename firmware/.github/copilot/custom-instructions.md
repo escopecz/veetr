@@ -109,6 +109,7 @@ The project provides sailors on small racing vessels with real-time information 
   - Mounting: Magnetic base for external attachment
 
 - **GY-BNO080 9-Axis IMU Sensor**
+  - https://www.aliexpress.com/item/1005009534826428.html?spm=a2g0o.order_list.order_list_main.29.4e1718028VFKWJ
   - Chip: BNO080 by Hillcrest Labs (now CEVA)
   - Features: 9-axis IMU with sensor fusion
   - Sensors: 3-axis accelerometer, 3-axis gyroscope, 3-axis magnetometer
@@ -136,7 +137,8 @@ The project provides sailors on small racing vessels with real-time information 
   - Dimensions: 0.9x1.0 inches
 
 - **Ultrasonic Wind Speed and Direction Sensor**
-  - https://www.aliexpress.com/item/1005007798498855.html
+  - https://www.aliexpress.com/item/1005007798498855.html (bigger, cheaper)
+  - https://www.aliexpress.com/item/1005008095979289.html?spm=a2g0o.order_list.order_list_main.5.49dc18021aQY6A (smaller, more expensive)
   - Type: Integrated ultrasonic anemometer
   - Measurement Range: 0-60 m/s (wind speed)
   - Wind Speed Accuracy: ±0.3 m/s or ±3% (whichever is greater)

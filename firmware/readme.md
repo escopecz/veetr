@@ -1,4 +1,4 @@
-# Luna Sailing Dashboard
+# Veetr Sailing Dashboard
 
 A sailing vessel monitoring system built with ESP32, providing real-time data on vessel speed, wind conditions, and tilt angle through a modern web application that connects via Bluetooth Low Energy (BLE).
 
@@ -43,7 +43,7 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
 
 ## BLE JSON API
 
-The Luna Sailing Dashboard transmits data via BLE notifications using a standardized JSON format with marine terminology. Data is sent approximately every 1 second to all connected BLE clients.
+The Veetr Sailing Dashboard transmits data via BLE notifications using a standardized JSON format with marine terminology. Data is sent approximately every 1 second to all connected BLE clients.
 
 ### BLE Service and Characteristics
 
@@ -158,7 +158,7 @@ The system is designed to be robust against sensor failures:
 
 ### BLE Commands
 
-The Luna Sailing Dashboard supports bidirectional communication via a dedicated command characteristic. This allows web applications to configure device settings and trigger actions remotely.
+The Veetr Sailing Dashboard supports bidirectional communication via a dedicated command characteristic. This allows web applications to configure device settings and trigger actions remotely.
 
 #### Command Characteristic
 
@@ -202,19 +202,19 @@ Placeholder commands for future regatta timing functionality.
 
 The device name feature is particularly useful for sailing applications with multiple sensors:
 
-- **Fleet Management:** "Luna_01", "Luna_02", "Luna_03"
-- **Multi-Hull Boats:** "Luna_Port", "Luna_Starboard"
-- **Multiple Locations:** "Luna_Mast", "Luna_Cockpit"
-- **Development/Testing:** "Luna_Dev", "Luna_Prod"
+- **Fleet Management:** "Veetr_01", "Veetr_02", "Veetr_03"
+- **Multi-Hull Boats:** "Veetr_Port", "Veetr_Starboard"
+- **Multiple Locations:** "Veetr_Mast", "Veetr_Cockpit"
+- **Development/Testing:** "Veetr_Dev", "Veetr_Prod"
 
 When you change the device name, the ESP32 immediately restarts its BLE advertising with the new name, making it instantly discoverable under the new identifier.
 
 ### Example Client Code (JavaScript)
 
 ```javascript
-// Connect to Luna Sailing BLE device
+// Connect to Veetr Sailing BLE device
 const device = await navigator.bluetooth.requestDevice({
-  filters: [{ name: 'Luna_Sailing' }],
+  filters: [{ name: 'Veetr_Sailing' }],
   optionalServices: ['12345678-1234-5678-9abc-def123456789']
 });
 
@@ -413,7 +413,7 @@ Auto-detection occurs at startup by attempting communication with each format an
 
 #### Web Application Access
 
-The Luna Sailing Dashboard web application is hosted externally (not on the ESP32) to provide better performance and reliability. You can access it at:
+The Veetr Sailing Dashboard web application is hosted externally (not on the ESP32) to provide better performance and reliability. You can access it at:
 
 **Live Dashboard:** [https://yourusername.github.io/luna-dashboard](https://yourusername.github.io/luna-dashboard)
 
