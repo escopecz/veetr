@@ -49,6 +49,7 @@ For detailed information, see the [docs/](./docs/) directory:
 - **[Setup Guide](./docs/SETUP.md)** - Step-by-step user setup for sailors
 - **[Development Guide](./docs/DEVELOPMENT.md)** - Developer workflow and contribution guide
 - **[Hardware Guide](./docs/HARDWARE.md)** - ESP32 wiring and sensor specifications
+- **[Compliance & Certifications](./docs/COMPLIANCE.md)** - FCC, CE, IC regulatory compliance
 - **[Firmware Update Guide](./docs/FIRMWARE_UPDATE.md)** - How to update ESP32 firmware
 - **[PlatformIO Guide](./docs/PLATFORMIO.md)** - Firmware development details
 - **[Storage Architecture](./docs/STORAGE.md)** - Data storage and persistence
