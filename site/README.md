@@ -4,7 +4,8 @@ This folder contains the static website files for https://veetr.org
 
 ## Structure
 
-- `index.html` - Main landing page with embedded CSS
+- `index.html` - Main landing page
+- `styles.css` - Stylesheet with all CSS styling
 - Additional assets can be added here as needed
 
 ## Deployment
@@ -44,7 +45,7 @@ The landing page includes:
 
 ## Customization
 
-The site uses embedded CSS for simplicity. Key design elements:
+The site uses external CSS for better maintainability. Key design elements:
 - Color scheme: Blue gradient (#667eea to #764ba2)
 - Font: System font stack for performance
 - Layout: CSS Grid and Flexbox for responsiveness
