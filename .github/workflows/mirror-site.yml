@@ -1,0 +1,90 @@
+name: Mirror Site to veetr-site Repository
+
+on:
+  push:
+    branches: [main]
+    paths: ['site/**']
+  workflow_dispatch:
+
+jobs:
+  mirror-site:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout source repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Git
+      run: |
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'actions@github.com'
+
+    - name: Clone target repository
+      run: |
+        git clone https://x-access-token:${{ secrets.VEETR_SITE_TOKEN }}@github.com/escopecz/veetr-site.git target-repo
+      env:
+        VEETR_SITE_TOKEN: ${{ secrets.VEETR_SITE_TOKEN }}
+
+    - name: Copy site files
+      run: |
+        # Remove existing files except .git and README
+        find target-repo -type f ! -path "target-repo/.git/*" ! -name "README.md" -delete
+        
+        # Copy new site files
+        cp -r site/* target-repo/
+        
+        # Create or update README if it doesn't exist
+        if [ ! -f target-repo/README.md ]; then
+          cat > target-repo/README.md << 'EOF'
+        # Veetr.org Website
+        
+        This repository contains the static website for https://veetr.org
+        
+        **Note:** This repository is automatically synced from the main [Veetr repository](https://github.com/escopecz/veetr) `/site` folder.
+        
+        ## Contributing
+        
+        To make changes to this website:
+        1. Edit files in the `/site` folder of the [main repository](https://github.com/escopecz/veetr)
+        2. Changes will be automatically deployed here via GitHub Actions
+        
+        ## Deployment
+        
+        This site is deployed via GitHub Pages at https://veetr.org
+        EOF
+        fi
+
+    - name: Check for changes
+      id: changes
+      run: |
+        cd target-repo
+        if git diff --quiet && git diff --cached --quiet; then
+          echo "changed=false" >> $GITHUB_OUTPUT
+          echo "No changes detected"
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "Changes detected"
+        fi
+
+    - name: Commit and push changes
+      if: steps.changes.outputs.changed == 'true'
+      run: |
+        cd target-repo
+        git add .
+        git commit -m "Update site from veetr@${GITHUB_SHA:0:7}
+        
+        Source: https://github.com/escopecz/veetr/commit/${{ github.sha }}"
+        git push origin main
+      env:
+        VEETR_SITE_TOKEN: ${{ secrets.VEETR_SITE_TOKEN }}
+
+    - name: Summary
+      run: |
+        if [ "${{ steps.changes.outputs.changed }}" == "true" ]; then
+          echo "✅ Site successfully mirrored to veetr-site repository"
+          echo "🌐 Changes will be live at https://veetr.org shortly"
+        else
+          echo "ℹ️ No changes detected, site already up to date"
+        fi
