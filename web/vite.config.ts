@@ -13,7 +13,7 @@ export default defineConfig(({ command }) => ({
     outDir: 'dist',
     sourcemap: true
   },
-  base: command === 'build' ? '/veetr/' : '/',
+  base: '/',
   define: {
     global: 'globalThis',
   }
