@@ -6,12 +6,16 @@ Technical documentation for the ESP32-based sailing sensor hardware and dashboar
 
 The Veetr uses an ESP32 microcontroller with multiple sensors to provide comprehensive sailing data via Bluetooth Low Energy (BLE) to a web-based dashboard.
 
+## Note on Affiliate Links
+Some of the parts listed below use affiliate links. If you choose to purchase through these, a small portion comes back to support the project’s ongoing development. This doesn’t change the price you pay. If you’d rather not use affiliate links, feel free to search for the part numbers directly (a quick Google search will usually turn them up).
+
 ## Hardware Components
 
 ### 🔧 Main Controller:
 
 #### ESP32 DevKitC WROOM-32U Development Board
-- **Purchase Link:** https://www.aliexpress.com/item/1005008851115917.html
+[![ESP32 DevKitC WROOM-32U Development Board](https://ae01.alicdn.com/kf/S4861b771e79a4f84b64bdf01a1442c872.jpg_350x350.jpg)](https://s.click.aliexpress.com/e/_onsyWtH)
+- **Purchase Link:** https://s.click.aliexpress.com/e/_onsyWtH
 - **Product Name:** ESP32 DevKitC WIFI+Bluetooth Development Board WROOM & WIFI Module with 2.4G Antenna Optional ESP32-WROOM-32U Development Board
 - **Board Type:** ESP32 DevKitC WROOM-32U
 - **Module:** ESP32-WROOM-32U (with external antenna connector)
@@ -85,7 +89,8 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
 ### 📡 Sensors:
 
 #### 1. GY-BNO080 BNO085 AR VR IMU High Accuracy Nine-Axis 9DOF AHRS Sensor Module
-- **Purchase Link:** [AliExpress BNO080 IMU Module](https://www.aliexpress.com/item/1005009534826428.html)
+[![GPS Antenna](https://ae01.alicdn.com/kf/Sa780fa5fb541408b9adc44340df9eb5e1.jpg_350x350.jpg)](https://s.click.aliexpress.com/e/_okDR7nd)
+- **Purchase Link:** https://s.click.aliexpress.com/e/_okDR7nd
 - **Model:** GY-BNO080 BNO085 AR VR IMU High Accuracy Nine-Axis 9DOF AHRS Sensor Module
 - **Chipset:** Bosch BNO080 9-axis IMU with integrated sensor fusion
 - **Interface:** I2C (primary) and SPI support
@@ -119,8 +124,8 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
   - True wind calculation support with attitude compensation
 
 #### 2. RS485 Wind Sensor
-![Wind sensor](https://ae01.alicdn.com/kf/S99afb5574e194e118b3dad0ab72426a7d.jpg_350x350.jpg)
-- **Purchase Link:** https://www.aliexpress.com/item/1005008095979289.html
+[![Wind sensor](https://ae01.alicdn.com/kf/S99afb5574e194e118b3dad0ab72426a7d.jpg_350x350.jpg)](https://s.click.aliexpress.com/e/_onkySgT)
+- **Purchase Link:** https://s.click.aliexpress.com/e/_onkySgT
 - **Model:** Ultrasonic wind speed and direction sensor Miniature size Output RS485 Power supply 5 ~ 12V DC
 - **Design:** Miniature size for compact marine installations
 - **Interface:** RS485 Modbus RTU protocol
@@ -142,9 +147,13 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
   - Wind trend analysis and logging
   - Sailing performance optimization data
 
-#### 3. GPS Module (Future Integration)
-- **Purchase Link:** https://www.aliexpress.com/item/1005006495478139.html
-- **Antenna** https://www.aliexpress.com/item/1005005449884811.html
+#### 3. GPS Module
+[![GPS Module](https://ae01.alicdn.com/kf/S42163826dc8b4d8fa96378c4dc8c8003T.jpg_350x350.jpg)](https://s.click.aliexpress.com/e/_onLOZmT)
+- **Purchase Link:** https://s.click.aliexpress.com/e/_onLOZmT
+
+[![GPS Antenna](https://ae01.alicdn.com/kf/Se0e19ec06c3a4f27809794c0e53e6e55K.jpg_350x350.jpg)](https://s.click.aliexpress.com/e/_oExx7iF)
+- **Antenna** https://s.click.aliexpress.com/e/_oExx7iF
+
 - **Model:** GY-NEO8MV2 Module with Flight Control EEPROM MWC APM2.5 Large Antenna
 - **Chipset:** u-blox NEO-8M GNSS receiver
 - **Interface:** UART serial communication (3.3V/5V compatible)
@@ -171,6 +180,7 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
 ### 🔌 Communication Modules:
 
 #### RS485 to TTL Converter Module
+[![RS485 Module](https://ae-pic-a1.aliexpress-media.com/kf/S882e5454964a40779cfb1a0aa463a1563.jpg_350x350.jpg)](https://www.aliexpress.com/item/32688467460.html)
 - **Purchase Link:** https://www.aliexpress.com/item/32688467460.html
 - **Model:** MAX485 or SP3485 based converter
 - **Function:** Convert ESP32 UART signals to RS485 differential signals
@@ -317,20 +327,6 @@ GND     →  GND
 - **Graceful Degradation**: Continue operation with available sensors
 - **Status Reporting**: Error codes transmitted via BLE
 - **Watchdog Timer**: Automatic recovery from system hangs
-
-## Browser Compatibility
-
-### Supported Browsers:
-- ✅ **Chrome 56+** - Full Web Bluetooth support
-- ✅ **Edge 79+** - Full Web Bluetooth support
-- ✅ **Opera 43+** - Full Web Bluetooth support
-- ❌ **Firefox** - No Web Bluetooth support yet
-- ❌ **Safari** - No Web Bluetooth support
-
-### Web Bluetooth Requirements:
-- **HTTPS or localhost** - Required for Web Bluetooth API
-- **User gesture** - Connection must be initiated by user action
-- **Modern browser** - Chrome-based browsers recommended
 
 ## Performance Specifications
 
