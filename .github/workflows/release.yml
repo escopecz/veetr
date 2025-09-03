@@ -189,7 +189,7 @@ jobs:
         - **Firmware Binary**: \`veetr-$VERSION.bin\` (${FIRMWARE_SIZE_KB} KB) - Flash this to your ESP32
         - **Debug Symbols**: \`veetr-$VERSION.elf\` - For debugging crashes and development (contains source code mapping)
         - **Build Info**: \`firmware-info.json\` - Technical build details and metadata
-        - **Web Dashboard**: https://escopecz.github.io/veetr/ (always latest)
+        - **Web Dashboard**: https://app.veetr.org (always latest)
         
         ## 🔄 How to Update
         

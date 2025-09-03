@@ -16,37 +16,37 @@ See the **[Hardware Guide](./HARDWARE.md)** for detailed specifications and purc
 
 ### 1. Get Veetr Dashboard App
 
-**Visit the web app**: https://escopecz.github.io/veetr
+**Visit the web app**: https://app.veetr.org
 
 **Install as a real app (recommended):**
 
 **📱 iPhone/iPad (iOS):**
 - **Important**: iOS Safari doesn't support Web Bluetooth
 - **Download**: [Bluefy - Web BLE Browser](https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055) from App Store
-- **Open**: https://escopecz.github.io/veetr in Bluefy
+- **Open**: https://app.veetr.org in Bluefy
 - Sadly, iOS users will get the worst experience due to the OS limitations. We should fix that with a custom app in the future.
 
 **📱 Android Phone/Tablet:**
 - **Open**: Chrome browser (pre-installed)
-- **Visit**: https://escopecz.github.io/veetr
+- **Visit**: https://app.veetr.org
 - **Install**: Tap menu (⋮) → "Add to Home screen" → "Add"
 - **Alternative**: Look for "Install app" banner at bottom of screen
 
 **💻 Windows Computer:**
 - **Open**: Chrome or Edge browser
-- **Visit**: https://escopecz.github.io/veetr
+- **Visit**: https://app.veetr.org
 - **Install**: Click install icon (⊞) in address bar → "Install"
 - **Alternative**: Click menu (⋮) → "Install Veetr..."
 
 **💻 Mac Computer:**
 - **Open**: Chrome, Edge, or Safari browser
-- **Visit**: https://escopecz.github.io/veetr
+- **Visit**: https://app.veetr.org
 - **Chrome/Edge**: Click install icon (⊞) in address bar → "Install"
 - **Safari**: Click Share → "Add to Dock"
 
 **💻 Linux Computer:**
 - **Open**: Chrome, Chromium, or Firefox browser
-- **Visit**: https://escopecz.github.io/veetr
+- **Visit**: https://app.veetr.org
 - **Chrome/Chromium**: Click install icon (⊞) in address bar → "Install"
 - **Firefox**: Click menu → "Install this site as an app"
 

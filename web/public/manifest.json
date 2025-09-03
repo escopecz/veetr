@@ -1,13 +1,13 @@
 {
   "name": "Veetr",
   "description": "Real-time sailing dashboard with BLE connectivity",
-  "start_url": "/veetr/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#e3f2fd",
   "theme_color": "#3182ce",
   "icons": [
     {
-      "src": "/veetr/favicon.svg",
+      "src": "/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml"
     }

@@ -12,8 +12,8 @@ Veetr provides open source software and hardware for tracking wind speed, direct
     - **Heel** (Heeling angle) using the 9-axis sensor
     - **HDG** (Heading angle to magnetic north) using the 9-axis sensor
 - **OTA** (Over The Air) updates of the firmware. The app will allow you to update the firmware of the device when a new version is available
-- The [app](https://escopecz.github.io/veetr) is a PWA (Progressive Web App). It means you can use it in your browser, you can install it on your desktop as a real app. The advantage is that it is always up to date after refresh. No need for app stores and their limitations
-- The [app](https://escopecz.github.io/veetr) is also **responsive**. It looks great on any screen size and orientation
+- The [app](https://app.veetr.org/) is a PWA (Progressive Web App). It means you can use it in your browser, you can install it on your desktop as a real app. The advantage is that it is always up to date after refresh. No need for app stores and their limitations
+- The [app](https://app.veetr.org/) is also **responsive**. It looks great on any screen size and orientation
 - There is also **light and dark mode** for sunny days and night passages
 - Up to **4 devices** can connect at the same time
 - Regatta starting procedure allows you to pin 2 places and the app will tell you how far you are from the line between the 2 points. It allows you to be as close to the starting line as possible without worrying about being over.
