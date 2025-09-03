@@ -16,6 +16,10 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛵</text></svg>">
     
     <style>
+        html {
+            scroll-behavior: smooth;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -58,6 +62,12 @@
             font-size: 1.8rem;
             font-weight: bold;
             color: #4a5568;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .logo:hover {
+            color: #667eea;
         }
         
         .logo span {
@@ -428,14 +438,14 @@
         }
     </style>
 </head>
-<body>
+<body id="top">
     <header>
         <div class="container">
             <div class="header-content">
-                <div class="logo">
+                <a href="#top" class="logo">
                     <span>⛵</span>
                     Veetr
-                </div>
+                </a>
                 <nav>
                     <a href="#features">Features</a>
                     <a href="#specs">Specifications</a>
