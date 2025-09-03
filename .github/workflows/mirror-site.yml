@@ -56,20 +56,7 @@ jobs:
         EOF
         fi
 
-    - name: Check for changes
-      id: changes
-      run: |
-        cd target-repo
-        if git diff --quiet && git diff --cached --quiet; then
-          echo "changed=false" >> $GITHUB_OUTPUT
-          echo "No changes detected"
-        else
-          echo "changed=true" >> $GITHUB_OUTPUT
-          echo "Changes detected"
-        fi
-
     - name: Commit and push changes
-      if: steps.changes.outputs.changed == 'true'
       run: |
         cd target-repo
         git add .
@@ -82,9 +69,5 @@ jobs:
 
     - name: Summary
       run: |
-        if [ "${{ steps.changes.outputs.changed }}" == "true" ]; then
-          echo "✅ Site successfully mirrored to veetr-site repository"
-          echo "🌐 Changes will be live at https://veetr.org shortly"
-        else
-          echo "ℹ️ No changes detected, site already up to date"
-        fi
+        echo "✅ Site successfully mirrored to veetr-site repository"
+        echo "🌐 Changes will be live at https://veetr.org shortly"
