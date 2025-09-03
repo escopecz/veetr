@@ -119,6 +119,7 @@ The Veetr uses an ESP32 microcontroller with multiple sensors to provide compreh
   - True wind calculation support with attitude compensation
 
 #### 2. RS485 Wind Sensor
+![Wind sensor](https://ae01.alicdn.com/kf/S99afb5574e194e118b3dad0ab72426a7d.jpg_350x350.jpg)
 - **Purchase Link:** https://www.aliexpress.com/item/1005008095979289.html
 - **Model:** Ultrasonic wind speed and direction sensor Miniature size Output RS485 Power supply 5 ~ 12V DC
 - **Design:** Miniature size for compact marine installations
