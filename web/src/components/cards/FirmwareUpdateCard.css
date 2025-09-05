@@ -36,8 +36,8 @@
 }
 
 .status-update-available {
-  background: var(--success-color);
-  color: var(--text-primary);
+  background: var(--status-update-available-bg);
+  color: var(--status-update-available-text);
   animation: pulse 2s infinite;
 }
 
@@ -159,7 +159,7 @@
 
 .btn-primary {
   background: linear-gradient(135deg, var(--accent-color), var(--success-color));
-  color: white;
+  color: var(--btn-primary-text);
 }
 
 .btn-primary:hover:not(:disabled) {

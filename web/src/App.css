@@ -27,8 +27,8 @@
 [data-theme="dark"] {
   /* Dark theme - for low light conditions */
   --bg-primary: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-  --bg-secondary: rgba(255, 255, 255, 0.05);
-  --bg-card: rgba(255, 255, 255, 0.1);
+  --bg-secondary: rgba(45, 55, 72, 0.7);
+  --bg-card: rgba(55, 65, 81, 0.7);
   --text-primary: #ffffff;
   --text-secondary: #e2e8f0;
   --text-accent: #a0aec0;
