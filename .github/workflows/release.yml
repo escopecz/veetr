@@ -111,15 +111,14 @@ jobs:
     - name: Build firmware
       run: |
         echo "🔧 Building firmware..."
-        pio run --environment esp32doit-devkit-v1
+        pio run --environment esp32dev
     
     - name: Prepare firmware artifacts
       run: |
         VERSION="${{ steps.version.outputs.version }}"
         mkdir -p release-artifacts
-        cp .pio/build/esp32doit-devkit-v1/firmware.bin release-artifacts/veetr-$VERSION.bin
-        cp .pio/build/esp32doit-devkit-v1/firmware.elf release-artifacts/veetr-$VERSION.elf
-        
+        cp .pio/build/esp32dev/firmware.bin release-artifacts/veetr-$VERSION.bin
+        cp .pio/build/esp32dev/firmware.elf release-artifacts/veetr-$VERSION.elf
         # Create firmware info file
         cat > release-artifacts/firmware-info.json << EOF
         {
@@ -127,10 +126,9 @@ jobs:
           "build_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "commit": "${{ github.sha }}",
           "binary_size": $(stat -c%s release-artifacts/veetr-$VERSION.bin),
-          "target": "esp32doit-devkit-v1"
+          "target": "esp32dev"
         }
         EOF
-        
         echo "📦 Prepared artifacts:"
         ls -la release-artifacts/
     
