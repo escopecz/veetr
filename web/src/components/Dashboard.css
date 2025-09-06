@@ -160,6 +160,7 @@
   overflow: hidden;
   color: var(--text-primary);
   box-shadow: none;
+  position: relative; /* For absolute positioned card-title */
 }
 
 .card:hover {
@@ -169,16 +170,23 @@
 }
 
 .card-title {
-  font-size: 1.5rem;
+  font-size: clamp(0.6rem, 2vw, 0.8rem); /* Even smaller to save more space */
   font-weight: 600;
   opacity: 0.8;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   color: var(--text-secondary);
+  position: absolute;
+  left: 0.2rem; /* Closer to edge to save space */
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+  transform-origin: center;
+  white-space: nowrap;
+  z-index: 1;
 }
 
 .card-value {
-  font-size: 2.5rem !important;
+  font-size: clamp(1.8rem, min(12vh, 10vw), 5rem) !important; /* Much larger for distance reading */
   font-weight: 900;
   text-align: center;
   margin: 0;
@@ -188,11 +196,15 @@
   justify-content: center;
   flex-direction: column;
   line-height: 0.9;
+  margin-left: 1.2rem; /* Reduced space for rotated label */
+  margin-right: 0.2rem; /* Minimal right margin */
   text-shadow: 0 2px 8px var(--shadow-color);
-  padding: 0.1rem;
+  padding: 0.05rem;
   color: var(--text-primary);
   box-sizing: border-box;
   overflow: hidden;
+  max-width: calc(100% - 1.4rem); /* More space for numbers */
+  z-index: 2;
 }
 
 [data-theme="light"] .card-value {
@@ -213,47 +225,57 @@
 }
 
 .value-number {
-  font-size: 1.5em;
+  /* font-size: 1.5em; */ /* Inherit from parent .card-value for dynamic scaling */
   font-weight: 900;
   line-height: 1;
 }
 
 .card-unit {
-  font-size: 0.5em;
+  font-size: clamp(0.4rem, min(2vh, 1.5vw), 0.8rem); /* Smaller units to give more space to numbers */
   opacity: 0.9;
   font-weight: 600;
   align-self: flex-start;
   line-height: 1;
-  margin-top: 0.45em;
+  margin-top: 0.05em; /* Minimal top margin */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* Tablet and larger screens - increased font sizes for readability */
 @media (min-width: 768px) {
   .card-title {
-    font-size: 1.2rem !important;
+    left: 0.3rem; /* Keep close to edge to maximize space */
+    font-size: clamp(0.7rem, 2.5vw, 1rem); /* Slightly larger label */
   }
   
   .card-value {
-    font-size: 3.5rem !important;
+    font-size: clamp(2.2rem, min(15vh, 12vw), 6rem) !important; /* Much larger numbers for tablets */
+    margin-left: 1.4rem; /* Adjust space for larger label */
+    max-width: calc(100% - 1.6rem);
   }
   
   .card-unit {
-    font-size: 1.0rem !important;
+    font-size: clamp(0.5rem, min(3vh, 2vw), 1rem); /* Proportional units */
   }
 }
 
 /* Large desktop screens - even bigger fonts */
 @media (min-width: 1200px) {
   .card-title {
-    font-size: 1.4rem !important;
+    left: 0.4rem; /* Slightly more space for larger screens */
+    font-size: clamp(0.8rem, 3vw, 1.2rem); /* Larger labels */
   }
   
   .card-value {
-    font-size: 4rem !important;
+    font-size: clamp(2.8rem, min(18vh, 15vw), 8rem) !important; /* Maximum readability for desktop */
+    margin-left: 1.6rem; /* Space for larger label */
+    max-width: calc(100% - 1.8rem);
   }
   
   .card-unit {
-    font-size: 1.2rem !important;
+    font-size: clamp(0.6rem, min(4vh, 3vw), 1.4rem); /* Larger units on large screens */
   }
 }
 
