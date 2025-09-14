@@ -545,15 +545,17 @@ void updateBLERSSI() {
 void handleDiscoveryButton() {
   int reading = digitalRead(DISCOVERY_BUTTON_PIN);
   
-  // Check if button state changed (with debouncing)
+  // Simplified button handling with debouncing
   if (reading != lastButtonState) {
     lastButtonDebounceTime = millis();
+    Serial.printf("[DISCOVERY] Button state changed: %s\n", reading == LOW ? "PRESSED" : "RELEASED");
   }
   
   if ((millis() - lastButtonDebounceTime) > debounceDelay) {
     // Button has been stable for debounce delay
     if (reading == LOW && lastButtonState == HIGH) {
       // Button pressed (falling edge)
+      Serial.println("[DISCOVERY] Button press detected!");
       if (!discoveryModeActive) {
         startDiscoveryMode();
       } else {
@@ -570,13 +572,16 @@ void startDiscoveryMode() {
   discoveryModeActive = true;
   discoveryModeStartTime = millis();
   
-  // Turn on discovery LED
+  // Turn on discovery LED (solid, not blinking initially)
   digitalWrite(DISCOVERY_LED_PIN, HIGH);
+  Serial.printf("[DISCOVERY] LED pin %d set to HIGH\n", DISCOVERY_LED_PIN);
   
   // Start BLE advertising if not already active
   if (!NimBLEDevice::getAdvertising()->isAdvertising()) {
     NimBLEDevice::startAdvertising();
     Serial.println("[DISCOVERY] BLE advertising started");
+  } else {
+    Serial.println("[DISCOVERY] BLE advertising already active");
   }
 }
 
@@ -586,11 +591,15 @@ void stopDiscoveryMode() {
   
   // Turn off discovery LED
   digitalWrite(DISCOVERY_LED_PIN, LOW);
+  Serial.printf("[DISCOVERY] LED pin %d set to LOW\n", DISCOVERY_LED_PIN);
   
   // Stop BLE advertising if no devices are connected
   if (pServer && pServer->getConnectedCount() == 0) {
     NimBLEDevice::getAdvertising()->stop();
     Serial.println("[DISCOVERY] BLE advertising stopped (no connected devices)");
+  } else {
+    Serial.printf("[DISCOVERY] BLE advertising continues (%d devices connected)\n", 
+                  pServer ? pServer->getConnectedCount() : 0);
   }
 }
 
@@ -600,11 +609,13 @@ void updateDiscoveryStatus() {
     if (millis() - discoveryModeStartTime > DISCOVERY_TIMEOUT_MS) {
       stopDiscoveryMode();
     } else {
-      // Blink LED to show discovery is active
-      static unsigned long lastBlink = 0;
-      if (millis() - lastBlink > 1000) { // Blink every second
-        digitalWrite(DISCOVERY_LED_PIN, !digitalRead(DISCOVERY_LED_PIN));
-        lastBlink = millis();
+      // Blink LED to show discovery is active (after first 3 seconds)
+      if (millis() - discoveryModeStartTime > 3000) {
+        static unsigned long lastBlink = 0;
+        if (millis() - lastBlink > 1000) { // Blink every second
+          digitalWrite(DISCOVERY_LED_PIN, !digitalRead(DISCOVERY_LED_PIN));
+          lastBlink = millis();
+        }
       }
     }
   }
@@ -800,7 +811,7 @@ void setupBLEServer() {
   // Start the service
   pService->start();
 
-  // Configure advertising for multiple connections (but don't start yet)
+  // Configure advertising for multiple connections
   NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true);
@@ -813,7 +824,7 @@ void setupBLEServer() {
   pAdvertising->setName(deviceName.c_str());
   
   Serial.printf("[BLE] BLE server configured for up to %d connections\n", CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
-  Serial.println("[BLE] Advertising NOT started - requires discovery mode activation");
+  Serial.println("[BLE] Advertising configured - will be started by discovery mode");
 }
 
 // Update BLE with current sensor data
@@ -980,7 +991,11 @@ void setup() {
   pinMode(DISCOVERY_LED_PIN, OUTPUT);           // LED output
   digitalWrite(DISCOVERY_LED_PIN, LOW);         // Start with LED off
   Serial.printf("[Boot] Discovery button: GPIO%d, LED: GPIO%d\n", DISCOVERY_BUTTON_PIN, DISCOVERY_LED_PIN);
-  Serial.println("[Boot] Press and hold discovery button to enable BLE discovery for 5 minutes");
+  Serial.println("[Boot] Press discovery button to toggle BLE discovery mode");
+  
+  // IMPORTANT: Start discovery mode automatically on boot
+  Serial.println("[Boot] Auto-starting discovery mode for 5 minutes...");
+  startDiscoveryMode();
   
   // Initialize GPS module
   gpsSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
