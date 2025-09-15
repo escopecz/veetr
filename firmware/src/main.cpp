@@ -15,9 +15,9 @@
 
 // Debug flags - uncomment for verbose output
 // #define DEBUG_BLE_DATA
-#define DEBUG_WIND_SENSOR
-// #define DEBUG_GPS
-#define DEBUG_BNO080
+// #define DEBUG_WIND_SENSOR
+#define DEBUG_GPS
+// #define DEBUG_BNO080
 
 // Persistent storage for settings
 Preferences preferences;
@@ -52,8 +52,8 @@ bool imuAvailable = false; // Track if IMU is working
 #define RS485_UART 2
 
 // GPS Module Configuration (using UART1)
-#define GPS_RX 16
-#define GPS_TX 17
+#define GPS_RX 17
+#define GPS_TX 16
 #define GPS_UART 1
 
 // Discovery Mode Configuration
