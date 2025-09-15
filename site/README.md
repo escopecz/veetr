@@ -6,6 +6,7 @@ This folder contains the static website files for https://veetr.org
 
 - `index.html` - Main landing page
 - `styles.css` - Stylesheet with all CSS styling
+- `CNAME` - GitHub Pages custom domain configuration for veetr.org
 - Additional assets can be added here as needed
 
 ## Deployment
