@@ -1,8 +1,8 @@
 import '../Dashboard.css'
-import './WindDirectionCard.css'
+import './WindAngleCard.css'
 import { useSmoothRotation } from '../../hooks/useSmoothRotation'
 
-interface WindDirectionCardProps {
+interface WindAngleCardProps {
   windDirection: number
   windSpeed: number
   trueWindSpeed: number
@@ -11,21 +11,20 @@ interface WindDirectionCardProps {
   heading: number
 }
 
-export default function WindDirectionCard({ 
+export default function WindAngleCard({ 
   windDirection, 
   windSpeed: _windSpeed, 
   trueWindSpeed, 
   trueWindAngle,
   deadWindAngle,
   heading 
-}: WindDirectionCardProps) {
-  // Use smooth rotation for all rotating elements
+}: WindAngleCardProps) {
   const smoothWindDirection = useSmoothRotation(windDirection, { duration: 800 })
   const smoothTrueWindAngle = useSmoothRotation(trueWindAngle, { duration: 800 })
   const smoothHeading = useSmoothRotation(heading, { duration: 1000 })
 
   return (
-    <div className="card wind-direction-card">
+    <div className="card wind-angle-card">
       <div className="wind-compass">
         <svg viewBox="0 0 500 500" className="compass-svg">
           {/* Outer compass ring */}

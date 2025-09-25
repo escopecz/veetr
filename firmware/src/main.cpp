@@ -15,9 +15,9 @@
 
 // Debug flags - uncomment for verbose output
 // #define DEBUG_BLE_DATA
-// #define DEBUG_WIND_SENSOR
-#define DEBUG_GPS
-// #define DEBUG_BNO080
+#define DEBUG_WIND_SENSOR
+// #define DEBUG_GPS
+#define DEBUG_BNO080
 
 // Persistent storage for settings
 Preferences preferences;
@@ -634,9 +634,9 @@ void postTransmission() {
 struct SensorData {
   float speed;          // Vessel speed in knots
   float windSpeed;      // Apparent wind speed in knots
-  int windDirection;    // Apparent wind direction in degrees (0-359)
+  int windAngle;        // Apparent wind angle in degrees (0-360)
   float trueWindSpeed;  // True wind speed in knots
-  float trueWindDirection; // True wind direction in degrees (0-359)
+  int trueWindAngle;    // True wind angle in degrees (0-360)
   float tilt;           // Vessel heel/tilt angle in degrees
   int HDM;              // Magnetic heading in degrees (0-359)
   float accelX;         // Acceleration X-axis in m/s²
@@ -644,41 +644,33 @@ struct SensorData {
   float accelZ;         // Acceleration Z-axis in m/s²
 };
 
-// Function to calculate true wind from apparent wind
-void calculateTrueWind(float vesselSpeed, float vesselHeading, float apparentWindSpeed, float apparentWindDirection, 
-                       float &trueWindSpeed, float &trueWindDirection) {
+// Function to calculate true wind angle from apparent wind angle
+void calculateTrueWind(float vesselSpeed, int apparentWindAngle, float apparentWindSpeed, 
+                       float &trueWindSpeed, int &trueWindAngle) {
   
-  // Convert degrees to radians
-  float appWindDirRad = apparentWindDirection * PI / 180.0;
-  float vesselHeadingRad = vesselHeading * PI / 180.0;
+  // Convert apparent wind angle to radians (0-360° input)
+  float appWindAngleRad = apparentWindAngle * PI / 180.0;
   
-  // Convert apparent wind to components relative to vessel
-  float appWindX = apparentWindSpeed * sin(appWindDirRad);  // Cross-track component (relative to vessel)
-  float appWindY = apparentWindSpeed * cos(appWindDirRad);  // Along-track component (relative to vessel)
+  // Convert apparent wind to velocity components (relative to vessel)
+  // Apparent wind angle is measured clockwise from bow (0°=ahead, 90°=starboard, 180°=behind, 270°=port)
+  float appWindX = apparentWindSpeed * sin(appWindAngleRad);  // Cross-track component (positive = starboard)
+  float appWindY = apparentWindSpeed * cos(appWindAngleRad);  // Along-track component (positive = ahead)
   
-  // Convert vessel velocity to components in world coordinates
-  float vesselVelX = vesselSpeed * sin(vesselHeadingRad);  // East component of vessel velocity
-  float vesselVelY = vesselSpeed * cos(vesselHeadingRad);  // North component of vessel velocity
-  
-  // Convert apparent wind from vessel coordinates to world coordinates
-  float appWindWorldX = appWindX * cos(vesselHeadingRad) - appWindY * sin(vesselHeadingRad);
-  float appWindWorldY = appWindX * sin(vesselHeadingRad) + appWindY * cos(vesselHeadingRad);
-  
-  // Calculate true wind components in world coordinates
-  // True wind = apparent wind - vessel velocity
-  float trueWindWorldX = appWindWorldX - vesselVelX;
-  float trueWindWorldY = appWindWorldY - vesselVelY;
+  // True wind components = apparent wind - vessel velocity
+  // Vessel is moving forward (positive Y direction)
+  float trueWindX = appWindX;  // Cross-track component unchanged
+  float trueWindY = appWindY - vesselSpeed;  // Subtract vessel forward speed
   
   // Calculate true wind speed
-  trueWindSpeed = sqrt(trueWindWorldX * trueWindWorldX + trueWindWorldY * trueWindWorldY);
+  trueWindSpeed = sqrt(trueWindX * trueWindX + trueWindY * trueWindY);
   
-  // Calculate true wind direction in world coordinates (degrees from north)
-  trueWindDirection = atan2(trueWindWorldX, trueWindWorldY) * 180.0 / PI;
+  // Calculate true wind angle (relative to vessel bow, 0-360°)
+  float trueWindAngleRad = atan2(trueWindX, trueWindY);
+  trueWindAngle = round(trueWindAngleRad * 180.0 / PI);
   
-  // Normalize to 0-359 degrees
-  if (trueWindDirection < 0) {
-    trueWindDirection += 360.0;
-  }
+  // Normalize angle to 0-359° range
+  if (trueWindAngle < 0) trueWindAngle += 360;
+  if (trueWindAngle >= 360) trueWindAngle -= 360;
   
   // Ensure we don't have negative wind speeds
   if (trueWindSpeed < 0) {
@@ -706,7 +698,7 @@ void updateBLEData();
 float filterGPSSpeed(float rawSpeed, int satellites, float hdop);
 
 // Wind Sensor Functions
-bool readWindSensor(float &windSpeed, int &windDirection);
+bool readWindSensor(float &windSpeed, int &windAngle);
 float regsToFloat(uint16_t lowReg, uint16_t highReg);
 
 // GPS Functions
@@ -1079,7 +1071,7 @@ void loop() {
       if (!isnan(currentData.speed) && currentData.speed > 0) 
         Serial.printf("Spd:%.1fkt ", currentData.speed);
       if (!isnan(currentData.windSpeed)) 
-        Serial.printf("Wind:%.1fkt@%d° ", currentData.windSpeed, currentData.windDirection);
+        Serial.printf("Wind:%.1fkt AWA:%d° ", currentData.windSpeed, currentData.windAngle);
       if (!isnan(currentData.tilt)) 
         Serial.printf("Tilt:%.1f° ", currentData.tilt);
       if (currentData.HDM >= 0 && currentData.HDM <= 359) 
@@ -1532,21 +1524,24 @@ void readSensors() {
 
   // Read wind sensor using ModbusMaster
   float sensorWindSpeed;
-  int sensorWindDirection;
-  if (readWindSensor(sensorWindSpeed, sensorWindDirection)) {
+  int sensorWindAngle;
+  if (readWindSensor(sensorWindSpeed, sensorWindAngle)) {
     // Speed is already in m/s from the sensor, convert to knots (1 m/s = 1.944 knots)
     currentData.windSpeed = sensorWindSpeed * 1.944;
-    currentData.windDirection = sensorWindDirection;
+    
+    // Store wind angle directly (0-360°)
+    currentData.windAngle = sensorWindAngle;
+    
     #ifdef DEBUG_WIND_SENSOR
-    Serial.printf("[Wind Sensor] %.2f m/s (%.1f kt) @ %d°\n", sensorWindSpeed, currentData.windSpeed, sensorWindDirection);
+    Serial.printf("Wind: %.1f kt @ %d°\\n", currentData.windSpeed, currentData.windAngle);
     #endif
   } else {
     currentData.windSpeed = NAN;
-    currentData.windDirection = -999; // Use clearly invalid value (not -1 which could be valid)
+    currentData.windAngle = -999; // Use clearly invalid value (not -1 which could be valid)
     // Only show error once every 10 seconds to avoid spam
     static unsigned long lastErrorTime = 0;
     if (millis() - lastErrorTime > 10000) {
-      Serial.println("[Wind Sensor] No valid data");
+      Serial.println("Wind sensor read failed");
       lastErrorTime = millis();
     }
   }
@@ -1588,19 +1583,19 @@ void readSensors() {
   
   // Calculate true wind: if speed is very low, set true wind = apparent wind
   const float SPEED_THRESHOLD = 0.5; // knots
-  if (!isnan(currentData.windSpeed) && currentData.windDirection >= 0 && currentData.windDirection <= 359) {
-    if (!isnan(currentData.speed) && currentData.speed >= SPEED_THRESHOLD && currentData.HDM >= 0 && currentData.HDM <= 359) {
-      // We have valid speed, wind data, and heading - calculate true wind
-      calculateTrueWind(currentData.speed, currentData.HDM, currentData.windSpeed, currentData.windDirection,
-                        currentData.trueWindSpeed, currentData.trueWindDirection);
+  if (!isnan(currentData.windSpeed) && currentData.windAngle >= 0 && currentData.windAngle <= 359) {
+    if (!isnan(currentData.speed) && currentData.speed >= SPEED_THRESHOLD) {
+      // We have valid speed and wind data - calculate true wind
+      calculateTrueWind(currentData.speed, currentData.windAngle, currentData.windSpeed,
+                        currentData.trueWindSpeed, currentData.trueWindAngle);
     } else {
-      // Boat is stationary, moving very slowly, or no valid heading: true wind = apparent wind
+      // Boat is stationary or moving very slowly: true wind = apparent wind
       currentData.trueWindSpeed = currentData.windSpeed;
-      currentData.trueWindDirection = currentData.windDirection;
+      currentData.trueWindAngle = currentData.windAngle;
     }
   } else {
     currentData.trueWindSpeed = NAN;
-    currentData.trueWindDirection = NAN;
+    currentData.trueWindAngle = -999;
   }
   
   // Read tilt from BNO080 (only if available)
@@ -1833,8 +1828,9 @@ String getSensorDataJson() {
     doc["AWS"] = round(currentData.windSpeed * 10) / 10.0; // Apparent Wind Speed (1 decimal)
   }
   
-  if (currentData.windDirection >= 0 && currentData.windDirection <= 359) {
-    doc["AWD"] = round(currentData.windDirection); // Apparent Wind Direction (integer)
+  // Wind angle data (apparent wind angle in full 360° range)
+  if (currentData.windAngle >= 0 && currentData.windAngle <= 359) {
+    doc["AWA"] = round(currentData.windAngle); // Apparent Wind Angle (integer, 0-359°)
   }
   
   // True wind data - only include if calculated successfully
@@ -1842,23 +1838,9 @@ String getSensorDataJson() {
     doc["TWS"] = round(currentData.trueWindSpeed * 10) / 10.0; // True Wind Speed (1 decimal)
   }
   
-  if (!isnan(currentData.trueWindDirection) && currentData.trueWindDirection >= 0 && currentData.trueWindDirection <= 359) {
-    doc["TWD"] = round(currentData.trueWindDirection); // True Wind Direction (integer)
-    
-    // Calculate True Wind Angle (TWA) - relative angle between vessel heading and true wind
-    if (currentData.HDM >= 0 && currentData.HDM <= 359) {
-      float twa = currentData.trueWindDirection - currentData.HDM;
-      
-      // Normalize TWA to range -180 to +180 degrees
-      if (twa > 180) {
-        twa -= 360;
-      } else if (twa < -180) {
-        twa += 360;
-      }
-      
-      // Convert to absolute angle (0-180) for sailing display
-      doc["TWA"] = round(abs(twa));
-    }
+  // True wind angle data 
+  if (currentData.trueWindAngle >= 0 && currentData.trueWindAngle <= 359) {
+    doc["TWA"] = round(currentData.trueWindAngle); // True Wind Angle (integer, 0-359°)
   }
   
   // Heel angle - only include if IMU is available
@@ -1901,7 +1883,7 @@ float regsToFloat(uint16_t lowReg, uint16_t highReg) {
 }
 
 // Read wind sensor data via RS485 using ModbusMaster
-bool readWindSensor(float &windSpeed, int &windDirection) {
+bool readWindSensor(float &windSpeed, int &windAngle) {
   static unsigned long lastAttempt = 0;
   static bool sensorTypeDetected = false;
   static bool useIEEE754Format = true; // true = IEEE754 float (9600,8E1), false = integer (4800,8N1)
@@ -1949,7 +1931,7 @@ bool readWindSensor(float &windSpeed, int &windDirection) {
       // reg2 = speed float high word  
       // reg3 = unused
       
-      windDirection = windSensor.getResponseBuffer(0); // direction
+      windAngle = windSensor.getResponseBuffer(0); // direction
       uint16_t speedLow = windSensor.getResponseBuffer(1);
       uint16_t speedHigh = windSensor.getResponseBuffer(2);
       
@@ -1958,11 +1940,11 @@ bool readWindSensor(float &windSpeed, int &windDirection) {
       
       #ifdef DEBUG_WIND_SENSOR
       Serial.printf("SUCCESS - IEEE754 format: Direction=%d°, Speed=%.3f m/s (raw: low=%d, high=%d)\n", 
-                    windDirection, windSpeed, speedLow, speedHigh);
+                    windAngle, windSpeed, speedLow, speedHigh);
       #endif
       
       // Validate data - if it looks wrong, try integer format
-      if (!sensorTypeDetected && (windDirection < 0 || windDirection > 359 || 
+      if (!sensorTypeDetected && (windAngle < 0 || windAngle > 359 || 
           isnan(windSpeed) || windSpeed < 0 || windSpeed > 50)) {
         #ifdef DEBUG_WIND_SENSOR
         Serial.println("  IEEE754 format data invalid, will try integer format next");
@@ -1986,15 +1968,15 @@ bool readWindSensor(float &windSpeed, int &windDirection) {
       
       uint16_t speedRaw = windSensor.getResponseBuffer(0);
       windSpeed = speedRaw / 100.0f;
-      windDirection = windSensor.getResponseBuffer(1);
+      windAngle = windSensor.getResponseBuffer(1);
       
       #ifdef DEBUG_WIND_SENSOR
       Serial.printf("SUCCESS - integer format: Speed raw=%d (%.2f m/s), Direction=%d°\n", 
-                    speedRaw, windSpeed, windDirection);
+                    speedRaw, windSpeed, windAngle);
       #endif
       
       // Validate data - if it looks wrong, try IEEE754 format
-      if (!sensorTypeDetected && (windDirection < 0 || windDirection > 359 || windSpeed < 0 || windSpeed > 50)) {
+      if (!sensorTypeDetected && (windAngle < 0 || windAngle > 359 || windSpeed < 0 || windSpeed > 50)) {
         #ifdef DEBUG_WIND_SENSOR
         Serial.println("  Integer format data invalid, will try IEEE754 format next");
         #endif
@@ -2012,7 +1994,7 @@ bool readWindSensor(float &windSpeed, int &windDirection) {
     }
     
     // If we get here with valid data, lock in the sensor type
-    if (!sensorTypeDetected && windDirection >= 0 && windDirection <= 359 && 
+    if (!sensorTypeDetected && windAngle >= 0 && windAngle <= 359 && 
         windSpeed >= 0 && windSpeed <= 50 && !isnan(windSpeed)) {
       sensorTypeDetected = true;
       Serial.printf("\n[Wind Sensor] Detected %s format and locked it in\n", 

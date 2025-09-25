@@ -4,8 +4,8 @@ import WindCard from './cards/WindCard'
 import TiltCard from './cards/TiltCard'
 import ApparentAngleCard from './cards/ApparentAngleCard'
 import TrueWindAngleCard from './cards/TrueWindAngleCard'
+import WindAngleCard from './cards/WindAngleCard'
 import SatellitesCard from './cards/SatellitesCard'
-import WindDirectionCard from './cards/WindDirectionCard'
 import HeadingCard from './cards/HeadingCard'
 import CompactConnectionButton from './CompactConnectionButton'
 import Settings from './Settings'
@@ -21,7 +21,7 @@ export default function Dashboard() {
       <Settings />
       <div className="dashboard-layout">
         <div className="wind-direction-area">
-          <WindDirectionCard
+          <WindAngleCard
             windDirection={sailingData.windDirection}
             windSpeed={sailingData.windSpeed}
             trueWindSpeed={sailingData.trueWindSpeed}
@@ -35,7 +35,7 @@ export default function Dashboard() {
             windSpeed={sailingData.windSpeed}
             title="Apparent Wind"
           />
-          <ApparentAngleCard angle={Math.min(sailingData.windDirection, 360 - sailingData.windDirection)} />
+          <ApparentAngleCard angle={sailingData.windAngle} />
           <WindCard
             windSpeed={sailingData.trueWindSpeed}
             title="True Wind"

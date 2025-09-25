@@ -10,11 +10,11 @@ export interface SailingData {
   windSpeed: number
   windSpeedMax: number
   windSpeedAvg: number
+  windAngle: number
   windDirection: number
   trueWindSpeed: number
   trueWindSpeedMax: number
   trueWindSpeedAvg: number
-  trueWindDirection: number
   trueWindAngle: number
   tilt: number
   tiltPortMax: number
@@ -62,6 +62,14 @@ export const BLE_CONFIG = {
   DEVICE_NAME: 'Veetr'
 }
 
+// Convert 360° wind angle to 180° sailing angle for display
+function convertToSailingAngle(windAngle360: number): number {
+  if (windAngle360 > 180) {
+    return 360 - windAngle360  // Convert 181-359° to 179-1°
+  }
+  return windAngle360  // Keep 0-180° as is
+}
+
 // Action types
 type BLEAction =
   | { type: 'CONNECT_START' }
@@ -99,11 +107,11 @@ const initialState: BLEState = {
     windSpeed: 0,
     windSpeedMax: 0,
     windSpeedAvg: 0,
+    windAngle: 0,
     windDirection: 0,
     trueWindSpeed: 0,
     trueWindSpeedMax: 0,
     trueWindSpeedAvg: 0,
-    trueWindDirection: 0,
     trueWindAngle: 0,
     tilt: 0,
     tiltPortMax: 0,
@@ -172,11 +180,11 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
           windSpeed: 0,
           windSpeedMax: 0,
           windSpeedAvg: 0,
+          windAngle: 0,
           windDirection: 0,
           trueWindSpeed: 0,
           trueWindSpeedMax: 0,
           trueWindSpeedAvg: 0,
-          trueWindDirection: 0,
           trueWindAngle: 0,
           tilt: 0,
           tiltPortMax: 0,
@@ -421,12 +429,11 @@ export function BLEProvider({ children }: { children: ReactNode }) {
         windSpeed: data.AWS || 0,        // Apparent Wind Speed
         windSpeedMax: data.AWSMax || 0,
         windSpeedAvg: data.AWSAvg || 0,
-        windDirection: data.AWD || 0,    // Apparent Wind Direction
+        windAngle: convertToSailingAngle(data.AWA || 0),        // Convert 360° to 180° sailing angle
         trueWindSpeed: data.TWS || 0,    // True Wind Speed
         trueWindSpeedMax: data.TWSMax || 0,
         trueWindSpeedAvg: data.TWSAvg || 0,
-        trueWindDirection: data.TWD || 0, // True Wind Direction
-        trueWindAngle: data.TWA || 0,    // True Wind Angle
+        trueWindAngle: convertToSailingAngle(data.TWA || 0),    // Convert 360° to 180° sailing angle
         tilt: data.heel || 0,            // Heel angle
         tiltPortMax: data.heelPortMax || 0,
         tiltStarboardMax: data.heelStarboardMax || 0,
@@ -438,6 +445,9 @@ export function BLEProvider({ children }: { children: ReactNode }) {
         lon: data.lon || 0,              // Longitude
         heading: data.HDM || 0           // Heading Magnetic (compass direction)
       }
+
+      // Set windDirection to the same value as converted windAngle (both now 0-180°)
+      mappedData.windDirection = mappedData.windAngle
 
       dispatch({ type: 'UPDATE_DATA', payload: mappedData })
 

@@ -1,4 +1,4 @@
-.wind-direction-card {
+.wind-angle-card {
   aspect-ratio: 1 / 1;
   width: 100%;
   height: 100%;
@@ -23,7 +23,7 @@
     padding: 0 !important;
     box-sizing: border-box;
   }
-  .wind-direction-card {
+  .wind-angle-card {
     aspect-ratio: 1/1;
     margin: 0 auto;
     min-width: 0;
@@ -32,7 +32,7 @@
   }
 }
 
-.wind-direction-card::before {
+.wind-angle-card::before {
   display: none;
 }
 
@@ -41,7 +41,7 @@
   to { transform: rotate(360deg); }
 }
 
-.wind-direction-card > * {
+.wind-angle-card > * {
   position: relative;
   z-index: 1;
 }
@@ -105,7 +105,7 @@
 
 /* Large Desktop (1400px+) */
 @media (min-width: 1400px) {
-  .wind-direction-card {
+  .wind-angle-card {
     min-height: 0;
     max-width: 100vw;
     max-height: 100vw;
@@ -129,7 +129,7 @@
 
 /* Desktop (1200px - 1399px) */
 @media (max-width: 1399px) and (min-width: 1200px) {
-  .wind-direction-card {
+  .wind-angle-card {
     min-height: 0;
     max-width: 100vw;
     max-height: 100vw;
@@ -149,7 +149,7 @@
 
 /* Medium Desktop (1024px - 1199px) */
 @media (max-width: 1199px) and (min-width: 1024px) {
-  .wind-direction-card {
+  .wind-angle-card {
     min-height: 0;
     max-width: 100vw;
     max-height: 100vw;
@@ -173,7 +173,7 @@
 
 /* Tablet Portrait (768px - 1023px) */
 @media (max-width: 1023px) and (min-width: 768px) {
-  .wind-direction-card {
+  .wind-angle-card {
     min-height: 0;
     max-width: 100vw;
     max-height: 100vw;
@@ -206,7 +206,7 @@
 
 /* Mobile Landscape (600px - 767px) */
 @media (max-width: 767px) and (min-width: 600px) {
-  .wind-direction-card {
+  .wind-angle-card {
     min-height: 0;
     max-width: 100vw;
     max-height: 100vw;
@@ -237,7 +237,7 @@
 
 /* Mobile Portrait (400px - 599px) */
 @media (max-width: 599px) and (min-width: 400px) {
-  .wind-direction-card {
+  .wind-angle-card {
     min-height: 0;
     max-width: 100vw;
     max-height: 100vw;
@@ -277,7 +277,7 @@
 
 /* Small Mobile (320px - 399px) */
 @media (max-width: 399px) and (min-width: 320px) {
-  .wind-direction-card {
+  .wind-angle-card {
     min-height: 0;
     max-width: 100vw;
     max-height: 100vw;
@@ -314,14 +314,14 @@
     margin: 0.5rem 0;
   }
   
-  .wind-direction-card::before {
+  .wind-angle-card::before {
     animation-duration: 60s; /* Slower animation on small screens */
   }
 }
 
 /* Very Small Mobile (280px - 319px) */
 @media (max-width: 319px) {
-  .wind-direction-card {
+  .wind-angle-card {
     min-height: 0;
     max-width: 100vw;
     max-height: 100vw;
@@ -357,7 +357,7 @@
     margin: 0.4rem 0;
   }
   
-  .wind-direction-card::before {
+  .wind-angle-card::before {
     animation-duration: 90s;
   }
 }
