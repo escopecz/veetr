@@ -20,7 +20,7 @@ export const FIRMWARE_COMMANDS = {
 export class BLEFirmwareUpdater {
   private characteristic: BluetoothRemoteGATTCharacteristic
   private onProgress: FirmwareUpdateCallback
-  private chunkSize = 300 // Conservative but fast: 300 bytes raw -> 400 base64 chars + JSON overhead ≈ 450 bytes total
+  private chunkSize = 200 // Reduced chunk size for better reliability
 
   constructor(
     characteristic: BluetoothRemoteGATTCharacteristic,
@@ -93,16 +93,34 @@ export class BLEFirmwareUpdater {
       size: totalSize
     })
     
-    const encoder = new TextEncoder()
-    await this.characteristic.writeValue(encoder.encode(command))
+    console.log('Initializing firmware update...', { totalSize })
     
-    // Wait for acknowledgment
-    await this.delay(1000)
+    const encoder = new TextEncoder()
+    
+    // Retry mechanism for better reliability
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await this.characteristic.writeValueWithoutResponse(encoder.encode(command))
+        console.log(`Update initialization sent (attempt ${attempt})`)
+        
+        // Wait longer for ESP32 to initialize OTA
+        await this.delay(2000)
+        break
+      } catch (error) {
+        console.error(`Initialization attempt ${attempt} failed:`, error)
+        if (attempt === 3) {
+          throw new Error(`Failed to initialize update after 3 attempts: ${error}`)
+        }
+        await this.delay(1000) // Wait before retry
+      }
+    }
   }
 
   private async transferFirmware(firmwareData: ArrayBuffer): Promise<void> {
     const totalChunks = Math.ceil(firmwareData.byteLength / this.chunkSize)
     const dataView = new DataView(firmwareData)
+    
+    console.log(`Starting firmware transfer: ${totalChunks} chunks of ${this.chunkSize} bytes`)
 
     for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
       const offset = chunkIndex * this.chunkSize
@@ -116,28 +134,45 @@ export class BLEFirmwareUpdater {
         chunkView[i] = dataView.getUint8(offset + i)
       }
 
-      // Send chunk with metadata
-      await this.sendFirmwareChunk(chunkIndex, chunkData)
+      // Send chunk with retry logic
+      await this.sendFirmwareChunkWithRetry(chunkIndex, chunkData)
 
       // Update progress
       const bytesTransferred = offset + chunkSize
-      const percentage = Math.round((bytesTransferred / firmwareData.byteLength) * 100)
+      const percentage = Math.round((bytesTransferred / firmwareData.byteLength) * 90) // Reserve 10% for verification
       
       this.onProgress({
         percentage,
         bytesTransferred,
         totalBytes: firmwareData.byteLength,
         stage: 'transferring',
-        message: `Transferring firmware... ${percentage}%`
+        message: `Transferring firmware... ${chunkIndex + 1}/${totalChunks} chunks`
       })
 
-      // No delay - ESP32 can handle continuous transfers
+      // Small delay between chunks for stability
+      if (chunkIndex < totalChunks - 1) {
+        await this.delay(50)
+      }
+    }
+  }
+
+  private async sendFirmwareChunkWithRetry(chunkIndex: number, chunkData: ArrayBuffer): Promise<void> {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await this.sendFirmwareChunk(chunkIndex, chunkData)
+        return // Success, exit retry loop
+      } catch (error) {
+        console.error(`Chunk ${chunkIndex} attempt ${attempt} failed:`, error)
+        if (attempt === 3) {
+          throw new Error(`Failed to send chunk ${chunkIndex} after 3 attempts: ${error}`)
+        }
+        await this.delay(500) // Wait before retry
+      }
     }
   }
 
   private async sendFirmwareChunk(chunkIndex: number, chunkData: ArrayBuffer): Promise<void> {
     // Create command with binary data
-    // Base64 encoding increases size by ~33%, plus JSON overhead
     const base64Data = this.arrayBufferToBase64(chunkData)
     
     const command = JSON.stringify({
@@ -151,11 +186,13 @@ export class BLEFirmwareUpdater {
     
     // Validate size before sending
     if (encodedCommand.length > 512) {
-      throw new Error(`Command too large: ${encodedCommand.length} bytes (max 512). Consider reducing chunk size.`)
+      throw new Error(`Command too large: ${encodedCommand.length} bytes (max 512). Chunk ${chunkIndex} size: ${chunkData.byteLength}`)
     }
     
     console.log(`Sending chunk ${chunkIndex}: ${chunkData.byteLength} bytes raw -> ${encodedCommand.length} bytes encoded`)
-    await this.characteristic.writeValue(encodedCommand)
+    
+    // Use writeValueWithoutResponse for better reliability
+    await this.characteristic.writeValueWithoutResponse(encodedCommand)
   }
 
   private async verifyFirmware(): Promise<void> {
@@ -169,11 +206,16 @@ export class BLEFirmwareUpdater {
 
     const command = JSON.stringify({ cmd: FIRMWARE_COMMANDS.VERIFY_UPDATE })
     const encoder = new TextEncoder()
-    await this.characteristic.writeValue(encoder.encode(command))
     
-    // Wait longer for verification - firmware verification can take time
-    console.log('Waiting for firmware verification...')
-    await this.delay(5000)
+    try {
+      await this.characteristic.writeValueWithoutResponse(encoder.encode(command))
+      console.log('Verification command sent, waiting for ESP32 to verify...')
+      
+      // Wait longer for verification - firmware verification can take time
+      await this.delay(8000)
+    } catch (error) {
+      throw new Error(`Verification failed: ${error}`)
+    }
   }
 
   private async applyUpdate(): Promise<void> {
@@ -187,11 +229,17 @@ export class BLEFirmwareUpdater {
 
     const command = JSON.stringify({ cmd: FIRMWARE_COMMANDS.APPLY_UPDATE })
     const encoder = new TextEncoder()
-    await this.characteristic.writeValue(encoder.encode(command))
     
-    // Wait for application - device may restart during this process
-    console.log('Waiting for firmware application and device restart...')
-    await this.delay(10000)
+    try {
+      await this.characteristic.writeValueWithoutResponse(encoder.encode(command))
+      console.log('Apply command sent, device should restart...')
+      
+      // Wait for application - device may restart during this process
+      await this.delay(12000)
+    } catch (error) {
+      // Apply command might fail due to device restart - this could be normal
+      console.warn('Apply command may have failed due to device restart:', error)
+    }
   }
 
   private arrayBufferToBase64(buffer: ArrayBuffer): string {
