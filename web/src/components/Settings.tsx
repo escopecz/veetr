@@ -147,17 +147,24 @@ export default function Settings() {
       return
     }
 
+    // Check GPS status from sailing data
+    const hasGPS = state.sailingData.gpsSatellites > 0 && state.sailingData.lat !== 0 && state.sailingData.lon !== 0
+
+    if (!hasGPS) {
+      alert('GPS fix required to set regatta line positions.\n\nPlease wait for GPS satellite acquisition (need at least 3 satellites) and try again.')
+      return
+    }
+
     setActionInProgress('regattaPort')
     try {
       const success = await sendCommand({ action: 'regattaSetPort' })
-      if (success) {
-        alert('Port line marker set!')
-      } else {
-        alert('Failed to set port marker. Feature may not be implemented yet.')
+      if (!success) {
+        console.error('Failed to set port position')
+        alert('Failed to set port position. Please ensure GPS has a valid fix and try again.')
       }
     } catch (error) {
       console.error('Failed to set port marker:', error)
-      alert('Error setting port marker')
+      alert('Error setting port position. Please check GPS connection and try again.')
     } finally {
       setActionInProgress(null)
     }
@@ -169,17 +176,24 @@ export default function Settings() {
       return
     }
 
+    // Check GPS status from sailing data
+    const hasGPS = state.sailingData.gpsSatellites > 0 && state.sailingData.lat !== 0 && state.sailingData.lon !== 0
+
+    if (!hasGPS) {
+      alert('GPS fix required to set regatta line positions.\n\nPlease wait for GPS satellite acquisition (need at least 3 satellites) and try again.')
+      return
+    }
+
     setActionInProgress('regattaStarboard')
     try {
       const success = await sendCommand({ action: 'regattaSetStarboard' })
-      if (success) {
-        alert('Starboard line marker set!')
-      } else {
-        alert('Failed to set starboard marker. Feature may not be implemented yet.')
+      if (!success) {
+        console.error('Failed to set starboard position')
+        alert('Failed to set starboard position. Please ensure GPS has a valid fix and try again.')
       }
     } catch (error) {
       console.error('Failed to set starboard marker:', error)
-      alert('Error setting starboard marker')
+      alert('Error setting starboard position. Please check GPS connection and try again.')
     } finally {
       setActionInProgress(null)
     }
@@ -446,22 +460,28 @@ export default function Settings() {
                 <h4>Starting Line Setup</h4>
                 <div className="button-group">
                   <button 
-                    className="menu-item half-width" 
+                    className={`menu-item half-width ${state.sailingData.hasStartLine ? 'position-set' : ''}`}
                     onClick={handleRegattaSetPort}
                     disabled={actionInProgress !== null || !state.isConnected}
+                    style={state.sailingData.hasStartLine ? { backgroundColor: '#2196F3', color: 'white' } : {}}
                   >
-                    {actionInProgress === 'regattaPort' ? 'Setting...' : 'Set Port Line'}
+                    {actionInProgress === 'regattaPort' ? 'Setting...' : state.sailingData.hasStartLine ? 'Port Set ✓' : 'Set Port Line'}
                   </button>
                   
                   <button 
-                    className="menu-item half-width" 
+                    className={`menu-item half-width ${state.sailingData.hasStartLine ? 'position-set' : ''}`}
                     onClick={handleRegattaSetStarboard}
                     disabled={actionInProgress !== null || !state.isConnected}
+                    style={state.sailingData.hasStartLine ? { backgroundColor: '#2196F3', color: 'white' } : {}}
                   >
-                    {actionInProgress === 'regattaStarboard' ? 'Setting...' : 'Set Starboard Line'}
+                    {actionInProgress === 'regattaStarboard' ? 'Setting...' : state.sailingData.hasStartLine ? 'Starboard Set ✓' : 'Set Starboard Line'}
                   </button>
                 </div>
-                <p className="help-text">Set the starting line markers for race timing</p>
+                <p className="help-text">
+                  {state.sailingData.hasStartLine 
+                    ? 'Start line configured! Both port and starboard positions are set.' 
+                    : 'Set both port and starboard markers to configure the starting line for race timing'}
+                </p>
               </div>
 
               <div className="menu-section">
@@ -472,7 +492,7 @@ export default function Settings() {
                 >
                   Coming Soon: Race Timer
                 </button>
-                <p className="help-text">Countdown timer and race start alerts</p>
+                <p className="help-text">Countdown timer and race start alerts (Planned feature)</p>
               </div>
 
               {!state.isConnected && (

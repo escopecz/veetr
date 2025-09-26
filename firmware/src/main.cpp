@@ -75,6 +75,24 @@ ModbusMaster windSensor;
 HardwareSerial gpsSerial(GPS_UART);
 TinyGPSPlus gps;
 
+// Regatta start line data structure
+struct RegattaData {
+  bool hasStartLine;         // True if both port and starboard positions are set
+  double portLat;           // Port end GPS latitude
+  double portLon;           // Port end GPS longitude
+  double starboardLat;      // Starboard end GPS latitude  
+  double starboardLon;      // Starboard end GPS longitude
+  float distanceToLine;     // Current distance to start line in meters
+};
+
+// Regatta data
+RegattaData regattaData = {false, 0.0, 0.0, 0.0, 0.0, -1.0};
+
+// Regatta Functions (prototypes)
+float haversineDistance(double lat1, double lon1, double lat2, double lon2);
+float distanceToLine(double px, double py, double x1, double y1, double x2, double y2);
+void calculateRegattaData();
+
 // Function prototypes (declared early for use in callbacks)
 bool safeBLESend(const String& data, bool isCommand = false);
 void setupBLE();
@@ -252,12 +270,34 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             }
           }
           else if (action == "regattaSetPort") {
-            Serial.println("Regatta port line set");
-            // TODO: Implement regatta line setting logic
+            if (gps.location.isValid()) {
+              regattaData.portLat = gps.location.lat();
+              regattaData.portLon = gps.location.lng();
+              
+              // Check if we now have both ends of the line
+              if (regattaData.starboardLat != 0.0 && regattaData.starboardLon != 0.0) {
+                regattaData.hasStartLine = true;
+              }
+              
+              Serial.printf("Regatta port position set: %.6f, %.6f\n", regattaData.portLat, regattaData.portLon);
+            } else {
+              Serial.println("Cannot set regatta port position - GPS fix not available");
+            }
           }
           else if (action == "regattaSetStarboard") {
-            Serial.println("Regatta starboard line set");
-            // TODO: Implement regatta line setting logic
+            if (gps.location.isValid()) {
+              regattaData.starboardLat = gps.location.lat();
+              regattaData.starboardLon = gps.location.lng();
+              
+              // Check if we now have both ends of the line
+              if (regattaData.portLat != 0.0 && regattaData.portLon != 0.0) {
+                regattaData.hasStartLine = true;
+              }
+              
+              Serial.printf("Regatta starboard position set: %.6f, %.6f\n", regattaData.starboardLat, regattaData.starboardLon);
+            } else {
+              Serial.println("Cannot set regatta starboard position - GPS fix not available");
+            }
           }
           else if (action == "setDeviceName") {
             String newDeviceName = doc["deviceName"];
@@ -690,6 +730,11 @@ int refreshRate = 1000;
 // Timestamp for next update
 unsigned long nextUpdate = 0;
 
+// Regatta Functions (prototypes)
+float haversineDistance(double lat1, double lon1, double lat2, double lon2);
+float distanceToLine(double px, double py, double x1, double y1, double x2, double y2);
+void calculateRegattaData();
+
 // Function prototypes
 void readSensors();
 String getSensorDataJson();
@@ -1046,6 +1091,9 @@ void loop() {
   if (millis() >= nextUpdate) {
     // Read sensor data
     readSensors();
+    
+    // Calculate regatta data if start line is set
+    calculateRegattaData();
     
     // Update BLE RSSI if connected
     updateBLERSSI();
@@ -1864,6 +1912,17 @@ String getSensorDataJson() {
   doc["rssi"] = bleRSSI;
   
   // Device identification (proper device name)
+  // Regatta data - only include if start line is configured
+  if (regattaData.hasStartLine) {
+    doc["regatta"] = true;
+    
+    if (regattaData.distanceToLine >= 0) {
+      doc["distanceToLine"] = round(regattaData.distanceToLine * 10) / 10.0; // Distance in meters (1 decimal)
+    }
+  } else {
+    doc["regatta"] = false;
+  }
+  
   String deviceName = preferences.getString("deviceName", "Veetr");
   doc["deviceName"] = deviceName;
   
@@ -2080,4 +2139,63 @@ bool readGPS() {
   
   // Return true only if we have valid, recent location data
   return newData && isGPSDataValid();
+}
+
+// Regatta Functions
+
+// Calculate distance between two GPS coordinates using Haversine formula
+float haversineDistance(double lat1, double lon1, double lat2, double lon2) {
+  const double R = 6371000; // Earth radius in meters
+  
+  double dLat = (lat2 - lat1) * PI / 180.0;
+  double dLon = (lon2 - lon1) * PI / 180.0;
+  
+  double a = sin(dLat/2) * sin(dLat/2) + 
+             cos(lat1 * PI / 180.0) * cos(lat2 * PI / 180.0) * 
+             sin(dLon/2) * sin(dLon/2);
+  
+  double c = 2 * atan2(sqrt(a), sqrt(1-a));
+  
+  return R * c; // Distance in meters
+}
+
+// Calculate perpendicular distance from point to line segment
+float distanceToLine(double px, double py, double x1, double y1, double x2, double y2) {
+  // Convert GPS coordinates to meters using simple projection for short distances
+  // This is accurate enough for regatta start lines (typically < 1km)
+  double dx = x2 - x1;
+  double dy = y2 - y1;
+  
+  if (dx == 0 && dy == 0) {
+    // Line endpoints are the same, return distance to point
+    return haversineDistance(px, py, x1, y1);
+  }
+  
+  // Calculate the t parameter for the closest point on the line
+  double t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+  
+  // Clamp t to [0,1] to stay within the line segment
+  t = max(0.0, min(1.0, t));
+  
+  // Calculate the closest point on the line segment
+  double closestX = x1 + t * dx;
+  double closestY = y1 + t * dy;
+  
+  // Return distance to closest point
+  return haversineDistance(px, py, closestX, closestY);
+}
+
+// Calculate current distance to regatta start line
+void calculateRegattaData() {
+  if (!regattaData.hasStartLine || !gps.location.isValid()) {
+    regattaData.distanceToLine = -1.0; // Invalid
+    return;
+  }
+  
+  double currentLat = gps.location.lat();
+  double currentLon = gps.location.lng();
+  
+  regattaData.distanceToLine = distanceToLine(currentLat, currentLon,
+                                             regattaData.portLat, regattaData.portLon,
+                                             regattaData.starboardLat, regattaData.starboardLon);
 }

@@ -26,6 +26,9 @@ export interface SailingData {
   lat: number
   lon: number
   heading: number
+  // Regatta data
+  hasStartLine: boolean
+  distanceToLine: number
 }
 
 // Firmware update state
@@ -122,7 +125,10 @@ const initialState: BLEState = {
     hdop: 0,
     lat: 0,
     lon: 0,
-    heading: 0
+    heading: 0,
+    // Regatta data
+    hasStartLine: false,
+    distanceToLine: -1
   },
   firmwareInfo: {
     currentVersion: 'Unknown',
@@ -195,7 +201,10 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
           hdop: 0,
           lat: 0,
           lon: 0,
-          heading: 0
+          heading: 0,
+          // Regatta data
+          hasStartLine: false,
+          distanceToLine: -1
         }
       }
     case 'UPDATE_DATA':
@@ -558,7 +567,10 @@ export function BLEProvider({ children }: { children: ReactNode }) {
         hdop: data.hdop || 0,            // Horizontal Dilution of Precision
         lat: data.lat || 0,              // Latitude
         lon: data.lon || 0,              // Longitude
-        heading: data.HDM || 0           // Heading Magnetic (compass direction)
+        heading: data.HDM || 0,          // Heading Magnetic (compass direction)
+        // Regatta data
+        hasStartLine: data.regatta || false,          // Whether start line is configured
+        distanceToLine: data.distanceToLine || -1    // Distance to start line in meters (-1 = invalid)
       }
 
       // Set windDirection to the same value as converted windAngle (both now 0-180°)

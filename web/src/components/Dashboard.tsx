@@ -7,6 +7,7 @@ import TrueWindAngleCard from './cards/TrueWindAngleCard'
 import WindAngleCard from './cards/WindAngleCard'
 import SatellitesCard from './cards/SatellitesCard'
 import HeadingCard from './cards/HeadingCard'
+import RegattaCard from './cards/RegattaCard'
 import CompactConnectionButton from './CompactConnectionButton'
 import Settings from './Settings'
 import './Dashboard.css'
@@ -59,6 +60,7 @@ export default function Dashboard() {
           <HeadingCard 
             heading={sailingData.heading}
           />
+          <RegattaCard />
         </div>
       </div>
     </div>
