@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, ReactNode } from 'react'
+import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react'
 import { getLatestRelease, getFirmwareAsset, downloadFirmware, compareVersions } from '../utils/githubApi'
 import { BLEFirmwareUpdater } from '../utils/firmwareUpdater'
 
@@ -279,6 +279,78 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
   }
 }
 
+// PWA Health Check and Recovery Functions
+const checkPWAHealth = () => {
+  const issues = []
+  
+  // Check if we're running as PWA
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+  if (!isStandalone) {
+    issues.push('Not running as PWA')
+  }
+  
+  // Check memory usage (if available)
+  let memoryUsage = null
+  if ((performance as any).memory) {
+    const memInfo = (performance as any).memory
+    const memUsedMB = Math.round(memInfo.usedJSHeapSize / 1048576)
+    const memLimitMB = Math.round(memInfo.jsHeapSizeLimit / 1048576)
+    const usedPercent = Math.round((memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit) * 100)
+    
+    memoryUsage = {
+      usedMB: memUsedMB,
+      limitMB: memLimitMB,
+      usedPercent: usedPercent
+    }
+    
+    if (usedPercent > 80) {
+      issues.push(`High memory usage: ${usedPercent}% (${memUsedMB}MB)`)
+    }
+  }
+  
+  // Check Web Bluetooth availability
+  const bluetoothAvailable = !!navigator.bluetooth
+  if (!bluetoothAvailable) {
+    issues.push('Web Bluetooth API not available')
+  }
+  
+  // Check service worker status
+  let serviceWorkerActive = false
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    serviceWorkerActive = true
+  }
+  
+  // Calculate uptime (rough estimate from timestamp)
+  const uptime = Date.now() - (window.performance?.timeOrigin || Date.now())
+  
+  return {
+    healthy: issues.length === 0,
+    issues,
+    isStandalone,
+    memoryUsage,
+    bluetoothAvailable,
+    serviceWorkerActive,
+    uptime,
+    timestamp: Date.now()
+  }
+}
+
+const refreshPWA = () => {
+  console.log('[PWA] Attempting PWA refresh...')
+  
+  // Try to reload the PWA
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    // Force service worker to refresh
+    navigator.serviceWorker.controller.postMessage({ action: 'SKIP_WAITING' })
+    setTimeout(() => {
+      window.location.reload()
+    }, 1000)
+  } else {
+    // Fallback: normal page reload
+    window.location.reload()
+  }
+}
+
 // Context
 const BLEContext = createContext<{
   state: BLEState
@@ -287,6 +359,8 @@ const BLEContext = createContext<{
   sendCommand: (command: any) => Promise<boolean>
   checkForUpdates: () => Promise<void>
   startFirmwareUpdate: () => Promise<void>
+  refreshPWA: () => void
+  checkPWAHealth: () => any
 } | null>(null)
 
 // Provider component
@@ -301,6 +375,22 @@ export function BLEProvider({ children }: { children: ReactNode }) {
 
     try {
       dispatch({ type: 'CONNECT_START' })
+
+      // Clean up any existing connections first (PWA recovery)
+      if (state.device && state.device.gatt?.connected) {
+        console.log('[BLE Recovery] Cleaning up existing connection...')
+        try {
+          state.device.gatt.disconnect()
+        } catch (e) {
+          console.log('[BLE Recovery] Error cleaning up:', e)
+        }
+        await new Promise(resolve => setTimeout(resolve, 500)) // Wait for cleanup
+      }
+
+      // Additional diagnostics for PWA issues
+      console.log('[BLE] Connection attempt - PWA mode:', window.matchMedia('(display-mode: standalone)').matches)
+      console.log('[BLE] Available memory:', (performance as any).memory ? 
+        `${Math.round((performance as any).memory.usedJSHeapSize / 1048576)}MB used` : 'Unknown')
 
       // Request BLE device - show all devices with our service
       const device = await navigator.bluetooth.requestDevice({
@@ -352,9 +442,34 @@ export function BLEProvider({ children }: { children: ReactNode }) {
       // RSSI now comes from ESP32 data stream, no need for periodic monitoring
 
     } catch (error) {
+      console.error('[BLE] Connection failed:', error)
+      
+      // Enhanced error handling for PWA issues
+      let errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      
+      // Detect common PWA/Android issues
+      if (errorMessage.includes('User cancelled') || errorMessage.includes('AbortError')) {
+        errorMessage = 'Connection cancelled by user'
+      } else if (errorMessage.includes('NetworkError') || errorMessage.includes('NotFoundError')) {
+        errorMessage = 'Device not found or Bluetooth is disabled. Try:\n• Enable Bluetooth\n• Move closer to device\n• Refresh the PWA if issue persists'
+      } else if (errorMessage.includes('SecurityError')) {
+        errorMessage = 'PWA security issue detected. Please:\n• Close and reopen the PWA\n• Clear browser cache if needed'
+      } else if (errorMessage.includes('InvalidStateError')) {
+        errorMessage = 'Bluetooth adapter is in invalid state. Try:\n• Restart Bluetooth\n• Refresh the PWA\n• Reboot device if needed'
+      }
+      
       dispatch({ 
         type: 'CONNECT_ERROR', 
-        payload: error instanceof Error ? error.message : 'Unknown error occurred' 
+        payload: errorMessage
+      })
+      
+      // Log detailed error info for debugging
+      console.log('[BLE Debug] Error details:', {
+        error: error,
+        isStandalone: window.matchMedia('(display-mode: standalone)').matches,
+        userAgent: navigator.userAgent,
+        bluetoothAvailable: !!navigator.bluetooth,
+        timestamp: new Date().toISOString()
       })
     }
   }
@@ -525,8 +640,84 @@ export function BLEProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Automatic PWA health monitoring for Android stability
+  useEffect(() => {
+    let healthCheckInterval: number | null = null
+
+    // Only run health checks in PWA mode to avoid unnecessary overhead
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      console.log('[PWA Health] Starting automatic health monitoring...')
+
+      healthCheckInterval = setInterval(() => {
+        try {
+          const healthStatus = checkPWAHealth()
+          
+          // Check for critical memory usage (>80% of available)
+          if (healthStatus.memoryUsage && healthStatus.memoryUsage.usedPercent > 80) {
+            console.warn('[PWA Health] High memory usage detected:', healthStatus.memoryUsage)
+            
+            // Trigger garbage collection if available
+            if ((window as any).gc) {
+              console.log('[PWA Health] Triggering manual garbage collection')
+              ;(window as any).gc()
+            }
+          }
+
+          // Check for disconnected BLE device that should be connected
+          if (state.isConnected && state.device && !state.device.gatt?.connected) {
+            console.warn('[PWA Health] BLE device disconnected unexpectedly, attempting reconnection...')
+            
+            // Attempt automatic reconnection after short delay
+            setTimeout(() => {
+              if (!state.isConnected) { // Double-check state hasn't changed
+                connect().catch(error => {
+                  console.error('[PWA Health] Auto-reconnection failed:', error)
+                })
+              }
+            }, 2000)
+          }
+
+          // Log health status periodically for debugging
+          if (healthStatus.uptime && healthStatus.uptime > 3600000) { // > 1 hour
+            console.log('[PWA Health] Long session detected:', {
+              uptime: `${Math.round(healthStatus.uptime / 60000)} minutes`,
+              memory: healthStatus.memoryUsage,
+              bluetooth: healthStatus.bluetoothAvailable,
+              serviceWorker: healthStatus.serviceWorkerActive
+            })
+          }
+
+        } catch (error) {
+          console.error('[PWA Health] Health check failed:', error)
+        }
+      }, 60000) // Check every minute
+
+      // Also run immediate health check
+      setTimeout(() => {
+        const initialHealth = checkPWAHealth()
+        console.log('[PWA Health] Initial health check:', initialHealth)
+      }, 5000) // Wait 5 seconds for app to stabilize
+    }
+
+    return () => {
+      if (healthCheckInterval) {
+        clearInterval(healthCheckInterval)
+        console.log('[PWA Health] Stopped automatic health monitoring')
+      }
+    }
+  }, [state.isConnected, state.device]) // Re-run when connection state changes
+
   return (
-    <BLEContext.Provider value={{ state, connect, disconnect, sendCommand, checkForUpdates, startFirmwareUpdate }}>
+    <BLEContext.Provider value={{ 
+      state, 
+      connect, 
+      disconnect, 
+      sendCommand, 
+      checkForUpdates, 
+      startFirmwareUpdate,
+      refreshPWA,
+      checkPWAHealth 
+    }}>
       {children}
     </BLEContext.Provider>
   )

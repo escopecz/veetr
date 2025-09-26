@@ -67,6 +67,29 @@ pio device monitor         # Serial monitor
 - **Sensor Integration**: GPS, IMU, Wind sensors
 - **Communication**: UART/I2C/RS485 protocols
 
+### PWA Health Monitoring System
+
+The web application includes an advanced health monitoring system designed for long sailing sessions, especially on Android tablets:
+
+#### Automatic Monitoring Features:
+- **Memory Management**: Monitors JavaScript heap usage and triggers garbage collection when >80%
+- **BLE Connection Watchdog**: Detects disconnected devices and attempts automatic reconnection
+- **Long Session Tracking**: Special monitoring for sessions >1 hour with detailed logging
+- **Service Worker Health**: Monitors PWA service worker status and cache integrity
+- **Background Cleanup**: Handles stale connections and prevents memory leaks
+
+#### Recovery Systems:
+- **Automatic Recovery**: Proactive garbage collection and connection cleanup
+- **Manual Recovery Tools**: User-accessible PWA refresh and diagnostics
+- **Progressive Escalation**: Failure count tracking with escalating recovery options
+- **Connection Diagnostics**: Detailed BLE and PWA status logging for troubleshooting
+
+#### Implementation Details:
+- Health checks run every 60 seconds when in PWA standalone mode
+- Only activates on installed PWAs to avoid overhead in browser mode
+- Comprehensive error handling prevents monitoring system from causing issues
+- Detailed console logging for debugging Android tablet stability issues
+
 ### Development Tasks
 
 #### Web Development

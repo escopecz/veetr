@@ -22,7 +22,8 @@ A sailing vessel monitoring system built with ESP32, providing real-time data on
 
 - Real-time monitoring of sailing data:
   - Vessel speed over ground (SOG) via GPS with noise filtering
-  - Wind speed and direction (AWS/AWD) via ultrasonic sensor
+  - Wind speed and angle (AWS/AWA) via ultrasonic sensor
+  - Calculated true wind speed and angle (TWS/TWA) using vessel motion
   - Vessel heel/tilt angle via BNO080 IMU sensor (when available)
   - GPS position and satellite information
   - BLE connection strength (RSSI)
@@ -63,7 +64,9 @@ The Veetr Sailing Dashboard transmits data via BLE notifications using a standar
   "satellites": 8,
   "hdop": 1.2,
   "AWS": 12.5,
-  "AWD": 045,
+  "AWA": 45.5,
+  "TWS": 10.8,
+  "TWA": 52.3,
   "heel": -5.2,
   "HDM": 185.5,
   "accelX": 0.12,
@@ -85,7 +88,9 @@ The Veetr Sailing Dashboard transmits data via BLE notifications using a standar
 | `satellites` | integer | count | Number of GPS satellites in use | ✓ |
 | `hdop` | float | dimensionless | Horizontal Dilution of Precision | ✓ |
 | `AWS` | float | knots | Apparent Wind Speed | ✓ |
-| `AWD` | integer | degrees | Apparent Wind Direction (0-360°) | ✓ |
+| `AWA` | float | degrees | Apparent Wind Angle (0-360°) relative to bow | ✓ |
+| `TWS` | float | knots | True Wind Speed (calculated) | ✓ |
+| `TWA` | float | degrees | True Wind Angle (0-360°) relative to bow | ✓ |
 | `heel` | float | degrees | Vessel heel angle (+ = starboard, - = port) | ✓ |
 | `HDM` | float | degrees | Heading Magnetic from magnetometer (0-360°) | ✓ |
 | `accelX` | float | m/s² | Acceleration along X-axis (fore/aft) | ✓ |
@@ -103,7 +108,9 @@ The Veetr Sailing Dashboard transmits data via BLE notifications using a standar
 
 **Conditionally Present:**
 - `AWS` - Only present if wind sensor is connected and working
-- `AWD` - Only present if wind sensor is connected and working  
+- `AWA` - Only present if wind sensor is connected and working
+- `TWS` - Only present if wind sensor and GPS are working (calculated from AWS, AWA, SOG)
+- `TWA` - Only present if wind sensor and GPS are working (calculated from AWA, SOG)  
 - `heel` - Only present if BNO080 IMU sensor is detected and working
 - `HDM` - Only present if BNO080 magnetometer is working and has valid data
 - `accelX`, `accelY`, `accelZ` - Only present if BNO080 accelerometer is working and has valid data
@@ -151,7 +158,7 @@ This dual-sensor approach significantly improves accuracy over GPS-only filterin
 The system is designed to be robust against sensor failures:
 
 - **Missing GPS:** System continues to operate, GPS fields show default values
-- **Missing Wind Sensor:** Wind fields (`AWS`, `AWD`) are omitted from JSON
+- **Missing Wind Sensor:** Wind fields (`AWS`, `AWA`, `TWS`, `TWA`) are omitted from JSON
 - **Missing IMU Sensor:** Heel field is omitted from JSON
 - **Sensor Failures:** Individual sensor failures don't affect other sensors or BLE transmission
 - **BLE Reliability:** JSON is transmitted every 1 second regardless of sensor status

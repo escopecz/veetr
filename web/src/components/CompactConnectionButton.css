@@ -49,6 +49,54 @@
   box-shadow: 0 2px 6px var(--shadow-color);
 }
 
+/* Connection Button Container */
+.connection-button-container {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+}
+
+/* Advanced Recovery Options */
+.advanced-connection-options {
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px var(--shadow-color);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+}
+
+.advanced-connection-options small {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+}
+
+.recovery-btn {
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.recovery-btn:hover {
+  background: var(--hover-bg);
+  border-color: var(--primary-color);
+}
+
+.recovery-btn:active {
+  transform: translateY(1px);
+}
+
 .compact-connection-btn.connected:hover:not(:disabled) {
   background: var(--success-color);
   opacity: 0.9;
@@ -66,7 +114,7 @@
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {
-  .compact-connection-btn {
+  .connection-button-container {
     top: 5px;
     left: 5px;
   }
@@ -84,5 +132,9 @@
   .connection-dot {
     width: 6px;
     height: 6px;
+  }
+  
+  .advanced-connection-options {
+    min-width: 120px;
   }
 }
