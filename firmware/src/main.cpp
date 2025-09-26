@@ -394,13 +394,31 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               return;
             }
             
+            // Clean up any existing update state before initializing
+            if (Update.isRunning()) {
+              Serial.println("Cleaning up existing update state...");
+              Update.abort();
+            }
+            
             // Initialize OTA update with U_FLASH type explicitly
             if (!Update.begin(totalSize, U_FLASH)) {
-              Serial.printf("OTA update initialization failed: %s\n", Update.errorString());
-              // Send error response
-              DynamicJsonDocument response(128);
+              int errorCode = Update.getError();
+              String errorString = String(Update.errorString());
+              
+              Serial.printf("OTA update initialization failed: %s (Error code: %d)\n", errorString.c_str(), errorCode);
+              
+              // Send detailed error response
+              DynamicJsonDocument response(256);
               response["type"] = "update_error";
-              response["message"] = Update.errorString();
+              
+              // Create detailed error message with debug info
+              String errorMsg = errorString;
+              if (errorString.length() == 0 || errorString == "No Error") {
+                errorMsg = "Update initialization failed";
+              }
+              errorMsg += " (Error code: " + String(errorCode) + ", Size: " + String(totalSize) + ")";
+              
+              response["message"] = errorMsg;
               String responseStr;
               serializeJson(response, responseStr);
               

@@ -26,6 +26,17 @@ export function FirmwareUpdateCard() {
 
     try {
       await startFirmwareUpdate()
+      
+      // Show success message with next steps
+      alert(`Firmware update completed! 
+
+The device has restarted with the new firmware. Please:
+1. Wait 10-15 seconds for the device to fully boot
+2. Click "Connect to Veetr" to reconnect
+3. Check that the "Current Version" shows the new version
+
+If you still see the old version, the update may have failed.`)
+      
     } catch (error) {
       console.error('Firmware update failed:', error)
       alert(`Firmware update failed: ${error instanceof Error ? error.message : 'Unknown error'}`)

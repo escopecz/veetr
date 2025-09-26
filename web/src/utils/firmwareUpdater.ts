@@ -64,15 +64,17 @@ export class BLEFirmwareUpdater {
       // Step 3: Verify firmware
       await this.verifyFirmware()
 
-      // Step 4: Apply update
+      // Step 4: Apply update (ESP32 will restart)
       await this.applyUpdate()
 
+      // The ESP32 restarts during apply, so we can't get immediate confirmation
+      // The success will be confirmed when the user reconnects and sees the new version
       this.onProgress({
         percentage: 100,
         bytesTransferred: firmwareData.byteLength,
         totalBytes: firmwareData.byteLength,
         stage: 'complete',
-        message: 'Firmware update completed successfully!'
+        message: 'Firmware update sent successfully! Device is restarting. Please reconnect to verify new version.'
       })
 
     } catch (error) {

@@ -545,6 +545,86 @@ export function BLEProvider({ children }: { children: ReactNode }) {
         return
       }
       
+      // Handle memory check response
+      if (data.type === 'memory_info') {
+        const { required, available, total, sufficient } = data
+        console.log(`Device memory: ${available}/${total} bytes available, needs ${required} bytes, sufficient: ${sufficient}`)
+        
+        if (!sufficient) {
+          const errorMsg = `Insufficient device memory: ${available} bytes available, ${required} bytes required`
+          dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: errorMsg })
+          
+          // Show user-friendly memory error
+          alert(`❌ Insufficient Device Memory\n\nYour device doesn't have enough memory for this firmware update:\n\nRequired: ${(required/1024).toFixed(1)} KB\nAvailable: ${(available/1024).toFixed(1)} KB\nShortfall: ${((required-available)/1024).toFixed(1)} KB\n\nThis firmware update cannot be installed over Bluetooth. You may need to use a USB cable for updating.`)
+        }
+        return
+      }
+      
+      // Handle firmware update responses
+      if (data.type === 'update_ready') {
+        console.log('ESP32 confirmed OTA update initialization successful')
+        return
+      }
+      
+      if (data.type === 'update_error') {
+        console.error('ESP32 OTA update error:', data.message)
+        
+        // Handle empty or unhelpful error messages with more specific debugging
+        let userMessage = data.message
+        let originalMessage = data.message || 'No message provided'
+        
+        if (!userMessage || userMessage.trim() === '' || userMessage.toLowerCase() === 'no error') {
+          userMessage = 'Device initialization failed (no specific error provided)'
+        }
+        
+        // Provide specific guidance based on error type
+        let guidance = ''
+        if (userMessage.includes('too large') || userMessage.includes('space')) {
+          guidance = '\n\nThe firmware is too large for the device memory. This device may need to be updated via USB cable instead.'
+        } else if (userMessage.includes('initialization') || userMessage.includes('begin') || userMessage.includes('failed')) {
+          guidance = '\n\nThe device could not prepare for the update. This might be due to:\n• Another update in progress\n• Device in invalid state\n• Hardware memory issues\n\nTry restarting the device and reconnecting.'
+        } else {
+          guidance = '\n\nTry:\n• Ensure device has stable power\n• Move closer to device\n• Restart device and reconnect'
+        }
+        
+        const errorMsg = `Firmware Update Failed: ${userMessage}`
+        dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: errorMsg })
+        
+        // Show user-visible error with actionable guidance and debugging info
+        alert(`❌ Firmware Update Failed\n\n${userMessage}${guidance}\n\n[Debug Info: "${originalMessage}"]`)
+        return
+      }
+      
+      if (data.type === 'chunk_ack') {
+        console.log(`ESP32 confirmed chunk ${data.index} received successfully`)
+        return
+      }
+      
+      if (data.type === 'chunk_error') {
+        console.error(`ESP32 failed to write chunk ${data.index}`)
+        const errorMsg = `Failed to write firmware data (chunk ${data.index})`
+        dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: errorMsg })
+        
+        // Show user-visible error
+        alert(`❌ Firmware Update Failed\n\nFailed to write firmware data to device.\nThis could be due to:\n• Poor BLE connection\n• Device memory issues\n• Hardware problems\n\nPlease try again with a stronger connection.`)
+        return
+      }
+      
+      if (data.type === 'verify_complete') {
+        if (data.success) {
+          console.log('ESP32 firmware verification successful! Device should restart...')
+          // Don't mark as complete yet - wait for reconnection with new version
+        } else {
+          console.error('ESP32 firmware verification failed:', data.error)
+          const errorMsg = `Firmware verification failed: ${data.error}`
+          dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: errorMsg })
+          
+          // Show user-visible error with specific details
+          alert(`❌ Firmware Verification Failed\n\n${data.error}\n\nThe firmware was uploaded but failed verification. This could mean:\n• Corrupted data during transfer\n• Incompatible firmware file\n• Device hardware issues\n\nPlease try the update again.`)
+        }
+        return
+      }
+      
       // Map standard keys to internal data structure
       const mappedData: Partial<SailingData> = {
         speed: data.SOG || 0,            // Speed Over Ground
@@ -629,6 +709,17 @@ export function BLEProvider({ children }: { children: ReactNode }) {
       const firmwareAsset = await getFirmwareAsset(release)
       if (!firmwareAsset) {
         throw new Error('No firmware found in latest release')
+      }
+
+      // Check firmware size against known partition limits
+      const firmwareSize = firmwareAsset.size
+      const MAX_FIRMWARE_SIZE = 1310720 // 1.25MB - typical ESP32 OTA partition size
+      
+      console.log(`Firmware size: ${firmwareSize} bytes (${(firmwareSize / 1024).toFixed(1)} KB)`)
+      console.log(`Maximum allowed: ${MAX_FIRMWARE_SIZE} bytes (${(MAX_FIRMWARE_SIZE / 1024).toFixed(1)} KB)`)
+
+      if (firmwareSize > MAX_FIRMWARE_SIZE) {
+        throw new Error(`Firmware too large: ${(firmwareSize/1024).toFixed(1)} KB exceeds ${(MAX_FIRMWARE_SIZE/1024).toFixed(1)} KB limit. Use USB cable for update.`)
       }
 
       // Download firmware
