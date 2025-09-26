@@ -159,7 +159,7 @@
 
 .btn-primary {
   background: linear-gradient(135deg, var(--accent-color), var(--success-color));
-  color: var(--btn-primary-text);
+  color: var(--bg-card);
 }
 
 .btn-primary:hover:not(:disabled) {
