@@ -65,12 +65,19 @@ export const BLE_CONFIG = {
   DEVICE_NAME: 'Veetr'
 }
 
-// Convert 360° wind angle to 180° sailing angle for display
+// Convert 360° wind angle to ±180° sailing angle for display
+// In sailing: 0° = dead ahead, +90° = starboard beam, -90° = port beam, ±180° = astern
 function convertToSailingAngle(windAngle360: number): number {
-  if (windAngle360 > 180) {
-    return 360 - windAngle360  // Convert 181-359° to 179-1°
+  // Ensure angle is in 0-359 range
+  let angle = windAngle360 % 360
+  if (angle < 0) angle += 360
+  
+  // Convert to ±180° sailing convention
+  if (angle <= 180) {
+    return angle  // 0° to 180° stays as positive (starboard side)
+  } else {
+    return angle - 360  // 181° to 359° becomes -179° to -1° (port side)
   }
-  return windAngle360  // Keep 0-180° as is
 }
 
 // Action types
