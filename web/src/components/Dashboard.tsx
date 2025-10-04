@@ -9,6 +9,7 @@ import StartingLineCard from './cards/StartingLineCard'
 import HeadingCard from './cards/HeadingCard'
 import CompactConnectionButton from './CompactConnectionButton'
 import SatelliteButton from './SatelliteButton'
+import BluetoothButton from './BluetoothButton'
 import Settings from './Settings'
 import './Dashboard.css'
 
@@ -20,6 +21,7 @@ export default function Dashboard() {
     <div className="dashboard">
       <CompactConnectionButton />
       <SatelliteButton />
+      <BluetoothButton />
       <Settings />
       <div className="dashboard-layout">
         <div className="wind-direction-area">

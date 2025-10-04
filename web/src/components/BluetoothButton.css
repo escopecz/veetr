@@ -1,0 +1,84 @@
+/* Bluetooth Button Styles */
+.bluetooth-btn {
+  position: fixed;
+  top: 0rem;
+  left: 2.5rem; /* Position next to satellite button */
+  z-index: 1001;
+  background: none;
+  border: none;
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bluetooth-btn:hover {
+  transform: scale(1.1);
+}
+
+.bluetooth-btn:active {
+  transform: scale(1.05);
+}
+
+.bluetooth-icon {
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+  stroke-width: 2 !important;
+  flex-shrink: 0;
+}
+
+/* Bluetooth Info Modal Styles - reuse GPS modal styles */
+.bluetooth-info-grid {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.3rem;
+  width: 100%;
+  height: 100%;
+  padding: 0.5rem;
+}
+
+.bluetooth-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.1rem 0;
+}
+
+.bluetooth-info-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  text-align: left;
+  flex: 1;
+}
+
+.bluetooth-info-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-shadow: 0 1px 4px var(--shadow-color);
+  text-align: right;
+  flex: 1;
+}
+
+.bluetooth-connected {
+  color: var(--success-color) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .bluetooth-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  
+  .bluetooth-icon {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+  }
+}
