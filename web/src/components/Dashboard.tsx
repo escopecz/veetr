@@ -47,17 +47,17 @@ export default function Dashboard() {
             speed={sailingData.gpsSpeed > 0.5 ? sailingData.gpsSpeed : sailingData.speed}
             satellites={sailingData.gpsSatellites}
           />
-          <TiltCard
-            tilt={sailingData.tilt}
-            portMax={sailingData.tiltPortMax}
-            starboardMax={sailingData.tiltStarboardMax}
+          <HeadingCard 
+            heading={sailingData.heading}
           />
           <StartingLineCard 
             hasStartLine={sailingData.hasStartLine}
             distanceToLine={sailingData.distanceToLine}
           />
-          <HeadingCard 
-            heading={sailingData.heading}
+          <TiltCard
+            tilt={sailingData.tilt}
+            portMax={sailingData.tiltPortMax}
+            starboardMax={sailingData.tiltStarboardMax}
           />
         </div>
       </div>
