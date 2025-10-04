@@ -182,7 +182,7 @@ class MyServerCallbacks: public NimBLEServerCallbacks {
           Serial.printf("Maximum connections reached (%d/%d)\n", 
                        connectedDeviceCount, CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
         } else {
-          Serial.println("Discovery mode not active, not advertising for new connections");
+          Serial.println("Discovery mode not active, stopping advertising for new connections");
         }
       }
     };
@@ -196,9 +196,9 @@ class MyServerCallbacks: public NimBLEServerCallbacks {
       Serial.printf("BLE Client disconnected (remaining: %d/%d)\n", 
                    connectedDeviceCount, CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
       
-      // Restart advertising when a device disconnects only if discovery mode is active
+      // Restart advertising when a device disconnects if discovery mode is active
       delay(500);
-      if (!NimBLEDevice::getAdvertising()->isAdvertising() && discoveryModeActive) {
+      if (!NimBLEDevice::getAdvertising()->isAdvertising() && discoveryModeActive && connectedDeviceCount < CONFIG_BT_NIMBLE_MAX_CONNECTIONS) {
         NimBLEDevice::startAdvertising();
         Serial.println("Restarting advertising after disconnection (discovery mode active)...");
       } else if (!discoveryModeActive) {
@@ -657,17 +657,20 @@ void handleDiscoveryButton() {
   // Simplified button handling with debouncing
   if (reading != lastButtonState) {
     lastButtonDebounceTime = millis();
-    Serial.printf("[DISCOVERY] Button state changed: %s\n", reading == LOW ? "PRESSED" : "RELEASED");
+    Serial.printf("[DISCOVERY] Button state changed: %s (raw value: %d)\n", 
+                  reading == LOW ? "PRESSED" : "RELEASED", reading);
   }
   
   if ((millis() - lastButtonDebounceTime) > debounceDelay) {
     // Button has been stable for debounce delay
     if (reading == LOW && lastButtonState == HIGH) {
       // Button pressed (falling edge)
-      Serial.println("[DISCOVERY] Button press detected!");
+      Serial.println("[DISCOVERY] *** BUTTON PRESS DETECTED! ***");
       if (!discoveryModeActive) {
+        Serial.println("[DISCOVERY] Starting discovery mode...");
         startDiscoveryMode();
       } else {
+        Serial.println("[DISCOVERY] Stopping discovery mode...");
         stopDiscoveryMode();
       }
     }
@@ -930,7 +933,7 @@ void setupBLEServer() {
   pAdvertising->setName(deviceName.c_str());
   
   Serial.printf("[BLE] BLE server configured for up to %d connections\n", CONFIG_BT_NIMBLE_MAX_CONNECTIONS);
-  Serial.println("[BLE] Advertising configured - will be started by discovery mode");
+  Serial.println("[BLE] Advertising configured - press discovery button to enable connections");
 }
 
 // Update BLE with current sensor data
@@ -1097,6 +1100,10 @@ void setup() {
   pinMode(DISCOVERY_LED_PIN, OUTPUT);           // LED output
   digitalWrite(DISCOVERY_LED_PIN, LOW);         // Start with LED off
   Serial.printf("[Boot] Discovery button: GPIO%d, LED: GPIO%d\n", DISCOVERY_BUTTON_PIN, DISCOVERY_LED_PIN);
+  
+  // Test button reading at startup
+  int buttonTest = digitalRead(DISCOVERY_BUTTON_PIN);
+  Serial.printf("[Boot] Button test reading: %d (%s)\n", buttonTest, buttonTest == HIGH ? "NOT PRESSED" : "PRESSED");
   Serial.println("[Boot] Press discovery button to toggle BLE discovery mode");
   
   // IMPORTANT: Start discovery mode automatically on boot
