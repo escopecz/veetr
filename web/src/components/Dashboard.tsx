@@ -5,9 +5,8 @@ import TiltCard from './cards/TiltCard'
 import ApparentAngleCard from './cards/ApparentAngleCard'
 import TrueWindAngleCard from './cards/TrueWindAngleCard'
 import WindAngleCard from './cards/WindAngleCard'
-import SatellitesCard from './cards/SatellitesCard'
+import StartingLineCard from './cards/StartingLineCard'
 import HeadingCard from './cards/HeadingCard'
-import RegattaCard from './cards/RegattaCard'
 import CompactConnectionButton from './CompactConnectionButton'
 import SatelliteButton from './SatelliteButton'
 import Settings from './Settings'
@@ -53,16 +52,13 @@ export default function Dashboard() {
             portMax={sailingData.tiltPortMax}
             starboardMax={sailingData.tiltStarboardMax}
           />
-          <SatellitesCard 
-            satellites={sailingData.gpsSatellites}
-            hdop={sailingData.hdop}
-            lat={sailingData.lat}
-            lon={sailingData.lon}
+          <StartingLineCard 
+            hasStartLine={sailingData.hasStartLine}
+            distanceToLine={sailingData.distanceToLine}
           />
           <HeadingCard 
             heading={sailingData.heading}
           />
-          <RegattaCard />
         </div>
       </div>
     </div>
