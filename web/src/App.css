@@ -17,6 +17,7 @@
   --border-color: rgba(0, 0, 0, 0.1);
   --shadow-color: rgba(0, 0, 0, 0.1);
   --accent-color: #000000;
+  --text-on-accent: #ffffff;
   --success-color: #000000;
   --warning-color: #d69e2e;
   --error-color: #e53e3e;
@@ -35,6 +36,7 @@
   --border-color: rgba(255, 255, 255, 0.1);
   --shadow-color: rgba(0, 0, 0, 0.3);
   --accent-color: #ffffff;
+  --text-on-accent: #000000;
   --success-color: #ffffff;
   --warning-color: #f6e05e;
   --error-color: #fc8181;

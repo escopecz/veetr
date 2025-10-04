@@ -9,6 +9,7 @@ import SatellitesCard from './cards/SatellitesCard'
 import HeadingCard from './cards/HeadingCard'
 import RegattaCard from './cards/RegattaCard'
 import CompactConnectionButton from './CompactConnectionButton'
+import SatelliteButton from './SatelliteButton'
 import Settings from './Settings'
 import './Dashboard.css'
 
@@ -19,6 +20,7 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <CompactConnectionButton />
+      <SatelliteButton />
       <Settings />
       <div className="dashboard-layout">
         <div className="wind-direction-area">
