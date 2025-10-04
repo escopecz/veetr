@@ -515,8 +515,8 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               Serial.printf("Update has error before verification: %s\n", Update.errorString());
             }
             
-            // End the update process to verify it
-            bool updateSuccess = Update.end(true); // true = restart if successful
+            // End the update process to verify it - but don't restart yet
+            bool updateSuccess = Update.end(false); // false = don't restart automatically
             bool hasError = Update.hasError();
             
             if (!updateSuccess || hasError) {
@@ -525,7 +525,7 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
                            updateSuccess ? "true" : "false", 
                            hasError ? "true" : "false");
             } else {
-              Serial.println("Firmware verification successful!");
+              Serial.println("Firmware verification successful! Ready to apply.");
             }
             
             DynamicJsonDocument response(128);
@@ -538,22 +538,37 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             serializeJson(response, responseStr);
             
             safeBLESend(responseStr, true);
-            
-            // If verification successful, restart the device
-            if (updateSuccess && !hasError) {
-              Serial.println("Firmware update completed successfully! Restarting in 2 seconds...");
-              delay(2000);
-              ESP.restart();
-            }
           }
           else if (doc["cmd"] == "APPLY_FW") {
             Serial.println("Applying firmware update...");
             
-            // This command is now redundant since verification handles the restart
-            // But we'll keep it for compatibility
-            Serial.println("Firmware already applied during verification. Restarting...");
-            delay(1000);
-            ESP.restart();
+            // Check if update was successful during verification
+            bool hasError = Update.hasError();
+            
+            if (!hasError && Update.isFinished()) {
+              Serial.println("Firmware update completed successfully! Restarting in 2 seconds...");
+              
+              // Send confirmation before restart
+              DynamicJsonDocument response(128);
+              response["type"] = "apply_complete";
+              response["success"] = true;
+              String responseStr;
+              serializeJson(response, responseStr);
+              safeBLESend(responseStr, true);
+              
+              delay(2000);
+              ESP.restart();
+            } else {
+              Serial.printf("Cannot apply update - verification failed or incomplete. Error: %s\n", Update.errorString());
+              
+              DynamicJsonDocument response(128);
+              response["type"] = "apply_complete";
+              response["success"] = false;
+              response["error"] = hasError ? Update.errorString() : "Update not properly verified";
+              String responseStr;
+              serializeJson(response, responseStr);
+              safeBLESend(responseStr, true);
+            }
           }
         }
       }

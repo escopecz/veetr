@@ -234,13 +234,15 @@ export class BLEFirmwareUpdater {
     
     try {
       await this.characteristic.writeValueWithoutResponse(encoder.encode(command))
-      console.log('Apply command sent, device should restart...')
+      console.log('Apply command sent, waiting for confirmation...')
       
-      // Wait for application - device may restart during this process
-      await this.delay(12000)
+      // Wait longer for apply confirmation and restart
+      await this.delay(8000)
+      console.log('Apply phase completed - device should be restarting')
     } catch (error) {
       // Apply command might fail due to device restart - this could be normal
       console.warn('Apply command may have failed due to device restart:', error)
+      throw error
     }
   }
 

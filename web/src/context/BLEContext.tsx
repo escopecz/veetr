@@ -612,8 +612,8 @@ export function BLEProvider({ children }: { children: ReactNode }) {
       
       if (data.type === 'verify_complete') {
         if (data.success) {
-          console.log('ESP32 firmware verification successful! Device should restart...')
-          // Don't mark as complete yet - wait for reconnection with new version
+          console.log('ESP32 firmware verification successful! Ready for apply command.')
+          // Verification passed - firmware updater will now send apply command
         } else {
           console.error('ESP32 firmware verification failed:', data.error)
           const errorMsg = `Firmware verification failed: ${data.error}`
@@ -621,6 +621,21 @@ export function BLEProvider({ children }: { children: ReactNode }) {
           
           // Show user-visible error with specific details
           alert(`❌ Firmware Verification Failed\n\n${data.error}\n\nThe firmware was uploaded but failed verification. This could mean:\n• Corrupted data during transfer\n• Incompatible firmware file\n• Device hardware issues\n\nPlease try the update again.`)
+        }
+        return
+      }
+      
+      if (data.type === 'apply_complete') {
+        if (data.success) {
+          console.log('ESP32 firmware apply successful! Device is restarting...')
+          // Device will restart now - actual success will be confirmed on reconnection
+        } else {
+          console.error('ESP32 firmware apply failed:', data.error)
+          const errorMsg = `Firmware apply failed: ${data.error}`
+          dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: errorMsg })
+          
+          // Show user-visible error with specific details
+          alert(`❌ Firmware Apply Failed\n\n${data.error}\n\nThe firmware was verified but could not be applied. This could mean:\n• Device in invalid state\n• Hardware issues during restart\n\nPlease try the update again or contact support.`)
         }
         return
       }
