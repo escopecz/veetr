@@ -10,7 +10,7 @@ export default function TrueWindAngleCard({ twa }: TrueWindAngleCardProps) {
       <div className="card-value">
         <span className="card-title">TWA</span>
         <span className="value-unit-row">
-          <span className="value-number">{twa}</span>
+          <span className="value-number">{Math.abs(twa)}</span>
           <span className="card-unit">°</span>
         </span>
       </div>

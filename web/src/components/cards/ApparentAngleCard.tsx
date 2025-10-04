@@ -11,7 +11,7 @@ export default function ApparentAngleCard({ angle }: ApparentAngleCardProps) {
       <div className="card-value">
         <span className="card-title">AWA</span>
         <span className="value-unit-row">
-          <span className="value-number">{angle}</span>
+          <span className="value-number">{Math.abs(angle)}</span>
           <span className="card-unit">°</span>
         </span>
       </div>
