@@ -36,6 +36,7 @@ NimBLECharacteristic* pCommandCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 int bleRSSI = 0; // BLE signal strength
+int bleRSSIFiltered = 0; // Smoothed RSSI value for display
 uint16_t connectedDeviceCount = 0; // Track number of connected devices
 bool bleSending = false; // Prevent concurrent BLE transmissions
 
@@ -577,6 +578,16 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
 
 // Function to read BLE connection RSSI
 void updateBLERSSI() {
+  static unsigned long lastRSSIUpdate = 0;
+  static int rssiReadings[5] = {0}; // Sliding window for smoothing
+  static int rssiIndex = 0;
+  static bool rssiArrayInitialized = false;
+  
+  // Only update RSSI every 3 seconds to reduce noise
+  if (millis() - lastRSSIUpdate < 3000) {
+    return;
+  }
+  
   if (deviceConnected && pServer) {
     // Get the actual RSSI from connected devices
     std::vector<uint16_t> connIds = pServer->getPeerDevices();
@@ -588,14 +599,35 @@ void updateBLERSSI() {
       int8_t rssi = 0;
       if (ble_gap_conn_rssi(connHandle, &rssi) == 0) {
         bleRSSI = rssi;
+        
+        // Initialize array with first reading
+        if (!rssiArrayInitialized) {
+          for (int i = 0; i < 5; i++) {
+            rssiReadings[i] = rssi;
+          }
+          rssiArrayInitialized = true;
+        }
+        
+        // Add new reading to sliding window
+        rssiReadings[rssiIndex] = rssi;
+        rssiIndex = (rssiIndex + 1) % 5;
+        
+        // Calculate smoothed average
+        int sum = 0;
+        for (int i = 0; i < 5; i++) {
+          sum += rssiReadings[i];
+        }
+        bleRSSIFiltered = sum / 5;
+        
       } else {
         bleRSSI = -50; // Fallback if RSSI read fails
+        bleRSSIFiltered = -50;
       }
       
       #ifdef DEBUG_BLE_DATA
       static unsigned long lastRSSIDebug = 0;
       if (millis() - lastRSSIDebug > 10000) { // Debug every 10 seconds
-        Serial.printf("[BLE] %d devices connected, RSSI: %d dBm\n", connIds.size(), bleRSSI);
+        Serial.printf("[BLE] %d devices connected, RSSI: %d dBm (filtered: %d dBm)\n", connIds.size(), bleRSSI, bleRSSIFiltered);
         // Show RSSI for all connected devices
         for (uint16_t connId : connIds) {
           int8_t deviceRSSI = 0;
@@ -608,10 +640,14 @@ void updateBLERSSI() {
       #endif
     } else {
       bleRSSI = 0; // No valid connection IDs
+      bleRSSIFiltered = 0;
     }
   } else {
     bleRSSI = 0; // No connection
+    bleRSSIFiltered = 0;
   }
+  
+  lastRSSIUpdate = millis();
 }
 
 // Discovery Mode Functions
@@ -1143,7 +1179,7 @@ void loop() {
       Serial.print("Status: ");
       if (deviceConnected) {
         Serial.printf("BLE✓(%d) ", connectedDeviceCount);
-        if (bleRSSI != 0) Serial.printf("RSSI:%ddBm ", bleRSSI);
+        if (bleRSSIFiltered != 0) Serial.printf("RSSI:%ddBm ", bleRSSIFiltered);
       }
       if (discoveryModeActive) {
         unsigned long remaining = (DISCOVERY_TIMEOUT_MS - (millis() - discoveryModeStartTime)) / 1000;
@@ -1941,8 +1977,8 @@ String getSensorDataJson() {
     doc["accelZ"] = round(currentData.accelZ * 100) / 100.0; // Acceleration Z-axis in m/s² (2 decimals)
   }
   
-  // BLE connection quality (reduced precision)
-  doc["rssi"] = bleRSSI;
+  // BLE connection quality (smoothed RSSI for stable readings)
+  doc["rssi"] = bleRSSIFiltered;
   
   // Device identification (proper device name)
   // Regatta data - only include if start line is configured
