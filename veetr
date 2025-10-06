@@ -129,6 +129,18 @@ function handleRelease(args) {
   fs.writeFileSync(rootPackageJsonPath, JSON.stringify(rootPackageJson, null, 2) + '\n')
   console.log(`${c.success('✓')} Updated root package.json to ${targetVersion}`)
 
+  // Update root package-lock.json
+  const rootPackageLockPath = path.join(__dirname, 'package-lock.json')
+  if (fs.existsSync(rootPackageLockPath)) {
+    const lockPkg = JSON.parse(fs.readFileSync(rootPackageLockPath, 'utf8'))
+    lockPkg.version = targetVersion
+    if (lockPkg.packages && lockPkg.packages[""]) {
+      lockPkg.packages[""].version = targetVersion
+    }
+    fs.writeFileSync(rootPackageLockPath, JSON.stringify(lockPkg, null, 2) + '\n')
+    console.log(`${c.success('✓')} Updated root package-lock.json to ${targetVersion}`)
+  }
+
   // Sync all version references
   syncVersions(targetVersion)
 
@@ -161,6 +173,18 @@ function syncVersions(version) {
     pkg.version = version
     fs.writeFileSync(webPackageJsonPath, JSON.stringify(pkg, null, 2) + '\n')
     console.log(`${c.success('✓')} Updated web/package.json to ${version}`)
+    
+    // Update web package-lock.json
+    const webPackageLockPath = path.join(__dirname, 'web/package-lock.json')
+    if (fs.existsSync(webPackageLockPath)) {
+      const lockPkg = JSON.parse(fs.readFileSync(webPackageLockPath, 'utf8'))
+      lockPkg.version = version
+      if (lockPkg.packages && lockPkg.packages[""]) {
+        lockPkg.packages[""].version = version
+      }
+      fs.writeFileSync(webPackageLockPath, JSON.stringify(lockPkg, null, 2) + '\n')
+      console.log(`${c.success('✓')} Updated web/package-lock.json to ${version}`)
+    }
   }
 
   // Update TypeScript version file
@@ -175,6 +199,32 @@ function syncVersions(version) {
     console.log(`${c.success('✓')} Updated web/src/utils/version.ts to ${version}`)
   } else {
     console.log(`⚠️  web/src/utils/version.ts not found, skipping`)
+  }
+
+  // Update Service Worker cache names for PWA cache invalidation
+  const swPath = path.join(__dirname, 'web/public/sw.js')
+  if (fs.existsSync(swPath)) {
+    let content = fs.readFileSync(swPath, 'utf8')
+    // Extract major.minor from version for cache naming (e.g., 0.0.15 -> v1.3)
+    const [major, minor, patch] = version.split('.')
+    const cacheVersion = `v${parseInt(major) + 1}.${parseInt(minor) + parseInt(patch) % 10}`
+    
+    content = content.replace(
+      /const CACHE_NAME = 'veetr-v[\d\.]+'/,
+      `const CACHE_NAME = 'veetr-${cacheVersion}'`
+    )
+    content = content.replace(
+      /const STATIC_CACHE_NAME = 'veetr-static-v[\d\.]+'/,
+      `const STATIC_CACHE_NAME = 'veetr-static-${cacheVersion}'`
+    )
+    content = content.replace(
+      /const DYNAMIC_CACHE_NAME = 'veetr-dynamic-v[\d\.]+'/,
+      `const DYNAMIC_CACHE_NAME = 'veetr-dynamic-${cacheVersion}'`
+    )
+    fs.writeFileSync(swPath, content)
+    console.log(`${c.success('✓')} Updated Service Worker cache names to ${cacheVersion}`)
+  } else {
+    console.log(`⚠️  web/public/sw.js not found, skipping`)
   }
 
   // Update firmware version
