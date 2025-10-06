@@ -67,6 +67,7 @@ unsigned long discoveryModeStartTime = 0;
 bool lastButtonState = HIGH;
 unsigned long lastButtonDebounceTime = 0;
 const unsigned long debounceDelay = 50;
+bool buttonProcessed = false;
 
 // RS485 Wind Sensor
 HardwareSerial rs485(RS485_UART);
@@ -654,18 +655,21 @@ void updateBLERSSI() {
 void handleDiscoveryButton() {
   int reading = digitalRead(DISCOVERY_BUTTON_PIN);
   
-  // Simplified button handling with debouncing
+  // Check for state change
   if (reading != lastButtonState) {
     lastButtonDebounceTime = millis();
     Serial.printf("[DISCOVERY] Button state changed: %s (raw value: %d)\n", 
                   reading == LOW ? "PRESSED" : "RELEASED", reading);
+    lastButtonState = reading;  // Update immediately on state change
   }
   
+  // Check for stable button press after debounce delay
   if ((millis() - lastButtonDebounceTime) > debounceDelay) {
-    // Button has been stable for debounce delay
-    if (reading == LOW && lastButtonState == HIGH) {
-      // Button pressed (falling edge)
+    if (reading == LOW && !buttonProcessed) {
+      // Button is pressed and stable, and we haven't processed this press yet
       Serial.println("[DISCOVERY] *** BUTTON PRESS DETECTED! ***");
+      buttonProcessed = true;  // Mark as processed
+      
       if (!discoveryModeActive) {
         Serial.println("[DISCOVERY] Starting discovery mode...");
         startDiscoveryMode();
@@ -673,10 +677,11 @@ void handleDiscoveryButton() {
         Serial.println("[DISCOVERY] Stopping discovery mode...");
         stopDiscoveryMode();
       }
+    } else if (reading == HIGH) {
+      // Button is released, reset the processed flag
+      buttonProcessed = false;
     }
   }
-  
-  lastButtonState = reading;
 }
 
 void startDiscoveryMode() {
