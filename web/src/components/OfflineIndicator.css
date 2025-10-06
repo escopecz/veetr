@@ -1,0 +1,100 @@
+/* Offline Indicator Styles */
+.offline-indicator {
+  position: fixed;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  pointer-events: auto;
+}
+
+.offline-content {
+  background: var(--warning-bg, #fef3c7);
+  color: var(--warning-text, #92400e);
+  border: 1px solid var(--warning-border, #fcd34d);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  position: relative;
+  cursor: help;
+  animation: slideDown 0.3s ease-out;
+}
+
+.offline-content:hover .offline-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.offline-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  margin-top: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 10000;
+}
+
+.offline-tooltip-content {
+  background: var(--bg-secondary, #f8fafc);
+  color: var(--text-secondary, #64748b);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.offline-tooltip-content::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 5px solid var(--bg-secondary, #f8fafc);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Dark theme support */
+[data-theme="dark"] .offline-content {
+  background: var(--warning-bg-dark, #451a03);
+  color: var(--warning-text-dark, #fbbf24);
+  border-color: var(--warning-border-dark, #92400e);
+}
+
+[data-theme="dark"] .offline-tooltip-content {
+  background: var(--bg-secondary-dark, #1e293b);
+  color: var(--text-secondary-dark, #94a3b8);
+  border-color: var(--border-color-dark, #334155);
+}
+
+[data-theme="dark"] .offline-tooltip-content::before {
+  border-bottom-color: var(--bg-secondary-dark, #1e293b);
+}

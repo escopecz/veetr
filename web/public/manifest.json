@@ -1,15 +1,25 @@
 {
-  "name": "Veetr",
-  "description": "Real-time sailing dashboard with BLE connectivity",
+  "name": "Veetr - Sailing Instruments",
+  "short_name": "Veetr",
+  "description": "Real-time sailing dashboard with BLE connectivity - works offline",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#e3f2fd",
   "theme_color": "#3182ce",
+  "categories": ["sports", "navigation", "utilities"],
+  "lang": "en",
+  "scope": "/",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/favicon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "screenshots": [],
+  "shortcuts": [],
+  "related_applications": []
 }

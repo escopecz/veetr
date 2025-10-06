@@ -3,44 +3,105 @@
 Veetr provides open source software and hardware for tracking wind speed, direction, speed over ground, GPS tracking, heading, heel and other data in real time during a sail. Great fit for day-sailers or weekend-sailers.
 
 ## Features
-- Real-time measurements of:
-    - **SOG** (Speed Over Ground) using GPS
-    - **AWS** (Apparent Wind Speed) using the wind sensor
-    - **AWA** (Apparent Wind Angle) using the wind sensor
-    - **TWS** (True Wind Speed) calculated from SOG, AWS, and AWA
-    - **TWA** (True Wind Angle) calculated from SOG and AWA
-    - **Heel** (Heeling angle) using the 9-axis sensor
-    - **HDG** (Heading angle to magnetic north) using the 9-axis sensor
-- **OTA** (Over The Air) updates of the firmware. The app will allow you to update the firmware of the device when a new version is available
-- The [app](https://app.veetr.org/) is a PWA (Progressive Web App). It means you can use it in your browser, you can install it on your desktop as a real app. The advantage is that it is always up to date after refresh. No need for app stores and their limitations
-- The [app](https://app.veetr.org/) is also **responsive**. It looks great on any screen size and orientation
-- There is also **light and dark mode** for sunny days and night passages
-- Up to **4 devices** can connect at the same time
-- Regatta starting procedure allows you to pin 2 places and the app will tell you how far you are from the line between the 2 points. It allows you to be as close to the starting line as possible without worrying about being over.
+
+### 🌊 Real-time Sailing Data
+- **SOG** (Speed Over Ground) using GPS
+- **AWS** (Apparent Wind Speed) using ultrasonic wind sensor
+- **AWA** (Apparent Wind Angle) using ultrasonic wind sensor  
+- **TWS** (True Wind Speed) calculated from SOG, AWS, and AWA
+- **TWA** (True Wind Angle) calculated from SOG and AWA
+- **Heel** (Heeling angle) using 9-axis IMU sensor
+- **HDG** (Heading angle to magnetic north) using 9-axis IMU sensor
+- **GPS Position** with satellite count and HDOP accuracy
+
+### 📱 Progressive Web App (PWA)
+- **Offline Capability** - Works without internet connection after initial load
+- **Mobile Installation** - Install as native app on phones and tablets
+- **Responsive Design** - Optimized for all screen sizes and orientations
+- **Light & Dark Mode** - Perfect for sunny days and night passages
+- **Always Up-to-Date** - Automatic updates when internet is available
+
+### 🔄 Firmware & Connectivity
+- **OTA Updates** - Over-the-air firmware updates through the web app
+- **Multi-Device Support** - Up to 4 devices can connect simultaneously
+- **Bluetooth Security** - Discovery mode only when button is pressed (5-minute window)
+- **Real-time Data** - 1-second refresh rate for live sailing data
+- **RSSI Monitoring** - Signal strength indicator with connection quality
+
+### 🏁 Racing Features
+- **Regatta Starting Line** - Pin 2 GPS points and track distance to start line
+- **Visual Compass** - Wind direction and heading display with smooth animations
+- **Satellite Status** - GPS quality monitoring with visual indicators
+- **Connection Management** - Robust BLE connection with automatic reconnection
+
 
 ## Why Veetr?
-- **Open source software** - free firmware and app to use, install, host yourself and/or modify
-- **Open hardware** - get the necessary boards from Aliexpress yourself if you want to avoid additional fees
-- **3D printed case** - print it yourself or with your nerdy friend
-- **Cheap** compared to other projects - you can get the electronic components for $250 (price from 2025-09-02)
-- Your boat doesn't need any electronics inside. You can power it with any powerbank with USB-C cable.
-- **Low power consumption**: A 10Ah powerbank can power the device with 1-second refresh rate for around 24 hours
-- **No moving parts**: The wind meter is ultrasonic. Very precise and works nicely even in small wind speeds
-- **Lightweight**: The wind sensor dimensions are 66x64 mm and weighs 89 grams.
-- **Quality sensors**: This project is cheap but still uses high-quality sensors. It could have been even cheaper but it would compromise on quality.
-- **Security**: The Bluetooth device is discoverable only when you press a physical button for 5 minutes. No one else will be able to connect otherwise.
+
+### 💰 Cost-Effective
+- **Open source software** - Free firmware and app to use, install, host yourself and/or modify
+- **Open hardware** - Source components from suppliers like Aliexpress to avoid markup
+- **3D printed case** - Print yourself or with local maker community
+- **Budget-friendly** - Complete electronic components for ~$250 (2025 pricing)
+
+### ⚡ Performance & Reliability
+- **Low power consumption** - 10Ah powerbank provides ~24 hours at 1-second refresh rate
+- **No moving parts** - Ultrasonic wind sensor for precision and durability
+- **Lightweight** - Wind sensor: 66x64mm, 89 grams
+- **Quality sensors** - High-precision components without compromise
+
+### 🔒 Security & Independence
+- **Physical Security** - Bluetooth discoverable only with button press (5-minute window)
+- **Privacy-First** - All data stays on your device, no cloud dependency
+- **USB-C Power** - Works with any standard powerbank or USB-C charger
 
 ## Technology Stack
 
-### Web Dashboard:
-- **React 18** + TypeScript + Vite
-- **Progressive Web App** for mobile installation
-- **Web Bluetooth API** for BLE communication
+### 🌐 Web Dashboard:
+- **React 18** + TypeScript + Vite for modern development
+- **Progressive Web App (PWA)** with Service Worker for offline capability
+- **Web Bluetooth API** for direct BLE communication
+- **Lucide React Icons** for consistent, scalable vector graphics
+- **CSS Custom Properties** for theming and responsive design
+- **Responsive Layout** optimized for mobile, tablet, and desktop
 
-### ESP32 Firmware:
-- **Arduino Framework** via PlatformIO
-- **NimBLE** for Bluetooth Low Energy
-- **GPS, IMU, Wind sensors** via UART/I2C/RS485
+### 🔧 ESP32 Firmware:
+- **Arduino Framework** via PlatformIO for robust development
+- **NimBLE Stack** for Bluetooth Low Energy with multi-connection support
+- **Multi-Sensor Integration**:
+  - GPS module (UART) for position and speed
+  - BNO080 IMU (I2C) for heading and heel
+  - Ultrasonic wind sensor (RS485) for wind speed/direction
+- **RSSI Filtering** with moving average for stable signal strength
+- **Discovery Mode Security** with button-activated pairing
+- **OTA Update Support** for seamless firmware upgrades
+
+### 📡 Communication Protocol:
+- **BLE GATT Services** for sensor data streaming
+- **JSON Data Format** for structured sensor readings
+- **Real-time Updates** at 1Hz refresh rate
+- **Multi-device Broadcasting** supporting up to 4 concurrent connections
+
+## 🚀 Quick Start
+
+### For Sailors (Using the App):
+1. **Visit** [app.veetr.org](https://app.veetr.org) on your mobile device
+2. **Install** the app (tap "Add to Home Screen" or "Install" prompt)
+3. **Press** the physical button on your Veetr device to enable discovery mode or restart the device
+4. **Connect** via the Bluetooth button in the app
+5. **Sail** with real-time data - works offline once connected!
+
+### For Developers:
+```bash
+# Clone and setup web app
+git clone https://github.com/escopecz/veetr.git
+cd veetr/web
+npm install
+npm run dev
+
+# Setup firmware development
+cd ../firmware
+pio run --target upload
+```
 
 ## Documentation
 
