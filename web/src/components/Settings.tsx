@@ -3,6 +3,7 @@ import { useBLE } from '../context/BLEContext'
 import { FirmwareUpdateCard } from './cards/FirmwareUpdateCard'
 import ThemeToggle from './ThemeToggle'
 import { APP_VERSION } from '../utils/version'
+import { Menu, X, Moon, Bluetooth, Flag, Settings as SettingsIcon, Info, ChevronRight, ChevronLeft, AlertTriangle } from 'lucide-react'
 import './Settings.css'
 
 export default function Settings() {
@@ -206,11 +207,7 @@ export default function Settings() {
         onClick={toggleMenu}
         aria-label="Settings menu"
       >
-        <div className="hamburger-icon">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
+        <Menu size={24} />
       </button>
       
       {menuOpen && (
@@ -224,13 +221,15 @@ export default function Settings() {
                   onClick={() => setMenuOpen(false)}
                   aria-label="Close menu"
                 >
-                  ×
+                  <X size={20} />
                 </button>
               </div>
               
               <div className="menu-section">
                 <div className="menu-item main-menu-item theme-menu-item">
-                  <span className="menu-icon">🌙</span>
+                  <span className="menu-icon">
+                    <Moon size={20} />
+                  </span>
                   <div className="menu-item-content">
                     <h4>Theme</h4>
                     <p>Switch between light and dark mode</p>
@@ -244,48 +243,64 @@ export default function Settings() {
                   className="menu-item main-menu-item" 
                   onClick={() => navigateToView('bluetooth')}
                 >
-                  <span className="menu-icon">📶</span>
+                  <span className="menu-icon">
+                    <Bluetooth size={20} />
+                  </span>
                   <div className="menu-item-content">
                     <h4>Bluetooth</h4>
                     <p>Connection and device pairing</p>
                   </div>
-                  <span className="menu-arrow">›</span>
+                  <span className="menu-arrow">
+                    <ChevronRight size={16} />
+                  </span>
                 </button>
                 
                 <button 
                   className="menu-item main-menu-item" 
                   onClick={() => navigateToView('regatta')}
                 >
-                  <span className="menu-icon">🏁</span>
+                  <span className="menu-icon">
+                    <Flag size={20} />
+                  </span>
                   <div className="menu-item-content">
                     <h4>Regatta</h4>
                     <p>Starting procedure and race setup</p>
                   </div>
-                  <span className="menu-arrow">›</span>
+                  <span className="menu-arrow">
+                    <ChevronRight size={16} />
+                  </span>
                 </button>
 
                 <button 
                   className="menu-item main-menu-item" 
                   onClick={() => navigateToView('calibration')}
                 >
-                  <span className="menu-icon">⚙️</span>
+                  <span className="menu-icon">
+                    <SettingsIcon size={20} />
+                  </span>
                   <div className="menu-item-content">
                     <h4>Calibration</h4>
                     <p>Calibrate after installation</p>
                   </div>
-                  <span className="menu-arrow">›</span>
+                  <span className="menu-arrow">
+                    <ChevronRight size={16} />
+                  </span>
                 </button>
                 
                 <button 
                   className="menu-item main-menu-item" 
                   onClick={() => navigateToView('about')}
                 >
-                  <span className="menu-icon">ℹ️</span>
+                  <span className="menu-icon">
+                    <Info size={20} />
+                  </span>
                   <div className="menu-item-content">
                     <h4>About</h4>
                     <p>Version info and updates</p>
                   </div>
-                  <span className="menu-arrow">›</span>
+                  <span className="menu-arrow">
+                    <ChevronRight size={16} />
+                  </span>
                 </button>
               </div>
             </>
@@ -299,7 +314,7 @@ export default function Settings() {
                   onClick={() => navigateToView('main')}
                   aria-label="Back to main menu"
                 >
-                  ‹
+                  <ChevronLeft size={20} />
                 </button>
                 <h3>Bluetooth</h3>
                 <button 
@@ -307,7 +322,7 @@ export default function Settings() {
                   onClick={() => setMenuOpen(false)}
                   aria-label="Close menu"
                 >
-                  ×
+                  <X size={20} />
                 </button>
               </div>
 
@@ -382,7 +397,7 @@ export default function Settings() {
 
               {!state.isConnected && (
                 <div className="connection-warning">
-                  <p>⚠️ Connect to Veetr device to configure settings</p>
+                  <p><AlertTriangle size={16} className="inline-icon" /> Connect to Veetr device to configure settings</p>
                 </div>
               )}
             </>
@@ -396,7 +411,7 @@ export default function Settings() {
                   onClick={() => navigateToView('main')}
                   aria-label="Back to main menu"
                 >
-                  ‹
+                  <ChevronLeft size={20} />
                 </button>
                 <h3>Calibration</h3>
                 <button 
@@ -404,7 +419,7 @@ export default function Settings() {
                   onClick={() => setMenuOpen(false)}
                   aria-label="Close menu"
                 >
-                  ×
+                  <X size={20} />
                 </button>
               </div>
               
@@ -430,7 +445,7 @@ export default function Settings() {
 
               {!state.isConnected && (
                 <div className="connection-warning">
-                  <p>⚠️ Connect to Veetr device to access settings</p>
+                  <p><AlertTriangle size={16} className="inline-icon" /> Connect to Veetr device to access settings</p>
                 </div>
               )}
             </>
@@ -444,7 +459,7 @@ export default function Settings() {
                   onClick={() => navigateToView('main')}
                   aria-label="Back to main menu"
                 >
-                  ‹
+                  <ChevronLeft size={20} />
                 </button>
                 <h3>Regatta</h3>
                 <button 
@@ -452,7 +467,7 @@ export default function Settings() {
                   onClick={() => setMenuOpen(false)}
                   aria-label="Close menu"
                 >
-                  ×
+                  <X size={20} />
                 </button>
               </div>
               
@@ -497,7 +512,7 @@ export default function Settings() {
 
               {!state.isConnected && (
                 <div className="connection-warning">
-                  <p>⚠️ Connect to Veetr device to access regatta features</p>
+                  <p><AlertTriangle size={16} className="inline-icon" /> Connect to Veetr device to access regatta features</p>
                 </div>
               )}
             </>
@@ -511,7 +526,7 @@ export default function Settings() {
                   onClick={() => navigateToView('main')}
                   aria-label="Back to main menu"
                 >
-                  ‹
+                  <ChevronLeft size={20} />
                 </button>
                 <h3>About</h3>
                 <button 
@@ -519,7 +534,7 @@ export default function Settings() {
                   onClick={() => setMenuOpen(false)}
                   aria-label="Close menu"
                 >
-                  ×
+                  <X size={20} />
                 </button>
               </div>
               

@@ -521,3 +521,11 @@
   background: var(--error-color);
   opacity: 0.9;
 }
+
+/* Inline icon styling for warning icons */
+.inline-icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 0.5rem;
+  color: var(--warning-color, #f59e0b);
+}
