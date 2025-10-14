@@ -19,7 +19,7 @@ veetr/
 ## Configuration Details
 
 ### Target Hardware:
-- **Board**: ESP32 DevKitC WROOM-32U
+- **Board**: ESP32 DevKitC WROOM-32U ([detailed specs](./HARDWARE.md))
 - **Platform**: Espressif32 v6.4.0+
 - **Framework**: Arduino
 - **Monitor Speed**: 115200 baud
@@ -66,7 +66,7 @@ Current firmware uses approximately:
 - **RAM**: 11.6% (38,076 / 327,680 bytes)
 - **Flash**: 52.1% (683,397 / 1,310,720 bytes)
 
-Plenty of space remaining for additional features and sensors.
+Plenty of space remaining for additional features and sensors ([see sensor options](./HARDWARE.md)).
 
 ## Adding New Libraries
 

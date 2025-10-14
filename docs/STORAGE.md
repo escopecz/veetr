@@ -49,7 +49,7 @@ The ESP32 uses EEPROM/NVS (Non-Volatile Storage) for persistent configuration:
 ## Data Flow
 
 ### Real-time Data:
-1. **ESP32 sensors** → **BLE transmission** → **Web dashboard**
+1. **ESP32 sensors** ([hardware details](./HARDWARE.md)) → **BLE transmission** → **Web dashboard**
 2. **Web storage** for immediate display and short-term buffering
 3. **No persistent logging** of real-time data (by design)
 

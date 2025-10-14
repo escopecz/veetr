@@ -64,7 +64,7 @@ pio device monitor         # Serial monitor
 #### ESP32 Firmware (`/firmware`)
 - **Arduino Framework** via PlatformIO
 - **NimBLE** for Bluetooth Low Energy
-- **Sensor Integration**: GPS, IMU, Wind sensors
+- **Sensor Integration**: GPS, IMU, Wind sensors ([hardware specs](./HARDWARE.md))
 - **Communication**: UART/I2C/RS485 protocols
 
 ### PWA Health Monitoring System

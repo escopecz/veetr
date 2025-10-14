@@ -6,6 +6,25 @@ Technical documentation for the ESP32-based sailing sensor hardware and dashboar
 
 The Veetr uses an ESP32 microcontroller with multiple sensors to provide comprehensive sailing data via Bluetooth Low Energy (BLE) to a web-based dashboard.
 
+![Veetr PCB Assembly](../pcb/Veetr-in-box.jpg)
+
+## Modular Design Philosophy
+
+Veetr employs a **modular breakout board architecture** for maximum flexibility and maintainability:
+
+### 🔧 Design Benefits
+- **Standard Components**: All sensors are off-the-shelf modules with pin headers
+- **Easy Replacement**: Swap faulty sensors without system redesign  
+- **Future-Proof**: Upgrade individual sensors as technology improves
+- **Cost-Effective**: No custom sensor manufacturing required
+- **Repair-Friendly**: Replace only broken components
+- **Expandable**: Add new sensors by updating firmware and PCB layout ([PCB files available](../pcb/))
+
+### 🔌 Connection Method
+- **Pin Headers**: Standard 2.54mm pitch pin headers for all connections
+- **Breadboard Compatible**: Prototype on breadboard before PCB assembly ([Gerber files for manufacturing](../pcb/gerbers/))
+- **Modular Cables**: Use DuPont cables for temporary connections
+
 ## Note on Affiliate Links
 Some of the parts listed below use affiliate links. If you choose to purchase through these, a small portion comes back to support the project’s ongoing development. This doesn’t change the price you pay. If you’d rather not use affiliate links, feel free to search for the part numbers directly (a quick Google search will usually turn them up).
 

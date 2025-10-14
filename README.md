@@ -34,16 +34,17 @@ Veetr provides open source software and hardware for tracking wind speed, direct
 - **Satellite Status** - GPS quality monitoring with visual indicators
 - **Connection Management** - Robust BLE connection with automatic reconnection
 
-
 ## Why Veetr?
 
 ### 💰 Cost-Effective
 - **Open source software** - Free firmware and app to use, install, host yourself and/or modify
-- **Open hardware** - Source components from suppliers like Aliexpress to avoid markup
+- **Open hardware** - PCB Gerber files included for custom manufacturing ([download files](./pcb/))
+- **Modular design** - Use standard sensors from AliExpress with pin headers ([full parts list](./docs/HARDWARE.md))
 - **3D printed case** - Print yourself or with local maker community
 - **Budget-friendly** - Complete electronic components for ~$250 (2025 pricing)
 
 ### ⚡ Performance & Reliability
+- **Modular architecture** - Easy to repair, upgrade, or replace individual sensors
 - **Low power consumption** - 10Ah powerbank provides ~24 hours at 1-second refresh rate
 - **No moving parts** - Ultrasonic wind sensor for precision and durability
 - **Lightweight** - Wind sensor: 66x64mm, 89 grams
@@ -67,7 +68,7 @@ Veetr provides open source software and hardware for tracking wind speed, direct
 ### 🔧 ESP32 Firmware:
 - **Arduino Framework** via PlatformIO for robust development
 - **NimBLE Stack** for Bluetooth Low Energy with multi-connection support
-- **Multi-Sensor Integration**:
+- **Multi-Sensor Integration** ([hardware details](./docs/HARDWARE.md)):
   - GPS module (UART) for position and speed
   - BNO080 IMU (I2C) for heading and heel
   - Ultrasonic wind sensor (RS485) for wind speed/direction
@@ -80,6 +81,14 @@ Veetr provides open source software and hardware for tracking wind speed, direct
 - **JSON Data Format** for structured sensor readings
 - **Real-time Updates** at 1Hz refresh rate
 - **Multi-device Broadcasting** supporting up to 4 concurrent connections
+
+## 🔧 Hardware Design
+
+![Veetr PCB Assembly](./pcb/Veetr-in-box.jpg)
+
+Veetr uses a **modular breakout board design** with standard off-the-shelf sensors for maximum flexibility and repairability.
+
+**📋 Full Details**: [Hardware Guide](./docs/HARDWARE.md) | **🔧 PCB Files**: [Manufacturing Files](./pcb/)
 
 ## 🚀 Quick Start
 
@@ -110,6 +119,7 @@ For detailed information, see the [docs/](./docs/) directory:
 - **[Setup Guide](./docs/SETUP.md)** - Step-by-step user setup for sailors
 - **[Development Guide](./docs/DEVELOPMENT.md)** - Developer workflow and contribution guide
 - **[Hardware Guide](./docs/HARDWARE.md)** - ESP32 wiring and sensor specifications
+- **[PCB Files](./pcb/README.md)** - Gerber files and PCB manufacturing information ([download Gerbers](./pcb/gerbers/))
 - **[Compliance & Certifications](./docs/COMPLIANCE.md)** - FCC, CE, IC regulatory compliance
 - **[Firmware Update Guide](./docs/FIRMWARE_UPDATE.md)** - How to update ESP32 firmware
 - **[PlatformIO Guide](./docs/PLATFORMIO.md)** - Firmware development details
