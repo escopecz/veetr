@@ -547,8 +547,8 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               Serial.printf("Update has error before verification: %s\n", Update.errorString());
             }
             
-            // End the update process to verify it - but don't restart yet
-            bool updateSuccess = Update.end(false); // false = don't restart automatically
+            // End the update process to verify it - this also validates the partition
+            bool updateSuccess = Update.end(true); // true = validate and set boot partition
             bool hasError = Update.hasError();
             
             if (!updateSuccess || hasError) {
@@ -557,7 +557,17 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
                            updateSuccess ? "true" : "false", 
                            hasError ? "true" : "false");
             } else {
-              Serial.println("Firmware verification successful! Ready to apply.");
+              Serial.println("Firmware verification successful! Boot partition updated.");
+              
+              // Additional validation - check if the OTA partition is set correctly
+              const esp_partition_t* configured = esp_ota_get_boot_partition();
+              const esp_partition_t* running = esp_ota_get_running_partition();
+              if (configured != running) {
+                Serial.printf("OTA partition configured correctly: %s -> %s\n", 
+                             running->label, configured->label);
+              } else {
+                Serial.println("Warning: Boot partition not changed - this might indicate an issue");
+              }
             }
             
             DynamicJsonDocument response(128);
@@ -601,7 +611,9 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               
               delay(1000);
               Serial.println("Restarting ESP32 now...");
-              ESP.restart();
+              
+              // Force a hard restart to ensure clean boot from new partition
+              esp_restart();
             } else {
               Serial.printf("Cannot apply update - verification failed or incomplete. Error: %s\n", Update.errorString());
               
@@ -1041,6 +1053,16 @@ void setup() {
   Serial.begin(115200);
   delay(1000); // Give serial time to initialize
   Serial.println("\n=== Veetr Starting ===");
+  Serial.printf("[Boot] Firmware Version: %s\n", FIRMWARE_VERSION);
+  
+  // Debug OTA partition information
+  const esp_partition_t* configured = esp_ota_get_boot_partition();
+  const esp_partition_t* running = esp_ota_get_running_partition();
+  Serial.printf("[Boot] Running partition: %s (address: 0x%x)\n", running->label, running->address);
+  Serial.printf("[Boot] Configured boot partition: %s (address: 0x%x)\n", configured->label, configured->address);
+  if (configured != running) {
+    Serial.println("[Boot] WARNING: Configured partition differs from running partition!");
+  }
   
   // Initialize Preferences for persistent storage
   preferences.begin("settings", false);
