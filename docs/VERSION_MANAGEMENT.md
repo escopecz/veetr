@@ -12,7 +12,7 @@ This project uses centralized version management with the root `package.json` as
 
 ### 🚀 Automated Release Process
 ```bash
-veetr release 0.0.1   # Creates branch, commits, tags, and pushes
+./veetr release 0.0.1   # Creates branch, commits, tags, and pushes
 ```
 
 **What this does automatically:**
@@ -34,7 +34,7 @@ veetr release 0.0.1   # Creates branch, commits, tags, and pushes
 ### Using Automated Release (Recommended)
 ```bash
 # 1. Create release (does everything automatically)
-veetr release 1.2.3
+./veetr release 1.2.3
 
 # 2. GitHub Actions automatically validates, builds, and creates release
 # 3. Done! Check the releases page for your new release

@@ -25,6 +25,7 @@ float heelAngleDelta = 0.0f;
 float compassOffsetDelta = 0.0f; // Compass calibration offset in degrees
 int deadWindAngle = 40; // default
 float refreshRateSeconds = 1.0f; // Default 1.0 second refresh rate
+bool otaInProgress = false; // Flag to pause sensor data during firmware updates
 
 // BLE Configuration
 #define SERVICE_UUID        "12345678-1234-1234-1234-123456789abc"
@@ -402,6 +403,10 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             int totalSize = doc["size"];
             Serial.printf("Starting firmware update, size: %d bytes\n", totalSize);
             
+            // Set flag to pause sensor data transmission during OTA
+            otaInProgress = true;
+            Serial.println("OTA update started - pausing sensor data transmission");
+            
             // Check if we have enough space for OTA update
             size_t freeSpace = ESP.getFreeSketchSpace();
             Serial.printf("Available OTA space: %d bytes\n", freeSpace);
@@ -446,6 +451,10 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               serializeJson(response, responseStr);
               
               safeBLESend(responseStr, true);
+              
+              // Reset OTA flag on initialization failure
+              otaInProgress = false;
+              Serial.println("OTA initialization failed - resuming sensor data transmission");
             } else {
               Serial.println("OTA update initialized successfully");
               // Send acknowledgment
@@ -556,6 +565,10 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             response["success"] = updateSuccess && !hasError;
             if (!updateSuccess || hasError) {
               response["error"] = Update.errorString();
+              
+              // Reset OTA flag on verification failure so sensor data resumes
+              otaInProgress = false;
+              Serial.println("OTA verification failed - resuming sensor data transmission");
             }
             String responseStr;
             serializeJson(response, responseStr);
@@ -579,7 +592,15 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               serializeJson(response, responseStr);
               safeBLESend(responseStr, true);
               
-              delay(2000);
+              // Wait for message to be sent
+              delay(1000);
+              
+              // Clean shutdown of BLE before restart to ensure proper reboot
+              Serial.println("Shutting down BLE before restart...");
+              NimBLEDevice::deinit(); // This disconnects all clients and cleans up BLE stack
+              
+              delay(1000);
+              Serial.println("Restarting ESP32 now...");
               ESP.restart();
             } else {
               Serial.printf("Cannot apply update - verification failed or incomplete. Error: %s\n", Update.errorString());
@@ -591,6 +612,10 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               String responseStr;
               serializeJson(response, responseStr);
               safeBLESend(responseStr, true);
+              
+              // Reset OTA flag on failure so sensor data resumes
+              otaInProgress = false;
+              Serial.println("OTA update failed - resuming sensor data transmission");
             }
           }
         }
@@ -1203,6 +1228,17 @@ void loop() {
   // Handle discovery button and mode
   handleDiscoveryButton();
   updateDiscoveryStatus();
+  
+  // Handle OTA progress LED blinking (very fast blink during update)
+  if (otaInProgress) {
+    static unsigned long lastOTABlink = 0;
+    if (millis() - lastOTABlink >= 100) { // Very fast blink every 100ms
+      digitalWrite(DISCOVERY_LED_PIN, !digitalRead(DISCOVERY_LED_PIN));
+      lastOTABlink = millis();
+    }
+    delay(10); // Small delay to prevent tight loop, but keep responsive
+    return;
+  }
   
   // Check if it's time to update data
   if (millis() >= nextUpdate) {
