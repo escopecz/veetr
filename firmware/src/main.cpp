@@ -26,6 +26,8 @@ float compassOffsetDelta = 0.0f; // Compass calibration offset in degrees
 int deadWindAngle = 40; // default
 float refreshRateSeconds = 1.0f; // Default 1.0 second refresh rate
 bool otaInProgress = false; // Flag to pause sensor data during firmware updates
+unsigned long otaStartTime = 0; // Track when OTA started for timeout
+const unsigned long OTA_TIMEOUT_MS = 300000; // 5 minute timeout for OTA updates
 
 // BLE Configuration
 #define SERVICE_UUID        "12345678-1234-1234-1234-123456789abc"
@@ -405,6 +407,7 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             
             // Set flag to pause sensor data transmission during OTA
             otaInProgress = true;
+            otaStartTime = millis(); // Record when OTA started
             Serial.println("OTA update started - pausing sensor data transmission");
             
             // Check if we have enough space for OTA update
@@ -592,7 +595,20 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             bool hasError = Update.hasError();
             
             if (!hasError && Update.isFinished()) {
-              Serial.println("Firmware update completed successfully! Restarting in 2 seconds...");
+              Serial.println("Firmware update completed successfully!");
+              
+              // Verify the boot partition was set correctly
+              const esp_partition_t* configured = esp_ota_get_boot_partition();
+              const esp_partition_t* running = esp_ota_get_running_partition();
+              
+              Serial.printf("Current running partition: %s\n", running->label);
+              Serial.printf("Configured boot partition: %s\n", configured->label);
+              
+              if (configured != running) {
+                Serial.println("Boot partition successfully updated! Restarting...");
+              } else {
+                Serial.println("WARNING: Boot partition not changed - forcing restart anyway");
+              }
               
               // Send confirmation before restart
               DynamicJsonDocument response(128);
@@ -602,18 +618,27 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               serializeJson(response, responseStr);
               safeBLESend(responseStr, true);
               
-              // Wait for message to be sent
-              delay(1000);
+              // Wait longer for message to be sent and processed
+              delay(2000);
               
-              // Clean shutdown of BLE before restart to ensure proper reboot
-              Serial.println("Shutting down BLE before restart...");
-              NimBLEDevice::deinit(); // This disconnects all clients and cleans up BLE stack
+              // Complete shutdown of BLE and cleanup
+              Serial.println("Shutting down BLE...");
+              if (pServer) {
+                pServer->getAdvertising()->stop();
+              }
+              NimBLEDevice::deinit();
               
-              delay(1000);
-              Serial.println("Restarting ESP32 now...");
+              // Wait for complete BLE shutdown
+              delay(2000);
               
-              // Force a hard restart to ensure clean boot from new partition
-              esp_restart();
+              // Clear OTA flag before restart
+              otaInProgress = false;
+              
+              Serial.println("Performing hard restart...");
+              Serial.flush(); // Ensure all serial output is sent
+              
+              // Force complete system restart
+              ESP.restart();
             } else {
               Serial.printf("Cannot apply update - verification failed or incomplete. Error: %s\n", Update.errorString());
               
@@ -1253,6 +1278,23 @@ void loop() {
   
   // Handle OTA progress LED blinking (very fast blink during update)
   if (otaInProgress) {
+    // Check for OTA timeout (5 minutes)
+    if (millis() - otaStartTime > OTA_TIMEOUT_MS) {
+      Serial.println("OTA update timeout! Resetting OTA state and resuming normal operation.");
+      otaInProgress = false;
+      otaStartTime = 0;
+      
+      // Clean up any failed OTA state
+      if (Update.isRunning()) {
+        Update.abort();
+      }
+      
+      // Turn off LED and resume normal operation
+      digitalWrite(DISCOVERY_LED_PIN, LOW);
+      Serial.println("OTA timeout recovery complete - resuming sensor data transmission");
+      return;
+    }
+    
     static unsigned long lastOTABlink = 0;
     if (millis() - lastOTABlink >= 100) { // Very fast blink every 100ms
       digitalWrite(DISCOVERY_LED_PIN, !digitalRead(DISCOVERY_LED_PIN));
