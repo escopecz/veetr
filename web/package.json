@@ -1,6 +1,6 @@
 {
   "name": "veetr",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "type": "module",
   "description": "Modern React sailing dashboard with BLE connectivity",
   "scripts": {
