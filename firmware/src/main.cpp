@@ -24,6 +24,7 @@ Preferences preferences;
 float heelAngleDelta = 0.0f;
 float compassOffsetDelta = 0.0f; // Compass calibration offset in degrees
 int deadWindAngle = 40; // default
+float refreshRateSeconds = 1.0f; // Default 1.0 second refresh rate
 
 // BLE Configuration
 #define SERVICE_UUID        "12345678-1234-1234-1234-123456789abc"
@@ -108,6 +109,7 @@ void handleDiscoveryButton();
 void startDiscoveryMode();
 void stopDiscoveryMode();
 void updateDiscoveryStatus();
+void updateRefreshRate();
 
 // Safe BLE transmission function to prevent data corruption
 bool safeBLESend(const String& data, bool isCommand) {
@@ -299,6 +301,25 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               Serial.printf("Regatta starboard position set: %.6f, %.6f\n", regattaData.starboardLat, regattaData.starboardLon);
             } else {
               Serial.println("Cannot set regatta starboard position - GPS fix not available");
+            }
+          }
+          else if (action == "setRefreshRate") {
+            float newRefreshRate = doc["refreshRate"];
+            if (newRefreshRate >= 0.5f && newRefreshRate <= 2.0f) {
+              refreshRateSeconds = newRefreshRate;
+              preferences.putFloat("refreshRate", refreshRateSeconds);
+              updateRefreshRate();
+              Serial.printf("Refresh rate changed to %.1f seconds (%d ms)\n", refreshRateSeconds, (int)(refreshRateSeconds * 1000.0f));
+              
+              // Send confirmation response
+              DynamicJsonDocument response(128);
+              response["type"] = "refresh_rate_updated";
+              response["refreshRate"] = refreshRateSeconds;
+              String responseStr;
+              serializeJson(response, responseStr);
+              safeBLESend(responseStr, true);
+            } else {
+              Serial.println("Invalid refresh rate - must be between 0.5 and 2.0 seconds");
             }
           }
           else if (action == "setDeviceName") {
@@ -804,6 +825,14 @@ bool gpsDataValid = false;
 // Refresh rate in milliseconds
 int refreshRate = 1000;
 
+// Function to update refresh rate from seconds to milliseconds
+void updateRefreshRate() {
+  refreshRate = (int)(refreshRateSeconds * 1000.0f);
+  // Clamp to reasonable bounds (500ms to 2000ms)
+  if (refreshRate < 500) refreshRate = 500;
+  if (refreshRate > 2000) refreshRate = 2000;
+}
+
 // Timestamp for next update
 unsigned long nextUpdate = 0;
 
@@ -993,6 +1022,7 @@ void setup() {
   heelAngleDelta = preferences.getFloat("delta", 0.0f);
   compassOffsetDelta = preferences.getFloat("compassOffset", 0.0f);
   deadWindAngle = preferences.getInt("deadWindAngle", 40);
+  refreshRateSeconds = preferences.getFloat("refreshRate", 1.0f);
   String deviceName = preferences.getString("deviceName", "Veetr");
   Serial.print("[Boot] Loaded level calibration offset from NVS: ");
   Serial.println(heelAngleDelta);
@@ -1000,8 +1030,14 @@ void setup() {
   Serial.println(compassOffsetDelta);
   Serial.print("[Boot] Loaded deadWindAngle from NVS: ");
   Serial.println(deadWindAngle);
+  Serial.print("[Boot] Loaded refreshRate from NVS: ");
+  Serial.println(refreshRateSeconds);
   Serial.print("[Boot] Loaded deviceName from NVS: ");
   Serial.println(deviceName);
+  
+  // Update refresh rate from loaded value
+  updateRefreshRate();
+  Serial.printf("[Boot] Refresh rate set to %d ms (%.1f seconds)\n", refreshRate, refreshRateSeconds);
   
   // Initialize I2C for BNO080 with detection
   Wire.begin(BNO080_SDA, BNO080_SCL);
@@ -1019,15 +1055,15 @@ void setup() {
     Serial.println("BNO080 begin() successful, configuring sensor...");
     
     // Enable rotation vector for tilt/heel angle calculation
-    imu.enableRotationVector(50); // 50ms = 20Hz update rate
+    imu.enableRotationVector(25); // 25ms = 40Hz update rate (doubled from 20Hz)
     Serial.println("Rotation vector configuration sent");
     
     // Enable magnetometer for compass heading with higher update rate
-    imu.enableMagnetometer(50); // 50ms = 20Hz update rate (increased from 100ms)
-    Serial.println("Magnetometer configuration sent (20Hz)");
+    imu.enableMagnetometer(25); // 25ms = 40Hz update rate (doubled from 20Hz)
+    Serial.println("Magnetometer configuration sent (40Hz)");
     
     // Enable accelerometer for acceleration data
-    imu.enableAccelerometer(50); // 50ms = 20Hz update rate
+    imu.enableAccelerometer(25); // 25ms = 40Hz update rate (doubled from 20Hz)
     Serial.println("Accelerometer configuration sent");
     
     // Give sensor more time to initialize and start providing data

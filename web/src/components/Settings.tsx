@@ -11,6 +11,7 @@ export default function Settings() {
   const [currentView, setCurrentView] = useState<'main' | 'bluetooth' | 'calibration' | 'regatta' | 'about'>('main')
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)
   const [deviceName, setDeviceName] = useState('')
+  const [refreshRate, setRefreshRate] = useState(1.0) // Default 1 second
   const menuRef = useRef<HTMLDivElement>(null)
   const { state, sendCommand, connect, disconnect } = useBLE()
 
@@ -20,6 +21,30 @@ export default function Settings() {
       setDeviceName(state.deviceName)
     }
   }, [state.deviceName, deviceName])
+
+  // Load saved refresh rate from localStorage
+  useEffect(() => {
+    const savedRefreshRate = localStorage.getItem('veetr-refresh-rate')
+    if (savedRefreshRate) {
+      const rate = parseFloat(savedRefreshRate)
+      if (rate >= 0.5 && rate <= 2.0) {
+        setRefreshRate(rate)
+      }
+    }
+  }, [])
+
+  // Sync refresh rate with device when connected (only once per connection)
+  useEffect(() => {
+    if (state.isConnected && refreshRate !== 1.0) {
+      // Send saved refresh rate to device when connection is established
+      sendCommand({ 
+        action: 'setRefreshRate', 
+        refreshRate: refreshRate 
+      }).catch(error => {
+        console.error('Error syncing refresh rate with device:', error)
+      })
+    }
+  }, [state.isConnected]) // Remove refreshRate and sendCommand from dependencies to prevent loops
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -139,6 +164,29 @@ export default function Settings() {
       } finally {
         setActionInProgress(null)
       }
+    }
+  }
+
+    const handleRefreshRateChange = async (newRate: number) => {
+    setRefreshRate(newRate)
+    
+    // Save to localStorage
+    localStorage.setItem('veetr-refresh-rate', newRate.toString())
+    
+    if (!state.isConnected) {
+      return // Just update local state, don't try to send command
+    }
+
+    try {
+      const success = await sendCommand({ 
+        action: 'setRefreshRate', 
+        refreshRate: newRate 
+      })
+      if (!success) {
+        console.error('Failed to set refresh rate on device')
+      }
+    } catch (error) {
+      console.error('Error setting refresh rate:', error)
     }
   }
 
@@ -393,6 +441,24 @@ export default function Settings() {
                   </button>
                 </div>
                 <p className="help-text">Device will restart after name change. Allowed: letters, numbers, underscore, hyphen, space</p>
+              </div>
+
+              <div className="menu-section">
+                <div className="input-group">
+                  <label htmlFor="refreshRate">Data Refresh Rate: {refreshRate.toFixed(1)}s</label>
+                  <input 
+                    id="refreshRate"
+                    type="range"
+                    min="0.5"
+                    max="2.0"
+                    step="0.1"
+                    value={refreshRate}
+                    onChange={(e) => handleRefreshRateChange(parseFloat(e.target.value))}
+                    className="range-input"
+                    disabled={!state.isConnected}
+                  />
+                </div>
+                <p className="help-text">Controls how often sensor data is transmitted. Lower values provide smoother updates but use more battery.</p>
               </div>
 
               {!state.isConnected && (
