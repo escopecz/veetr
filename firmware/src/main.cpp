@@ -1055,15 +1055,15 @@ void setup() {
     Serial.println("BNO080 begin() successful, configuring sensor...");
     
     // Enable rotation vector for tilt/heel angle calculation
-    imu.enableRotationVector(25); // 25ms = 40Hz update rate (doubled from 20Hz)
+    imu.enableRotationVector(50); // 50ms = 20Hz update rate
     Serial.println("Rotation vector configuration sent");
     
-    // Enable magnetometer for compass heading with higher update rate
-    imu.enableMagnetometer(25); // 25ms = 40Hz update rate (doubled from 20Hz)
-    Serial.println("Magnetometer configuration sent (40Hz)");
+    // Enable magnetometer for compass heading with responsive update rate
+    imu.enableMagnetometer(50); // 50ms = 20Hz update rate (responsive but stable)
+    Serial.println("Magnetometer configuration sent (20Hz)");
     
     // Enable accelerometer for acceleration data
-    imu.enableAccelerometer(25); // 25ms = 40Hz update rate (doubled from 20Hz)
+    imu.enableAccelerometer(50); // 50ms = 20Hz update rate
     Serial.println("Accelerometer configuration sent");
     
     // Give sensor more time to initialize and start providing data
@@ -1766,7 +1766,7 @@ void readSensors() {
   // Read tilt from BNO080 (only if available)
   if (imuAvailable) {
     static unsigned long lastIMURead = 0;
-    const unsigned long IMU_READ_INTERVAL = 50; // Read IMU every 50ms max (20Hz)
+    const unsigned long IMU_READ_INTERVAL = 50; // Read IMU every 50ms (20Hz for good responsiveness)
     
     if (millis() - lastIMURead >= IMU_READ_INTERVAL) {
       lastIMURead = millis();
@@ -1777,10 +1777,6 @@ void readSensors() {
         float j = imu.getQuatJ();
         float k = imu.getQuatK();
         float real = imu.getQuatReal();
-        
-        #ifdef DEBUG_BNO080
-        Serial.printf("[BNO080] Quat: i=%.3f j=%.3f k=%.3f real=%.3f\n", i, j, k, real);
-        #endif
         
         // Convert quaternion to roll angle (heel angle)
         // Roll is rotation around X-axis (fore-aft axis of boat)
@@ -1794,134 +1790,118 @@ void readSensors() {
         Serial.printf("[BNO080] Raw Roll: %.2f°, Calibrated Heel: %.2f°\n", roll, zeroedTilt);
         #endif
         
-        // Read magnetometer data with fresh data detection
-        static float lastMagX = 0, lastMagY = 0, lastMagZ = 0;
-        static unsigned long lastMagChangeTime = 0;
+        // Improved compass calculation with lighter filtering
+        static float lastRawHeading = 0;
+        static unsigned long lastCompassUpdate = 0;
+        static bool compassInitialized = false;
         
-        // Force magnetometer data update by checking for new magnetometer reports
-        // The BNO080 might be caching old values, so we need to ensure fresh reads
-        bool newMagData = false;
-        
-        // Check if there's specifically magnetometer data available
-        if (imu.dataAvailable()) {
-          // Try multiple approaches to get fresh magnetometer data
+        // Update compass every 100ms for better responsiveness (10Hz)
+        if (millis() - lastCompassUpdate >= 100) {
+          lastCompassUpdate = millis();
           
-          // Method 1: Check if there's been a magnetometer data update
-          // by calling the data parsing function
-          imu.parseInputReport(); // Force parsing of any pending reports
-          
-          // Get current magnetometer readings
+          // Get fresh magnetometer readings
           float magX = imu.getMagX();
           float magY = imu.getMagY();
           float magZ = imu.getMagZ();
           
-          // Check if magnetometer data has actually changed
-          bool magDataChanged = (abs(magX - lastMagX) > 0.01 || 
-                                abs(magY - lastMagY) > 0.01 || 
-                                abs(magZ - lastMagZ) > 0.01);
-          
-          if (magDataChanged) {
-            lastMagChangeTime = millis();
-            lastMagX = magX;
-            lastMagY = magY; 
-            lastMagZ = magZ;
-            newMagData = true;
-          }
-          
-          // Calculate total magnetic field strength to validate readings
+          // Validate magnetometer readings
           float magMagnitude = sqrt(magX * magX + magY * magY + magZ * magZ);
           
           #ifdef DEBUG_BNO080
-          Serial.printf("[BNO080] Mag: X=%.2f Y=%.2f Z=%.2f (mag=%.2f) %s\n", 
-                        magX, magY, magZ, magMagnitude, 
-                        magDataChanged ? "CHANGED" : "same");
-          
-          // Warn if magnetometer data hasn't changed in a while
-          static unsigned long lastStaleWarning = 0;
-          if (millis() - lastMagChangeTime > 3000 && millis() - lastStaleWarning > 5000) {
-            Serial.printf("[BNO080] WARNING: Magnetometer data hasn't changed in %lu ms\n", 
-                          millis() - lastMagChangeTime);
-            lastStaleWarning = millis();
-          }
+          Serial.printf("[BNO080] Mag: X=%.2f Y=%.2f Z=%.2f (magnitude=%.2f)\n", 
+                        magX, magY, magZ, magMagnitude);
           #endif
           
-          // Only calculate new heading if we have fresh magnetometer data or reasonable readings
-          if (newMagData || magMagnitude > 0.1) {
-            // Calculate raw heading (yaw) from magnetometer data
-            float rawHeading = atan2(magY, magX) * 180.0f / PI;
+          // Only proceed if we have reasonable magnetometer readings
+          if (magMagnitude > 0.1 && magMagnitude < 200.0) { // Reasonable range for BNO080
+            
+            // Calculate raw heading from magnetometer with light tilt compensation
+            // Get pitch and roll for tilt compensation
+            float pitch = atan2(2.0f * (real * j - k * i), 1.0f - 2.0f * (j * j + i * i)) * 180.0f / PI;
+            float pitchRad = pitch * PI / 180.0f;
+            float rollRad = roll * PI / 180.0f;
+            
+            // Simple tilt compensation (only apply if tilt is significant)
+            float magXComp = magX;
+            float magYComp = magY;
+            
+            if (abs(pitch) > 5 || abs(roll) > 5) { // Only compensate for significant tilt
+              magXComp = magX * cos(pitchRad) + magZ * sin(pitchRad);
+              magYComp = magX * sin(rollRad) * sin(pitchRad) + magY * cos(rollRad) - magZ * sin(rollRad) * cos(pitchRad);
+            }
+            
+            // Calculate RAW heading (before calibration)
+            float rawHeading = atan2(magYComp, magXComp) * 180.0f / PI;
             if (rawHeading < 0) rawHeading += 360.0f; // Normalize to 0-360
             
-            // Apply compass calibration offset (subtract to align with vessel's north)
-            float calibratedHeading = rawHeading - compassOffsetDelta;
+            // Apply smoothing to RAW heading first (before calibration)
+            if (!compassInitialized) {
+              lastRawHeading = rawHeading;
+              compassInitialized = true;
+              
+              #ifdef DEBUG_BNO080
+              Serial.printf("[BNO080] Compass initialized with raw heading %.1f°\n", rawHeading);
+              #endif
+            } else {
+              // Simple exponential smoothing on RAW heading with high responsiveness
+              float alpha = 0.8; // Very high responsiveness (80% new value, 20% old)
+              
+              // Handle compass wrap-around for smoothing (359° to 1° transition)
+              float headingDiff = rawHeading - lastRawHeading;
+              float adjustedRawHeading = rawHeading;
+              
+              if (headingDiff > 180) {
+                adjustedRawHeading = rawHeading - 360;
+              } else if (headingDiff < -180) {
+                adjustedRawHeading = rawHeading + 360;
+              }
+              
+              // Apply exponential smoothing to raw heading
+              float smoothedRawHeading = alpha * adjustedRawHeading + (1 - alpha) * lastRawHeading;
+              
+              // Normalize back to 0-360 range
+              while (smoothedRawHeading < 0) smoothedRawHeading += 360;
+              while (smoothedRawHeading >= 360) smoothedRawHeading -= 360;
+              
+              // Store the smoothed raw heading
+              lastRawHeading = smoothedRawHeading;
+            }
+            
+            // Now apply compass calibration to the smoothed raw heading
+            float calibratedHeading = lastRawHeading - compassOffsetDelta;
             if (calibratedHeading < 0) calibratedHeading += 360.0f;
             if (calibratedHeading >= 360) calibratedHeading -= 360.0f;
             
-            // Only update heading if we have genuinely new data
-            if (newMagData) {
-              currentData.HDM = (int)round(calibratedHeading); // Convert to integer
-              
-              #ifdef DEBUG_BNO080
-              Serial.printf("[BNO080] Raw Heading: %.1f°, Calibrated: %d° (NEW DATA)\n", rawHeading, currentData.HDM);
-              #endif
-            } else {
-              #ifdef DEBUG_BNO080
-              Serial.printf("[BNO080] Raw Heading: %.1f°, Calibrated would be: %.1f° (but data is stale)\n", rawHeading, calibratedHeading);
-              #endif
-            }
-          }
-        } else {
-          // No general data available, but try to force a magnetometer update anyway
-          static unsigned long lastMagForceTime = 0;
-          if (millis() - lastMagForceTime > 100) { // Try every 100ms
-            lastMagForceTime = millis();
+            // Update compass reading
+            currentData.HDM = (int)round(calibratedHeading);
             
             #ifdef DEBUG_BNO080
-            Serial.println("[BNO080] No dataAvailable(), trying to force magnetometer read...");
+            Serial.printf("[BNO080] Compass: Raw=%.1f° Smoothed=%.1f° Offset=%.1f° Final=%d°\n", 
+                          rawHeading, lastRawHeading, compassOffsetDelta, currentData.HDM);
             #endif
-            
-            // Force the sensor to process any pending data
-            if (imu.receivePacket()) {
-              float magX = imu.getMagX();
-              float magY = imu.getMagY();
-              float magZ = imu.getMagZ();
-              
-              bool magDataChanged = (abs(magX - lastMagX) > 0.01 || 
-                                    abs(magY - lastMagY) > 0.01 || 
-                                    abs(magZ - lastMagZ) > 0.01);
-              
-              if (magDataChanged) {
-                lastMagChangeTime = millis();
-                lastMagX = magX;
-                lastMagY = magY; 
-                lastMagZ = magZ;
-                
-                float heading = atan2(magY, magX) * 180.0f / PI;
-                if (heading < 0) heading += 360.0f;
-                currentData.HDM = (int)round(heading); // Convert to integer
-                
-                #ifdef DEBUG_BNO080
-                Serial.printf("[BNO080] Forced update - Heading: %d°\n", currentData.HDM);
-                #endif
-              }
-            }
+          } else {
+            #ifdef DEBUG_BNO080
+            Serial.printf("[BNO080] Invalid magnetometer reading (magnitude=%.2f)\n", magMagnitude);
+            #endif
           }
         }
         
-        // Read accelerometer data if available
-        if (imu.getAccelX() != 0 || imu.getAccelY() != 0 || imu.getAccelZ() != 0) {
-          // Get acceleration in m/s²
-          currentData.accelX = imu.getAccelX();
-          currentData.accelY = imu.getAccelY();
-          currentData.accelZ = imu.getAccelZ();
-          
-          // Store accelerometer data for movement analysis
-          storeAccelReading(currentData.accelX, currentData.accelY, currentData.accelZ);
-          
-          #ifdef DEBUG_BNO080
+        // Read accelerometer data
+        currentData.accelX = imu.getAccelX();
+        currentData.accelY = imu.getAccelY();
+        currentData.accelZ = imu.getAccelZ();
+        
+        // Store accelerometer data for movement analysis
+        storeAccelReading(currentData.accelX, currentData.accelY, currentData.accelZ);
+        
+        #ifdef DEBUG_BNO080
+        static unsigned long lastAccelDebug = 0;
+        if (millis() - lastAccelDebug > 2000) { // Debug every 2 seconds
           Serial.printf("[BNO080] Accel: X=%.2f Y=%.2f Z=%.2f m/s²\n", 
                         currentData.accelX, currentData.accelY, currentData.accelZ);
-          #endif
+          lastAccelDebug = millis();
         }
+        #endif
         
       } else {
         // No new data available
@@ -1930,7 +1910,6 @@ void readSensors() {
           Serial.println("[BNO080] Warning: No new data available");
           lastNoDataWarning = millis();
         }
-        // Keep previous values
       }
     }
   } else {
