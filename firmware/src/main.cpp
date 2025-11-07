@@ -11,7 +11,7 @@
 #include <esp_ota_ops.h>
 
 // Firmware version
-#define FIRMWARE_VERSION "0.0.14"
+#define FIRMWARE_VERSION "0.0.15"
 
 // Debug flags - uncomment for verbose output
 // #define DEBUG_BLE_DATA
