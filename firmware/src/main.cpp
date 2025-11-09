@@ -27,7 +27,10 @@ int deadWindAngle = 40; // default
 float refreshRateSeconds = 1.0f; // Default 1.0 second refresh rate
 bool otaInProgress = false; // Flag to pause sensor data during firmware updates
 unsigned long otaStartTime = 0; // Track when OTA started for timeout
-const unsigned long OTA_TIMEOUT_MS = 300000; // 5 minute timeout for OTA updates
+unsigned long lastOTAActivity = 0; // Track last OTA activity for debugging
+const unsigned long OTA_TIMEOUT_MS = 60000; // 1 minute timeout for OTA updates  
+const unsigned long OTA_ACTIVITY_TIMEOUT_MS = 15000; // 15 second activity timeout
+const unsigned long OTA_STATUS_INTERVAL_MS = 5000; // Status check every 5 seconds
 
 // BLE Configuration
 #define SERVICE_UUID        "12345678-1234-1234-1234-123456789abc"
@@ -116,10 +119,16 @@ void updateRefreshRate();
 
 // Safe BLE transmission function to prevent data corruption
 bool safeBLESend(const String& data, bool isCommand) {
+  Serial.printf("[BLE DEBUG] Attempting to send %d chars, command=%s\n", 
+               data.length(), isCommand ? "true" : "false");
+  
   // Check if we have a valid connection and characteristic
   if (!pServer || pServer->getConnectedCount() == 0 || !pSensorDataCharacteristic) {
+    Serial.println("[BLE DEBUG] FAILED: No server, connection, or characteristic");
     return false;
   }
+  
+  Serial.printf("[BLE DEBUG] Connected devices: %d\n", pServer->getConnectedCount());
   
   // Wait for any ongoing transmission to complete (max 100ms timeout)
   unsigned long startTime = millis();
@@ -129,27 +138,35 @@ bool safeBLESend(const String& data, bool isCommand) {
   
   // If still sending after timeout, skip this transmission
   if (bleSending) {
-    Serial.println("[BLE] Transmission timeout, skipping...");
+    Serial.println("[BLE DEBUG] FAILED: Transmission timeout, skipping...");
     return false;
   }
   
   // Set sending flag
   bleSending = true;
+  Serial.println("[BLE DEBUG] Sending flag set, starting transmission...");
   
   try {
     // Convert string to byte array to avoid encoding issues
     std::vector<uint8_t> dataBytes(data.begin(), data.end());
+    Serial.printf("[BLE DEBUG] Converted to %d bytes\n", dataBytes.size());
+    
     pSensorDataCharacteristic->setValue(dataBytes);
+    Serial.println("[BLE DEBUG] Characteristic value set");
+    
     pSensorDataCharacteristic->notify();
+    Serial.println("[BLE DEBUG] Notify called");
     
     // Small delay to ensure transmission completes
     delay(isCommand ? 10 : 5);
+    Serial.printf("[BLE DEBUG] Delay completed (%d ms)\n", isCommand ? 10 : 5);
     
     bleSending = false;
+    Serial.println("[BLE DEBUG] SUCCESS: Transmission completed");
     return true;
   } catch (...) {
     bleSending = false;
-    Serial.println("[BLE] Transmission failed");
+    Serial.println("[BLE DEBUG] FAILED: Exception during transmission");
     return false;
   }
 }
@@ -218,6 +235,8 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
       std::string value = pCharacteristic->getValue();
       
       if (value.length() > 0) {
+        Serial.printf("[BLE RECV] Received %d bytes\n", value.length());
+        
         #ifdef DEBUG_BLE_DATA
         Serial.print("BLE Command received: ");
         Serial.println(value.c_str());
@@ -229,6 +248,19 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
         
         if (!error) {
           String action = doc["action"];
+          String cmd = doc["cmd"];
+          
+          Serial.printf("[BLE RECV] Parsed JSON - action: '%s', cmd: '%s'\n", 
+                       action.c_str(), cmd.c_str());
+          
+          // Log OTA-related commands with extra detail
+          if (cmd == "START_FW_UPDATE" || cmd == "FW_CHUNK" || cmd == "VERIFY_FW" || cmd == "APPLY_FW") {
+            Serial.printf("[OTA CMD] Received: %s\n", cmd.c_str());
+            if (cmd == "FW_CHUNK") {
+              int chunkIndex = doc["index"];
+              Serial.printf("[OTA CMD] Chunk index: %d\n", chunkIndex);
+            }
+          }
           
           if (action == "resetHeelAngle") {
             // Calibrate vessel level position (sets current orientation as zero reference)
@@ -408,6 +440,7 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             // Set flag to pause sensor data transmission during OTA
             otaInProgress = true;
             otaStartTime = millis(); // Record when OTA started
+            lastOTAActivity = millis(); // Initialize activity tracking
             Serial.println("OTA update started - pausing sensor data transmission");
             
             // Check if we have enough space for OTA update
@@ -473,12 +506,48 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             int chunkIndex = doc["index"];
             String base64Data = doc["data"];
             
-            Serial.printf("Received firmware chunk %d\n", chunkIndex);
+            // Update activity timestamp
+            lastOTAActivity = millis();
+            
+            Serial.printf("=== CHUNK %d DEBUG START ===\n", chunkIndex);
+            Serial.printf("Chunk index: %d\n", chunkIndex);
+            Serial.printf("Base64 data length: %d\n", base64Data.length());
+            Serial.printf("Free heap before processing: %d bytes\n", ESP.getFreeHeap());
+            Serial.printf("Update progress before chunk: %d bytes\n", Update.progress());
+            Serial.printf("Update remaining before chunk: %d bytes\n", Update.remaining());
+            
+            // Check if we're still in a valid OTA state
+            if (!Update.isRunning()) {
+              Serial.printf("ERROR: Update not running when chunk %d received!\n", chunkIndex);
+              DynamicJsonDocument response(128);
+              response["type"] = "chunk_error";
+              response["index"] = chunkIndex;
+              response["error"] = "Update not running";
+              String responseStr;
+              serializeJson(response, responseStr);
+              safeBLESend(responseStr, true);
+              return;
+            }
             
             // Simple base64 decode using Arduino's built-in capabilities
             // Calculate decoded length (roughly 3/4 of base64 length)
             int maxDecodedLen = (base64Data.length() * 3) / 4 + 1;
+            Serial.printf("Allocating %d bytes for decoded data\n", maxDecodedLen);
+            
             uint8_t* decodedData = new uint8_t[maxDecodedLen];
+            if (!decodedData) {
+              Serial.printf("ERROR: Failed to allocate memory for chunk %d!\n", chunkIndex);
+              DynamicJsonDocument response(128);
+              response["type"] = "chunk_error";
+              response["index"] = chunkIndex;
+              response["error"] = "Memory allocation failed";
+              String responseStr;
+              serializeJson(response, responseStr);
+              safeBLESend(responseStr, true);
+              return;
+            }
+            
+            Serial.printf("Starting base64 decode for chunk %d...\n", chunkIndex);
             
             // Use a simple base64 decode - for now, let's use a basic implementation
             // This is simplified - in production, use a proper base64 library
@@ -517,26 +586,67 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               if (padding < 1 && decodedLen < maxDecodedLen) decodedData[decodedLen++] = value & 0xFF;
             }
             
-            // Write chunk to flash
-            size_t written = Update.write(decodedData, decodedLen);
-            delete[] decodedData;
+            Serial.printf("Base64 decode completed. Decoded %d bytes from %d base64 chars\n", decodedLen, base64Data.length());
+            Serial.printf("Free heap after decode: %d bytes\n", ESP.getFreeHeap());
             
-            if (written != decodedLen) {
-              Serial.printf("Failed to write chunk %d: %d/%d bytes written\n", chunkIndex, written, decodedLen);
+            // Verify we have data to write
+            if (decodedLen == 0) {
+              Serial.printf("ERROR: No data decoded for chunk %d!\n", chunkIndex);
+              delete[] decodedData;
               DynamicJsonDocument response(128);
               response["type"] = "chunk_error";
               response["index"] = chunkIndex;
+              response["error"] = "No data decoded";
+              String responseStr;
+              serializeJson(response, responseStr);
+              safeBLESend(responseStr, true);
+              return;
+            }
+            
+            // Write chunk to flash
+            Serial.printf("Writing %d bytes to flash for chunk %d...\n", decodedLen, chunkIndex);
+            unsigned long writeStartTime = millis();
+            
+            size_t written = Update.write(decodedData, decodedLen);
+            
+            unsigned long writeEndTime = millis();
+            Serial.printf("Flash write completed in %lu ms\n", writeEndTime - writeStartTime);
+            
+            delete[] decodedData;
+            
+            if (written != decodedLen) {
+              Serial.printf("ERROR: Failed to write chunk %d: %d/%d bytes written\n", chunkIndex, written, decodedLen);
+              Serial.printf("Update error: %s\n", Update.errorString());
+              DynamicJsonDocument response(128);
+              response["type"] = "chunk_error";
+              response["index"] = chunkIndex;
+              response["error"] = Update.errorString();
               String responseStr;
               serializeJson(response, responseStr);
               safeBLESend(responseStr, true);
             } else {
-              Serial.printf("Chunk %d written successfully: %d bytes\n", chunkIndex, decodedLen);
+              Serial.printf("SUCCESS: Chunk %d written successfully: %d bytes\n", chunkIndex, decodedLen);
+              Serial.printf("Update progress after chunk: %d bytes\n", Update.progress());
+              Serial.printf("Update remaining after chunk: %d bytes\n", Update.remaining());
+              Serial.printf("Free heap after write: %d bytes\n", ESP.getFreeHeap());
+              
               DynamicJsonDocument response(128);
               response["type"] = "chunk_ack";
               response["index"] = chunkIndex;
               String responseStr;
               serializeJson(response, responseStr);
-              safeBLESend(responseStr, true);
+              
+              Serial.printf("Sending chunk_ack for chunk %d...\n", chunkIndex);
+              unsigned long ackStartTime = millis();
+              
+              bool ackSent = safeBLESend(responseStr, true);
+              
+              unsigned long ackEndTime = millis();
+              Serial.printf("Chunk_ack %s in %lu ms\n", 
+                           ackSent ? "sent successfully" : "FAILED", 
+                           ackEndTime - ackStartTime);
+              
+              Serial.printf("=== CHUNK %d DEBUG END ===\n", chunkIndex);
             }
           }
           else if (doc["cmd"] == "VERIFY_FW") {
@@ -655,7 +765,12 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               Serial.println("OTA update failed - resuming sensor data transmission");
             }
           }
+        } else {
+          Serial.printf("[BLE RECV] JSON parsing failed: %s\n", error.c_str());
+          Serial.printf("[BLE RECV] Raw data: %s\n", value.c_str());
         }
+      } else {
+        Serial.println("[BLE RECV] Received empty message");
       }
     }
 };
@@ -1278,20 +1393,72 @@ void loop() {
   
   // Handle OTA progress LED blinking (very fast blink during update)
   if (otaInProgress) {
-    // Check for OTA timeout (5 minutes)
-    if (millis() - otaStartTime > OTA_TIMEOUT_MS) {
-      Serial.println("OTA update timeout! Resetting OTA state and resuming normal operation.");
+    unsigned long currentTime = millis();
+    
+    // Periodic status reporting (every 5 seconds)
+    static unsigned long lastStatusReport = 0;
+    if (currentTime - lastStatusReport > OTA_STATUS_INTERVAL_MS) {
+      Serial.printf("[OTA Status] Elapsed: %lu ms, Last activity: %lu ms ago, Update running: %s\n", 
+                    currentTime - otaStartTime, 
+                    lastOTAActivity > 0 ? currentTime - lastOTAActivity : 0,
+                    Update.isRunning() ? "YES" : "NO");
+      lastStatusReport = currentTime;
+    }
+    
+    // Check for total OTA timeout (1 minute)
+    if (currentTime - otaStartTime > OTA_TIMEOUT_MS) {
+      Serial.printf("OTA update total timeout! %lu ms elapsed. Resetting OTA state.\n", currentTime - otaStartTime);
       otaInProgress = false;
       otaStartTime = 0;
+      lastOTAActivity = 0;
       
       // Clean up any failed OTA state
       if (Update.isRunning()) {
         Update.abort();
+        Serial.println("Aborted running OTA update");
       }
       
       // Turn off LED and resume normal operation
       digitalWrite(DISCOVERY_LED_PIN, LOW);
-      Serial.println("OTA timeout recovery complete - resuming sensor data transmission");
+      Serial.println("OTA total timeout recovery complete - resuming sensor data transmission");
+      return;
+    }
+    
+    // Check for activity timeout (15 seconds since last chunk)
+    if (lastOTAActivity > 0 && currentTime - lastOTAActivity > OTA_ACTIVITY_TIMEOUT_MS) {
+      Serial.printf("OTA activity timeout! %lu ms since last chunk. Resetting OTA state.\n", currentTime - lastOTAActivity);
+      otaInProgress = false;
+      otaStartTime = 0;
+      lastOTAActivity = 0;
+      
+      // Clean up any failed OTA state
+      if (Update.isRunning()) {
+        Update.abort();
+        Serial.println("Aborted stalled OTA update");
+      }
+      
+      // Turn off LED and resume normal operation
+      digitalWrite(DISCOVERY_LED_PIN, LOW);
+      Serial.println("OTA activity timeout recovery complete - resuming sensor data transmission");
+      return;
+    }
+    
+    // Check for no chunks received scenario (15 seconds after start with no activity)
+    if (lastOTAActivity == 0 && currentTime - otaStartTime > OTA_ACTIVITY_TIMEOUT_MS) {
+      Serial.printf("OTA no chunks timeout! %lu ms since start, no chunks received. Resetting OTA state.\n", currentTime - otaStartTime);
+      otaInProgress = false;
+      otaStartTime = 0;
+      lastOTAActivity = 0;
+      
+      // Clean up any failed OTA state
+      if (Update.isRunning()) {
+        Update.abort();
+        Serial.println("Aborted non-starting OTA update");
+      }
+      
+      // Turn off LED and resume normal operation
+      digitalWrite(DISCOVERY_LED_PIN, LOW);
+      Serial.println("OTA no-chunks timeout recovery complete - resuming sensor data transmission");
       return;
     }
     
