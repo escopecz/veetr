@@ -109,12 +109,18 @@ export class BLEFirmwareUpdater {
 
   async updateFirmware(firmwareData: ArrayBuffer): Promise<void> {
     try {
+      // Initialize timing
+      this.startTime = Date.now()
+      
       this.onProgress({
         percentage: 0,
         bytesTransferred: 0,
         totalBytes: firmwareData.byteLength,
         stage: 'preparing',
-        message: 'Preparing firmware update...'
+        message: 'Preparing firmware update...',
+        elapsedTimeMs: 0,
+        estimatedTotalTimeMs: 0,
+        estimatedRemainingTimeMs: 0
       })
 
       // Step 1: Initialize update
@@ -183,9 +189,6 @@ export class BLEFirmwareUpdater {
   private async transferFirmware(firmwareData: ArrayBuffer): Promise<void> {
     const totalChunks = Math.ceil(firmwareData.byteLength / this.chunkSize)
     const dataView = new DataView(firmwareData)
-    
-    // Initialize timing
-    this.startTime = Date.now()
     
     console.log(`Starting firmware transfer: ${totalChunks} chunks of ${this.chunkSize} bytes`)
 
@@ -283,12 +286,18 @@ export class BLEFirmwareUpdater {
   }
 
   private async verifyFirmware(): Promise<void> {
+    const currentTime = Date.now()
+    const elapsedTimeMs = currentTime - this.startTime
+    
     this.onProgress({
       percentage: 95,
       bytesTransferred: 0,
       totalBytes: 0,
       stage: 'verifying',
-      message: 'Verifying firmware integrity...'
+      message: 'Verifying firmware integrity...',
+      elapsedTimeMs,
+      estimatedTotalTimeMs: elapsedTimeMs + 10000, // Estimate 10 more seconds
+      estimatedRemainingTimeMs: 10000
     })
 
     const command = JSON.stringify({ cmd: FIRMWARE_COMMANDS.VERIFY_UPDATE })
@@ -306,12 +315,18 @@ export class BLEFirmwareUpdater {
   }
 
   private async applyUpdate(): Promise<void> {
+    const currentTime = Date.now()
+    const elapsedTimeMs = currentTime - this.startTime
+    
     this.onProgress({
       percentage: 98,
       bytesTransferred: 0,
       totalBytes: 0,
       stage: 'verifying',
-      message: 'Applying firmware update (device will restart)...'
+      message: 'Applying firmware update (device will restart)...',
+      elapsedTimeMs,
+      estimatedTotalTimeMs: elapsedTimeMs + 5000, // Estimate 5 more seconds
+      estimatedRemainingTimeMs: 5000
     })
 
     const command = JSON.stringify({ cmd: FIRMWARE_COMMANDS.APPLY_UPDATE })

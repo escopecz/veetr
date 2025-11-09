@@ -109,9 +109,9 @@ If you still see the old version, the update may have failed.`, '✅ Firmware Up
               style={{ width: `${state.firmwareInfo.updateProgress}%` }}
             />
           </div>
-          {state.firmwareInfo.elapsedTimeMs && (
+          {state.firmwareInfo.isUpdating && (
             <div className="timing-info">
-              <div>Elapsed: {formatTime(state.firmwareInfo.elapsedTimeMs)}</div>
+              <div>Elapsed: {formatTime(state.firmwareInfo.elapsedTimeMs || 0)}</div>
               {state.firmwareInfo.estimatedRemainingTimeMs && (
                 <div>Remaining: {formatTime(state.firmwareInfo.estimatedRemainingTimeMs)}</div>
               )}
