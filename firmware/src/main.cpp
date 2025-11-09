@@ -489,9 +489,14 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             otaSize = doc["size"];
             Serial.printf("[BLE OTA] Firmware size: %u bytes\n", otaSize);
             
+            // Check available space and state
+            Serial.printf("[BLE OTA] Free heap: %u bytes\n", ESP.getFreeHeap());
+            Serial.printf("[BLE OTA] Flash size: %u bytes\n", ESP.getFlashChipSize());
+            
             // Begin OTA update
             if (!Update.begin(otaSize)) {
-              Serial.printf("[BLE OTA] Update.begin() failed: %s\n", Update.errorString());
+              uint8_t error = Update.getError();
+              Serial.printf("[BLE OTA] Update.begin() failed: %s (error code: %u)\n", Update.errorString(), error);
               DynamicJsonDocument response(128);
               response["type"] = "error";
               response["message"] = "Failed to begin update";
