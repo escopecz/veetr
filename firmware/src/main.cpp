@@ -279,9 +279,9 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
         Serial.println(value.c_str());
         #endif
         
-        // Parse JSON command - optimized buffer size for sector-based OTA
-        // Sector protocol uses smaller control messages, 256 bytes sufficient
-        DynamicJsonDocument doc(256);
+        // Parse JSON command - increased buffer size for base64 chunk data
+        // Base64 chunks can be ~440 bytes total with JSON overhead
+        DynamicJsonDocument doc(512);
         DeserializationError error = deserializeJson(doc, value.c_str());
         
         if (!error) {

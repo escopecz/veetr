@@ -22,7 +22,7 @@ export const FIRMWARE_COMMANDS = {
 export class BLEFirmwareUpdater {
   private characteristic: BluetoothRemoteGATTCharacteristic
   private onProgress: FirmwareUpdateCallback
-  private chunkSize = 300 // Reduced to account for JSON overhead + base64 encoding staying under 512-byte BLE MTU
+  private chunkSize = 200 // Small chunks to stay well under 512-byte BLE MTU with JSON + base64 overhead
   private aborted = false // Flag to stop the update process
 
   constructor(
