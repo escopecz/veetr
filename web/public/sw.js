@@ -1,7 +1,7 @@
 // Service Worker for offline capability
-const CACHE_NAME = 'veetr-v1.0';
-const STATIC_CACHE_NAME = 'veetr-static-v1.0';
-const DYNAMIC_CACHE_NAME = 'veetr-dynamic-v1.0';
+const CACHE_NAME = 'veetr-v1.1';
+const STATIC_CACHE_NAME = 'veetr-static-v1.1';
+const DYNAMIC_CACHE_NAME = 'veetr-dynamic-v1.1';
 
 // Core app shell - always cache these
 const CORE_CACHE = [
@@ -67,6 +67,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip GitHub API requests - always fetch fresh
+  if (request.url.includes('api.github.com')) {
+    return;
+  }
+
   // Special handling for navigation requests
   if (request.mode === 'navigate') {
     event.respondWith(handleNavigationRequest(request));
@@ -122,7 +127,20 @@ async function handleNavigationRequest(request) {
 }
 
 async function handleAssetRequest(request) {
-  // Cache-first strategy for assets
+  // Never cache API requests - always fetch fresh
+  if (request.url.includes('/api/') || 
+      request.url.includes('api.github.com') ||
+      request.url.includes('api.')) {
+    console.log('[SW] API request - fetching fresh:', request.url);
+    try {
+      return await fetch(request);
+    } catch (error) {
+      console.log('[SW] API request failed:', request.url, error);
+      throw error;
+    }
+  }
+
+  // Cache-first strategy for assets (JS, CSS, images, etc.)
   const cachedResponse = await caches.match(request);
   if (cachedResponse) {
     console.log('[SW] Serving from cache:', request.url);
