@@ -570,7 +570,8 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
               return;
             }
             
-            // Get chunk data from base64
+            // Get chunk index and data from base64
+            int chunkIndex = doc["index"];
             if (!doc.containsKey("data")) {
               Serial.println("[BLE OTA] Error: No data in chunk");
               DynamicJsonDocument response(128);
@@ -622,6 +623,7 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             // Send chunk acknowledgment
             DynamicJsonDocument response(128);
             response["type"] = "chunk_ack";
+            response["index"] = chunkIndex;
             response["written"] = otaWritten;
             response["progress"] = (float)otaWritten / otaSize * 100.0;
             String responseStr;

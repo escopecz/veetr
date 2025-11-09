@@ -624,6 +624,11 @@ This firmware update cannot be installed over Bluetooth. You may need to use a U
       
       if (data.type === 'chunk_ack') {
         console.log(`ESP32 confirmed chunk ${data.index} received successfully`)
+        
+        // Forward acknowledgment to the firmware updater
+        if (currentFirmwareUpdater) {
+          currentFirmwareUpdater.handleChunkAck(data)
+        }
         return
       }
       

@@ -24,6 +24,8 @@ export class BLEFirmwareUpdater {
   private onProgress: FirmwareUpdateCallback
   private chunkSize = 200 // Small chunks to stay well under 512-byte BLE MTU with JSON + base64 overhead
   private aborted = false // Flag to stop the update process
+  private pendingAckResolve: ((value: any) => void) | null = null // For waiting on chunk acknowledgments
+  private expectedChunkIndex = 0 // Track which chunk we're expecting acknowledgment for
 
   constructor(
     characteristic: BluetoothRemoteGATTCharacteristic,
@@ -34,10 +36,22 @@ export class BLEFirmwareUpdater {
     this.aborted = false
   }
 
+  // Method to handle chunk acknowledgment from ESP32
+  handleChunkAck(data: any): void {
+    if (this.pendingAckResolve && data.index === this.expectedChunkIndex) {
+      this.pendingAckResolve(data)
+      this.pendingAckResolve = null
+    }
+  }
+
   // Method to abort the firmware update
   abort(): void {
     console.log('[FirmwareUpdater] Aborting firmware update...')
     this.aborted = true
+    // Reject any pending acknowledgment
+    if (this.pendingAckResolve) {
+      this.pendingAckResolve = null
+    }
   }
 
   // Check if update was aborted
@@ -45,6 +59,22 @@ export class BLEFirmwareUpdater {
     if (this.aborted) {
       throw new Error('Firmware update was aborted')
     }
+  }
+
+  // Wait for chunk acknowledgment from ESP32
+  private async waitForChunkAck(chunkIndex: number): Promise<any> {
+    return new Promise((resolve, reject) => {
+      // Set up timeout for acknowledgment
+      const timeout = setTimeout(() => {
+        this.pendingAckResolve = null
+        reject(new Error(`Timeout waiting for chunk ${chunkIndex} acknowledgment`))
+      }, 5000) // 5 second timeout
+
+      this.pendingAckResolve = (data: any) => {
+        clearTimeout(timeout)
+        resolve(data)
+      }
+    })
   }
 
   async getCurrentVersion(): Promise<string> {
@@ -170,17 +200,22 @@ export class BLEFirmwareUpdater {
         message: `Transferring firmware... ${chunkIndex + 1}/${totalChunks} chunks`
       })
 
-      // Small delay between chunks for stability (reduced for efficiency)
-      if (chunkIndex < totalChunks - 1) {
-        await this.delay(20)
-      }
+      // No delay needed - acknowledgment-based flow control provides natural pacing
     }
   }
 
   private async sendFirmwareChunkWithRetry(chunkIndex: number, chunkData: ArrayBuffer): Promise<void> {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
+        // Set up expectation for this chunk's acknowledgment
+        this.expectedChunkIndex = chunkIndex
+        
+        // Send the chunk
         await this.sendFirmwareChunk(chunkIndex, chunkData)
+        
+        // Wait for acknowledgment from ESP32
+        await this.waitForChunkAck(chunkIndex)
+        
         return // Success, exit retry loop
       } catch (error) {
         console.error(`Chunk ${chunkIndex} attempt ${attempt} failed:`, error)
