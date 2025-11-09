@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useBLE } from '../../context/BLEContext'
+import { formatTime } from '../../utils/firmwareUpdater'
 import './FirmwareUpdateCard.css'
 import { showSingleAlert } from '../../utils/alertUtils'
 
@@ -108,6 +109,17 @@ If you still see the old version, the update may have failed.`, '✅ Firmware Up
               style={{ width: `${state.firmwareInfo.updateProgress}%` }}
             />
           </div>
+          {state.firmwareInfo.elapsedTimeMs && (
+            <div className="timing-info">
+              <div>Elapsed: {formatTime(state.firmwareInfo.elapsedTimeMs)}</div>
+              {state.firmwareInfo.estimatedRemainingTimeMs && (
+                <div>Remaining: {formatTime(state.firmwareInfo.estimatedRemainingTimeMs)}</div>
+              )}
+              {state.firmwareInfo.estimatedTotalTimeMs && (
+                <div>Total: {formatTime(state.firmwareInfo.estimatedTotalTimeMs)}</div>
+              )}
+            </div>
+          )}
           <div className="update-warning">
             ⚠️ Do not disconnect the device during update
           </div>

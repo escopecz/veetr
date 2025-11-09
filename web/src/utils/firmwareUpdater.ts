@@ -4,6 +4,9 @@ export interface FirmwareUpdateProgress {
   totalBytes: number
   stage: 'preparing' | 'transferring' | 'verifying' | 'complete' | 'error'
   message: string
+  elapsedTimeMs?: number
+  estimatedTotalTimeMs?: number
+  estimatedRemainingTimeMs?: number
 }
 
 export type FirmwareUpdateCallback = (progress: FirmwareUpdateProgress) => void
@@ -26,6 +29,7 @@ export class BLEFirmwareUpdater {
   private aborted = false // Flag to stop the update process
   private pendingAckResolve: ((value: any) => void) | null = null // For waiting on chunk acknowledgments
   private expectedChunkIndex = 0 // Track which chunk we're expecting acknowledgment for
+  private startTime = 0 // Track when transfer started
 
   constructor(
     characteristic: BluetoothRemoteGATTCharacteristic,
@@ -169,6 +173,9 @@ export class BLEFirmwareUpdater {
     const totalChunks = Math.ceil(firmwareData.byteLength / this.chunkSize)
     const dataView = new DataView(firmwareData)
     
+    // Initialize timing
+    this.startTime = Date.now()
+    
     console.log(`Starting firmware transfer: ${totalChunks} chunks of ${this.chunkSize} bytes`)
 
     for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
@@ -188,16 +195,26 @@ export class BLEFirmwareUpdater {
       // Send chunk with retry logic
       await this.sendFirmwareChunkWithRetry(chunkIndex, chunkData)
 
-      // Update progress
+      // Update progress with timing calculations
       const bytesTransferred = offset + chunkSize
       const percentage = Math.round((bytesTransferred / firmwareData.byteLength) * 90) // Reserve 10% for verification
+      
+      const currentTime = Date.now()
+      const elapsedTimeMs = currentTime - this.startTime
+      const transferRate = bytesTransferred / elapsedTimeMs // bytes per millisecond
+      const remainingBytes = firmwareData.byteLength - bytesTransferred
+      const estimatedRemainingTimeMs = remainingBytes / transferRate
+      const estimatedTotalTimeMs = elapsedTimeMs + estimatedRemainingTimeMs
       
       this.onProgress({
         percentage,
         bytesTransferred,
         totalBytes: firmwareData.byteLength,
         stage: 'transferring',
-        message: `Transferring firmware... ${chunkIndex + 1}/${totalChunks} chunks`
+        message: `Transferring firmware... ${chunkIndex + 1}/${totalChunks} chunks`,
+        elapsedTimeMs,
+        estimatedTotalTimeMs,
+        estimatedRemainingTimeMs
       })
 
       // No delay needed - acknowledgment-based flow control provides natural pacing
@@ -311,5 +328,24 @@ export class BLEFirmwareUpdater {
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms))
+  }
+}
+
+// Utility function to format milliseconds into readable time
+export function formatTime(ms: number): string {
+  if (ms < 1000) {
+    return `${Math.round(ms)}ms`
+  }
+  
+  const seconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes % 60}m ${seconds % 60}s`
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds % 60}s`
+  } else {
+    return `${seconds}s`
   }
 }

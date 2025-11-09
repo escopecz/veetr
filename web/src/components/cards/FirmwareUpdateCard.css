@@ -117,6 +117,23 @@
   border-radius: 4px;
 }
 
+.timing-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.timing-info > div {
+  text-align: center;
+  flex: 1;
+}
+
 .update-warning {
   text-align: center;
   font-size: 0.8rem;

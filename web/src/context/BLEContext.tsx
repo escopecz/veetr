@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react'
 import { getLatestRelease, getFirmwareAsset, downloadFirmware, compareVersions } from '../utils/githubApi'
-import { BLEFirmwareUpdater } from '../utils/firmwareUpdater'
+import { BLEFirmwareUpdater, FirmwareUpdateProgress } from '../utils/firmwareUpdater'
 import { showSingleAlert } from '../utils/alertUtils'
 
 // Types for sailing data
@@ -39,6 +39,9 @@ export interface FirmwareInfo {
   updateAvailable: boolean
   updateProgress: number | null
   isUpdating: boolean
+  elapsedTimeMs?: number
+  estimatedTotalTimeMs?: number
+  estimatedRemainingTimeMs?: number
 }
 
 // BLE connection state
@@ -94,7 +97,7 @@ type BLEAction =
   | { type: 'UPDATE_FIRMWARE_VERSION'; payload: string }
   | { type: 'SET_LATEST_VERSION'; payload: string }
   | { type: 'START_FIRMWARE_UPDATE' }
-  | { type: 'UPDATE_FIRMWARE_PROGRESS'; payload: number }
+  | { type: 'UPDATE_FIRMWARE_PROGRESS'; payload: FirmwareUpdateProgress }
   | { type: 'FIRMWARE_UPDATE_COMPLETE' }
   | { type: 'FIRMWARE_UPDATE_ERROR'; payload: string }
 
@@ -267,7 +270,10 @@ function bleReducer(state: BLEState, action: BLEAction): BLEState {
         ...state,
         firmwareInfo: {
           ...state.firmwareInfo,
-          updateProgress: action.payload
+          updateProgress: action.payload.percentage,
+          elapsedTimeMs: action.payload.elapsedTimeMs,
+          estimatedTotalTimeMs: action.payload.estimatedTotalTimeMs,
+          estimatedRemainingTimeMs: action.payload.estimatedRemainingTimeMs
         }
       }
     case 'FIRMWARE_UPDATE_COMPLETE':
@@ -766,7 +772,7 @@ Please try the update again or contact support.`, '❌ Firmware Apply Failed')
       throw new Error('Device not connected or no update available')
     }
 
-    // Add timeout protection for firmware updates (5 minutes max)
+    // Add timeout protection for firmware updates (60 minutes max to match ESP32)
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
         // Abort the updater if it exists
@@ -774,8 +780,8 @@ Please try the update again or contact support.`, '❌ Firmware Apply Failed')
           currentFirmwareUpdater.abort()
           currentFirmwareUpdater = null
         }
-        reject(new Error('Firmware update timed out after 5 minutes. Please try again.'))
-      }, 5 * 60 * 1000) // 5 minutes
+        reject(new Error('Firmware update timed out after 60 minutes. Please try again.'))
+      }, 60 * 60 * 1000) // 60 minutes
     })
 
     try {
@@ -815,7 +821,7 @@ Please try the update again or contact support.`, '❌ Firmware Apply Failed')
       currentFirmwareUpdater = new BLEFirmwareUpdater(
         state.commandCharacteristic,
         (progress) => {
-          dispatch({ type: 'UPDATE_FIRMWARE_PROGRESS', payload: progress.percentage })
+          dispatch({ type: 'UPDATE_FIRMWARE_PROGRESS', payload: progress })
         }
       )
 
