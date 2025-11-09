@@ -13,6 +13,38 @@
 // Firmware version
 #define FIRMWARE_VERSION "0.0.21"
 
+// Simple base64 decoding table
+const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+// Base64 decode function
+int base64_decode(const char* input, uint8_t* output) {
+  int input_len = strlen(input);
+  if (input_len % 4 != 0) return -1;
+  
+  int output_len = input_len / 4 * 3;
+  if (input[input_len - 1] == '=') output_len--;
+  if (input[input_len - 2] == '=') output_len--;
+  
+  int i, j;
+  uint32_t sextet_a, sextet_b, sextet_c, sextet_d;
+  uint32_t triple;
+  
+  for (i = 0, j = 0; i < input_len;) {
+    sextet_a = input[i] == '=' ? 0 & i++ : strchr(base64_chars, input[i++]) - base64_chars;
+    sextet_b = input[i] == '=' ? 0 & i++ : strchr(base64_chars, input[i++]) - base64_chars;
+    sextet_c = input[i] == '=' ? 0 & i++ : strchr(base64_chars, input[i++]) - base64_chars;
+    sextet_d = input[i] == '=' ? 0 & i++ : strchr(base64_chars, input[i++]) - base64_chars;
+    
+    triple = (sextet_a << 3 * 6) + (sextet_b << 2 * 6) + (sextet_c << 1 * 6) + (sextet_d << 0 * 6);
+    
+    if (j < output_len) output[j++] = (triple >> 2 * 8) & 0xFF;
+    if (j < output_len) output[j++] = (triple >> 1 * 8) & 0xFF;
+    if (j < output_len) output[j++] = (triple >> 0 * 8) & 0xFF;
+  }
+  
+  return output_len;
+}
+
 // Debug flags - uncomment for verbose output
 // #define DEBUG_BLE_DATA
 #define DEBUG_WIND_SENSOR
@@ -46,6 +78,11 @@ int bleRSSI = 0; // BLE signal strength
 int bleRSSIFiltered = 0; // Smoothed RSSI value for display
 uint16_t connectedDeviceCount = 0; // Track number of connected devices
 bool bleSending = false; // Prevent concurrent BLE transmissions
+
+// BLE-based OTA update variables
+static bool bleOTAActive = false;
+static size_t otaWritten = 0;
+static size_t otaSize = 0;
 
 // BNO080 IMU Sensor (I2C)
 #define BNO080_SDA 21
@@ -242,9 +279,9 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
         Serial.println(value.c_str());
         #endif
         
-        // Parse JSON command - increased buffer size for firmware chunks
-        // Firmware chunks can be ~306 bytes, so we need at least 512 bytes buffer
-        DynamicJsonDocument doc(512);
+        // Parse JSON command - optimized buffer size for sector-based OTA
+        // Sector protocol uses smaller control messages, 256 bytes sufficient
+        DynamicJsonDocument doc(256);
         DeserializationError error = deserializeJson(doc, value.c_str());
         
         if (!error) {
@@ -435,169 +472,123 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             }
           }
           else if (doc["cmd"] == "START_FW_UPDATE") {
-            int totalSize = doc["size"];
-            Serial.printf("Starting firmware update, size: %d bytes\n", totalSize);
+            Serial.println("[BLE OTA] Starting firmware update using ESP32 Update library");
             
-            // Set flag to pause sensor data transmission during OTA
-            otaInProgress = true;
-            otaStartTime = millis(); // Record when OTA started
-            lastOTAActivity = millis(); // Initialize activity tracking
-            Serial.println("OTA update started - pausing sensor data transmission");
-            
-            // Check if we have enough space for OTA update
-            size_t freeSpace = ESP.getFreeSketchSpace();
-            Serial.printf("Available OTA space: %d bytes\n", freeSpace);
-            
-            if (totalSize > freeSpace) {
-              Serial.printf("Firmware too large! Required: %d, Available: %d\n", totalSize, freeSpace);
+            // Get firmware size - required for Update.begin()
+            if (!doc.containsKey("size")) {
+              Serial.println("[BLE OTA] Error: Firmware size not provided");
               DynamicJsonDocument response(128);
-              response["type"] = "update_error";
-              response["message"] = "Firmware too large for available space";
+              response["type"] = "error";
+              response["message"] = "Firmware size required";
               String responseStr;
               serializeJson(response, responseStr);
               safeBLESend(responseStr, true);
               return;
             }
             
-            // Clean up any existing update state before initializing
-            if (Update.isRunning()) {
-              Serial.println("Cleaning up existing update state...");
-              Update.abort();
+            otaSize = doc["size"];
+            Serial.printf("[BLE OTA] Firmware size: %u bytes\n", otaSize);
+            
+            // Begin OTA update
+            if (!Update.begin(otaSize)) {
+              Serial.printf("[BLE OTA] Update.begin() failed: %s\n", Update.errorString());
+              DynamicJsonDocument response(128);
+              response["type"] = "error";
+              response["message"] = "Failed to begin update";
+              String responseStr;
+              serializeJson(response, responseStr);
+              safeBLESend(responseStr, true);
+              return;
             }
             
-            // Initialize OTA update with U_FLASH type explicitly
-            if (!Update.begin(totalSize, U_FLASH)) {
-              int errorCode = Update.getError();
-              String errorString = String(Update.errorString());
-              
-              Serial.printf("OTA update initialization failed: %s (Error code: %d)\n", errorString.c_str(), errorCode);
-              
-              // Send detailed error response
-              DynamicJsonDocument response(256);
-              response["type"] = "update_error";
-              
-              // Create detailed error message with debug info
-              String errorMsg = errorString;
-              if (errorString.length() == 0 || errorString == "No Error") {
-                errorMsg = "Update initialization failed";
-              }
-              errorMsg += " (Error code: " + String(errorCode) + ", Size: " + String(totalSize) + ")";
-              
-              response["message"] = errorMsg;
-              String responseStr;
-              serializeJson(response, responseStr);
-              
-              safeBLESend(responseStr, true);
-              
-              // Reset OTA flag on initialization failure
-              otaInProgress = false;
-              Serial.println("OTA initialization failed - resuming sensor data transmission");
-            } else {
-              Serial.println("OTA update initialized successfully");
-              // Send acknowledgment
-              DynamicJsonDocument response(128);
-              response["type"] = "update_ready";
-              String responseStr;
-              serializeJson(response, responseStr);
-              
-              safeBLESend(responseStr, true);
+            bleOTAActive = true;
+            otaStartTime = millis();
+            otaWritten = 0;
+            
+            Serial.println("[BLE OTA] Ready to receive firmware data");
+            
+            // Send acknowledgment
+            DynamicJsonDocument response(128);
+            response["type"] = "update_ready";
+            String responseStr;
+            serializeJson(response, responseStr);
+            safeBLESend(responseStr, true);
+          }
+          else if (doc["cmd"] == "STOP_FW_UPDATE") {
+            Serial.println("[BLE OTA] Stopping firmware update");
+            
+            if (bleOTAActive) {
+              Update.abort();
+              Serial.println("[BLE OTA] Update aborted");
             }
+            
+            bleOTAActive = false;
+            otaStartTime = 0;
+            otaWritten = 0;
+            otaSize = 0;
+            
+            DynamicJsonDocument response(128);
+            response["type"] = "update_stopped";
+            String responseStr;
+            serializeJson(response, responseStr);
+            safeBLESend(responseStr, true);
+          }
+          else if (doc["cmd"] == "GET_OTA_STATUS") {
+            // Send OTA status response
+            DynamicJsonDocument response(256);
+            response["type"] = "ota_status";
+            response["active"] = bleOTAActive;
+            response["library"] = "ESP32 Update";
+            
+            if (bleOTAActive && otaStartTime > 0) {
+              response["elapsed_ms"] = millis() - otaStartTime;
+              response["written"] = otaWritten;
+              response["size"] = otaSize;
+              if (otaSize > 0) {
+                response["progress"] = (float)otaWritten / otaSize * 100.0;
+              }
+            }
+            
+            String responseStr;
+            serializeJson(response, responseStr);
+            safeBLESend(responseStr, true);
           }
           else if (doc["cmd"] == "FW_CHUNK") {
-            int chunkIndex = doc["index"];
-            String base64Data = doc["data"];
-            
-            // Update activity timestamp
-            lastOTAActivity = millis();
-            
-            Serial.printf("=== CHUNK %d DEBUG START ===\n", chunkIndex);
-            Serial.printf("Chunk index: %d\n", chunkIndex);
-            Serial.printf("Base64 data length: %d\n", base64Data.length());
-            Serial.printf("Free heap before processing: %d bytes\n", ESP.getFreeHeap());
-            Serial.printf("Update progress before chunk: %d bytes\n", Update.progress());
-            Serial.printf("Update remaining before chunk: %d bytes\n", Update.remaining());
-            
-            // Check if we're still in a valid OTA state
-            if (!Update.isRunning()) {
-              Serial.printf("ERROR: Update not running when chunk %d received!\n", chunkIndex);
+            if (!bleOTAActive) {
+              Serial.println("[BLE OTA] Error: Firmware update not active");
               DynamicJsonDocument response(128);
-              response["type"] = "chunk_error";
-              response["index"] = chunkIndex;
-              response["error"] = "Update not running";
+              response["type"] = "error";
+              response["message"] = "Update not active";
               String responseStr;
               serializeJson(response, responseStr);
               safeBLESend(responseStr, true);
               return;
             }
             
-            // Simple base64 decode using Arduino's built-in capabilities
-            // Calculate decoded length (roughly 3/4 of base64 length)
-            int maxDecodedLen = (base64Data.length() * 3) / 4 + 1;
-            Serial.printf("Allocating %d bytes for decoded data\n", maxDecodedLen);
-            
-            uint8_t* decodedData = new uint8_t[maxDecodedLen];
-            if (!decodedData) {
-              Serial.printf("ERROR: Failed to allocate memory for chunk %d!\n", chunkIndex);
+            // Get chunk data from base64
+            if (!doc.containsKey("data")) {
+              Serial.println("[BLE OTA] Error: No data in chunk");
               DynamicJsonDocument response(128);
-              response["type"] = "chunk_error";
-              response["index"] = chunkIndex;
-              response["error"] = "Memory allocation failed";
+              response["type"] = "error";
+              response["message"] = "No chunk data";
               String responseStr;
               serializeJson(response, responseStr);
               safeBLESend(responseStr, true);
               return;
             }
             
-            Serial.printf("Starting base64 decode for chunk %d...\n", chunkIndex);
+            // Decode base64 data
+            String dataB64 = doc["data"];
+            int expectedLen = (dataB64.length() * 3) / 4;
+            uint8_t* decodedData = (uint8_t*)malloc(expectedLen);
+            int actualLen = base64_decode(dataB64.c_str(), decodedData);
             
-            // Use a simple base64 decode - for now, let's use a basic implementation
-            // This is simplified - in production, use a proper base64 library
-            int decodedLen = 0;
-            const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-            
-            for (int i = 0; i < base64Data.length(); i += 4) {
-              uint32_t value = 0;
-              int padding = 0;
-              
-              // Decode 4 base64 characters into 3 bytes
-              for (int j = 0; j < 4; j++) {
-                if (i + j < base64Data.length()) {
-                  char c = base64Data[i + j];
-                  if (c == '=') {
-                    padding++;
-                  } else {
-                    // Find character index
-                    int idx = 0;
-                    for (int k = 0; k < 64; k++) {
-                      if (chars[k] == c) {
-                        idx = k;
-                        break;
-                      }
-                    }
-                    value = (value << 6) | idx;
-                  }
-                } else {
-                  padding++;
-                }
-              }
-              
-              // Extract bytes
-              if (padding < 3 && decodedLen < maxDecodedLen) decodedData[decodedLen++] = (value >> 16) & 0xFF;
-              if (padding < 2 && decodedLen < maxDecodedLen) decodedData[decodedLen++] = (value >> 8) & 0xFF;
-              if (padding < 1 && decodedLen < maxDecodedLen) decodedData[decodedLen++] = value & 0xFF;
-            }
-            
-            Serial.printf("Base64 decode completed. Decoded %d bytes from %d base64 chars\n", decodedLen, base64Data.length());
-            Serial.printf("Free heap after decode: %d bytes\n", ESP.getFreeHeap());
-            
-            // Verify we have data to write
-            if (decodedLen == 0) {
-              Serial.printf("ERROR: No data decoded for chunk %d!\n", chunkIndex);
-              delete[] decodedData;
+            if (actualLen <= 0) {
+              Serial.println("[BLE OTA] Base64 decode failed");
+              free(decodedData);
               DynamicJsonDocument response(128);
-              response["type"] = "chunk_error";
-              response["index"] = chunkIndex;
-              response["error"] = "No data decoded";
+              response["type"] = "error";
+              response["message"] = "Base64 decode failed";
               String responseStr;
               serializeJson(response, responseStr);
               safeBLESend(responseStr, true);
@@ -605,166 +596,84 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             }
             
             // Write chunk to flash
-            Serial.printf("Writing %d bytes to flash for chunk %d...\n", decodedLen, chunkIndex);
-            unsigned long writeStartTime = millis();
+            size_t written = Update.write(decodedData, actualLen);
+            free(decodedData);
             
-            size_t written = Update.write(decodedData, decodedLen);
-            
-            unsigned long writeEndTime = millis();
-            Serial.printf("Flash write completed in %lu ms\n", writeEndTime - writeStartTime);
-            
-            delete[] decodedData;
-            
-            if (written != decodedLen) {
-              Serial.printf("ERROR: Failed to write chunk %d: %d/%d bytes written\n", chunkIndex, written, decodedLen);
-              Serial.printf("Update error: %s\n", Update.errorString());
+            if (written != actualLen) {
+              Serial.printf("[BLE OTA] Write failed: %s\n", Update.errorString());
               DynamicJsonDocument response(128);
-              response["type"] = "chunk_error";
-              response["index"] = chunkIndex;
-              response["error"] = Update.errorString();
+              response["type"] = "error";
+              response["message"] = "Write failed";
               String responseStr;
               serializeJson(response, responseStr);
               safeBLESend(responseStr, true);
-            } else {
-              Serial.printf("SUCCESS: Chunk %d written successfully: %d bytes\n", chunkIndex, decodedLen);
-              Serial.printf("Update progress after chunk: %d bytes\n", Update.progress());
-              Serial.printf("Update remaining after chunk: %d bytes\n", Update.remaining());
-              Serial.printf("Free heap after write: %d bytes\n", ESP.getFreeHeap());
-              
-              DynamicJsonDocument response(128);
-              response["type"] = "chunk_ack";
-              response["index"] = chunkIndex;
-              String responseStr;
-              serializeJson(response, responseStr);
-              
-              Serial.printf("Sending chunk_ack for chunk %d...\n", chunkIndex);
-              unsigned long ackStartTime = millis();
-              
-              bool ackSent = safeBLESend(responseStr, true);
-              
-              unsigned long ackEndTime = millis();
-              Serial.printf("Chunk_ack %s in %lu ms\n", 
-                           ackSent ? "sent successfully" : "FAILED", 
-                           ackEndTime - ackStartTime);
-              
-              Serial.printf("=== CHUNK %d DEBUG END ===\n", chunkIndex);
-            }
-          }
-          else if (doc["cmd"] == "VERIFY_FW") {
-            Serial.println("Verifying firmware...");
-            Serial.printf("Update progress: %d bytes written\n", Update.progress());
-            Serial.printf("Update size: %d bytes\n", Update.size());
-            Serial.printf("Update remaining: %d bytes\n", Update.remaining());
-            
-            // Check for errors before ending
-            if (Update.hasError()) {
-              Serial.printf("Update has error before verification: %s\n", Update.errorString());
+              return;
             }
             
-            // End the update process to verify it - this also validates the partition
-            bool updateSuccess = Update.end(true); // true = validate and set boot partition
-            bool hasError = Update.hasError();
+            otaWritten += written;
+            Serial.printf("[BLE OTA] Wrote %u bytes, total: %u/%u (%.1f%%)\n", 
+                         written, otaWritten, otaSize, (float)otaWritten/otaSize*100.0);
             
-            if (!updateSuccess || hasError) {
-              Serial.printf("Firmware verification failed. Error: %s\n", Update.errorString());
-              Serial.printf("Update success: %s, Has error: %s\n", 
-                           updateSuccess ? "true" : "false", 
-                           hasError ? "true" : "false");
-            } else {
-              Serial.println("Firmware verification successful! Boot partition updated.");
-              
-              // Additional validation - check if the OTA partition is set correctly
-              const esp_partition_t* configured = esp_ota_get_boot_partition();
-              const esp_partition_t* running = esp_ota_get_running_partition();
-              if (configured != running) {
-                Serial.printf("OTA partition configured correctly: %s -> %s\n", 
-                             running->label, configured->label);
-              } else {
-                Serial.println("Warning: Boot partition not changed - this might indicate an issue");
-              }
-            }
-            
+            // Send chunk acknowledgment
             DynamicJsonDocument response(128);
-            response["type"] = "verify_complete";
-            response["success"] = updateSuccess && !hasError;
-            if (!updateSuccess || hasError) {
-              response["error"] = Update.errorString();
-              
-              // Reset OTA flag on verification failure so sensor data resumes
-              otaInProgress = false;
-              Serial.println("OTA verification failed - resuming sensor data transmission");
-            }
+            response["type"] = "chunk_ack";
+            response["written"] = otaWritten;
+            response["progress"] = (float)otaWritten / otaSize * 100.0;
             String responseStr;
             serializeJson(response, responseStr);
-            
             safeBLESend(responseStr, true);
           }
-          else if (doc["cmd"] == "APPLY_FW") {
-            Serial.println("Applying firmware update...");
-            
-            // Check if update was successful during verification
-            bool hasError = Update.hasError();
-            
-            if (!hasError && Update.isFinished()) {
-              Serial.println("Firmware update completed successfully!");
-              
-              // Verify the boot partition was set correctly
-              const esp_partition_t* configured = esp_ota_get_boot_partition();
-              const esp_partition_t* running = esp_ota_get_running_partition();
-              
-              Serial.printf("Current running partition: %s\n", running->label);
-              Serial.printf("Configured boot partition: %s\n", configured->label);
-              
-              if (configured != running) {
-                Serial.println("Boot partition successfully updated! Restarting...");
-              } else {
-                Serial.println("WARNING: Boot partition not changed - forcing restart anyway");
-              }
-              
-              // Send confirmation before restart
+          else if (doc["cmd"] == "VERIFY_FW") {
+            if (!bleOTAActive) {
+              Serial.println("[BLE OTA] Error: Firmware update not active");
               DynamicJsonDocument response(128);
-              response["type"] = "apply_complete";
-              response["success"] = true;
+              response["type"] = "error";
+              response["message"] = "Update not active";
               String responseStr;
               serializeJson(response, responseStr);
               safeBLESend(responseStr, true);
-              
-              // Wait longer for message to be sent and processed
-              delay(2000);
-              
-              // Complete shutdown of BLE and cleanup
-              Serial.println("Shutting down BLE...");
-              if (pServer) {
-                pServer->getAdvertising()->stop();
-              }
-              NimBLEDevice::deinit();
-              
-              // Wait for complete BLE shutdown
-              delay(2000);
-              
-              // Clear OTA flag before restart
-              otaInProgress = false;
-              
-              Serial.println("Performing hard restart...");
-              Serial.flush(); // Ensure all serial output is sent
-              
-              // Force complete system restart
-              ESP.restart();
-            } else {
-              Serial.printf("Cannot apply update - verification failed or incomplete. Error: %s\n", Update.errorString());
-              
-              DynamicJsonDocument response(128);
-              response["type"] = "apply_complete";
-              response["success"] = false;
-              response["error"] = hasError ? Update.errorString() : "Update not properly verified";
-              String responseStr;
-              serializeJson(response, responseStr);
-              safeBLESend(responseStr, true);
-              
-              // Reset OTA flag on failure so sensor data resumes
-              otaInProgress = false;
-              Serial.println("OTA update failed - resuming sensor data transmission");
+              return;
             }
+            
+            // Finalize the update
+            if (Update.end(true)) {
+              Serial.println("[BLE OTA] Firmware update completed successfully!");
+              
+              DynamicJsonDocument response(128);
+              response["type"] = "update_complete";
+              response["message"] = "Firmware verified and ready to apply";
+              String responseStr;
+              serializeJson(response, responseStr);
+              safeBLESend(responseStr, true);
+            } else {
+              Serial.printf("[BLE OTA] Update failed: %s\n", Update.errorString());
+              
+              DynamicJsonDocument response(128);
+              response["type"] = "error";
+              response["message"] = "Verification failed";
+              String responseStr;
+              serializeJson(response, responseStr);
+              safeBLESend(responseStr, true);
+            }
+            
+            bleOTAActive = false;
+            otaStartTime = 0;
+            otaWritten = 0;
+            otaSize = 0;
+          }
+          else if (doc["cmd"] == "APPLY_FW") {
+            Serial.println("[BLE OTA] Applying firmware update - restarting...");
+            
+            // Send response before restart
+            DynamicJsonDocument response(128);
+            response["type"] = "restarting";
+            response["message"] = "Applying firmware update";
+            String responseStr;
+            serializeJson(response, responseStr);
+            safeBLESend(responseStr, true);
+            
+            delay(1000); // Give time for response to be sent
+            ESP.restart();
           }
         } else {
           Serial.printf("[BLE RECV] JSON parsing failed: %s\n", error.c_str());
@@ -1392,74 +1301,28 @@ void loop() {
   handleDiscoveryButton();
   updateDiscoveryStatus();
   
-  // Handle OTA progress LED blinking (very fast blink during update)
-  if (otaInProgress) {
+  // Handle OTA progress LED blinking using official component
+  if (bleOTAActive) {
     unsigned long currentTime = millis();
     
     // Periodic status reporting (every 5 seconds)
     static unsigned long lastStatusReport = 0;
-    if (currentTime - lastStatusReport > OTA_STATUS_INTERVAL_MS) {
-      Serial.printf("[OTA Status] Elapsed: %lu ms, Last activity: %lu ms ago, Update running: %s\n", 
-                    currentTime - otaStartTime, 
-                    lastOTAActivity > 0 ? currentTime - lastOTAActivity : 0,
-                    Update.isRunning() ? "YES" : "NO");
+    if (currentTime - lastStatusReport > 5000) {
+      Serial.printf("[BLE OTA] Status: Active for %lu ms using official Espressif component\n", 
+                   currentTime - otaStartTime);
       lastStatusReport = currentTime;
     }
     
-    // Check for total OTA timeout (1 minute)
-    if (currentTime - otaStartTime > OTA_TIMEOUT_MS) {
-      Serial.printf("OTA update total timeout! %lu ms elapsed. Resetting OTA state.\n", currentTime - otaStartTime);
-      otaInProgress = false;
+    // Check for total OTA timeout (10 minutes - official component handles internal timeouts)
+    if (currentTime - otaStartTime > 600000) { // 10 minutes
+      Serial.printf("[BLE OTA] Total timeout after %lu ms. Component will handle cleanup.\n", 
+                   currentTime - otaStartTime);
+      bleOTAActive = false;
       otaStartTime = 0;
-      lastOTAActivity = 0;
-      
-      // Clean up any failed OTA state
-      if (Update.isRunning()) {
-        Update.abort();
-        Serial.println("Aborted running OTA update");
-      }
       
       // Turn off LED and resume normal operation
       digitalWrite(DISCOVERY_LED_PIN, LOW);
-      Serial.println("OTA total timeout recovery complete - resuming sensor data transmission");
-      return;
-    }
-    
-    // Check for activity timeout (15 seconds since last chunk)
-    if (lastOTAActivity > 0 && currentTime - lastOTAActivity > OTA_ACTIVITY_TIMEOUT_MS) {
-      Serial.printf("OTA activity timeout! %lu ms since last chunk. Resetting OTA state.\n", currentTime - lastOTAActivity);
-      otaInProgress = false;
-      otaStartTime = 0;
-      lastOTAActivity = 0;
-      
-      // Clean up any failed OTA state
-      if (Update.isRunning()) {
-        Update.abort();
-        Serial.println("Aborted stalled OTA update");
-      }
-      
-      // Turn off LED and resume normal operation
-      digitalWrite(DISCOVERY_LED_PIN, LOW);
-      Serial.println("OTA activity timeout recovery complete - resuming sensor data transmission");
-      return;
-    }
-    
-    // Check for no chunks received scenario (15 seconds after start with no activity)
-    if (lastOTAActivity == 0 && currentTime - otaStartTime > OTA_ACTIVITY_TIMEOUT_MS) {
-      Serial.printf("OTA no chunks timeout! %lu ms since start, no chunks received. Resetting OTA state.\n", currentTime - otaStartTime);
-      otaInProgress = false;
-      otaStartTime = 0;
-      lastOTAActivity = 0;
-      
-      // Clean up any failed OTA state
-      if (Update.isRunning()) {
-        Update.abort();
-        Serial.println("Aborted non-starting OTA update");
-      }
-      
-      // Turn off LED and resume normal operation
-      digitalWrite(DISCOVERY_LED_PIN, LOW);
-      Serial.println("OTA no-chunks timeout recovery complete - resuming sensor data transmission");
+      Serial.println("[BLE OTA] Timeout recovery complete - resuming sensor data transmission");
       return;
     }
     

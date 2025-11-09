@@ -14,13 +14,16 @@ export const FIRMWARE_COMMANDS = {
   START_UPDATE: 'START_FW_UPDATE',
   TRANSFER_CHUNK: 'FW_CHUNK',
   VERIFY_UPDATE: 'VERIFY_FW',
-  APPLY_UPDATE: 'APPLY_FW'
+  APPLY_UPDATE: 'APPLY_FW',
+  STOP_UPDATE: 'STOP_FW_UPDATE',
+  GET_OTA_STATUS: 'GET_OTA_STATUS'
 } as const
 
 export class BLEFirmwareUpdater {
   private characteristic: BluetoothRemoteGATTCharacteristic
   private onProgress: FirmwareUpdateCallback
-  private chunkSize = 200 // Reduced chunk size for better reliability
+  private chunkSize = 1024 // Increased chunk size for better efficiency
+  private aborted = false // Flag to stop the update process
 
   constructor(
     characteristic: BluetoothRemoteGATTCharacteristic,
@@ -28,6 +31,20 @@ export class BLEFirmwareUpdater {
   ) {
     this.characteristic = characteristic
     this.onProgress = onProgress
+    this.aborted = false
+  }
+
+  // Method to abort the firmware update
+  abort(): void {
+    console.log('[FirmwareUpdater] Aborting firmware update...')
+    this.aborted = true
+  }
+
+  // Check if update was aborted
+  private checkAborted(): void {
+    if (this.aborted) {
+      throw new Error('Firmware update was aborted')
+    }
   }
 
   async getCurrentVersion(): Promise<string> {
@@ -125,6 +142,8 @@ export class BLEFirmwareUpdater {
     console.log(`Starting firmware transfer: ${totalChunks} chunks of ${this.chunkSize} bytes`)
 
     for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+      this.checkAborted() // Check for abort before each chunk
+
       const offset = chunkIndex * this.chunkSize
       const chunkSize = Math.min(this.chunkSize, firmwareData.byteLength - offset)
       
@@ -151,9 +170,9 @@ export class BLEFirmwareUpdater {
         message: `Transferring firmware... ${chunkIndex + 1}/${totalChunks} chunks`
       })
 
-      // Small delay between chunks for stability
+      // Small delay between chunks for stability (reduced for efficiency)
       if (chunkIndex < totalChunks - 1) {
-        await this.delay(50)
+        await this.delay(20)
       }
     }
   }
@@ -187,8 +206,8 @@ export class BLEFirmwareUpdater {
     const encodedCommand = encoder.encode(command)
     
     // Validate size before sending
-    if (encodedCommand.length > 512) {
-      throw new Error(`Command too large: ${encodedCommand.length} bytes (max 512). Chunk ${chunkIndex} size: ${chunkData.byteLength}`)
+    if (encodedCommand.length > 2048) { // Increased limit for base64 data
+      throw new Error(`Command too large: ${encodedCommand.length} bytes (max 2048). Chunk ${chunkIndex} size: ${chunkData.byteLength}`)
     }
     
     console.log(`Sending chunk ${chunkIndex}: ${chunkData.byteLength} bytes raw -> ${encodedCommand.length} bytes encoded`)

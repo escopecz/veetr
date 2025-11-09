@@ -1,6 +1,7 @@
 import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react'
 import { getLatestRelease, getFirmwareAsset, downloadFirmware, compareVersions } from '../utils/githubApi'
 import { BLEFirmwareUpdater } from '../utils/firmwareUpdater'
+import { showSingleAlert } from '../utils/alertUtils'
 
 // Types for sailing data
 export interface SailingData {
@@ -382,6 +383,9 @@ const BLEContext = createContext<{
 // Provider component
 export function BLEProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(bleReducer, initialState)
+  
+  // Keep a reference to the current firmware updater so we can abort it
+  let currentFirmwareUpdater: BLEFirmwareUpdater | null = null
 
   const connect = async () => {
     if (!navigator.bluetooth) {
@@ -562,7 +566,13 @@ export function BLEProvider({ children }: { children: ReactNode }) {
           dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: errorMsg })
           
           // Show user-friendly memory error
-          alert(`❌ Insufficient Device Memory\n\nYour device doesn't have enough memory for this firmware update:\n\nRequired: ${(required/1024).toFixed(1)} KB\nAvailable: ${(available/1024).toFixed(1)} KB\nShortfall: ${((required-available)/1024).toFixed(1)} KB\n\nThis firmware update cannot be installed over Bluetooth. You may need to use a USB cable for updating.`)
+          showSingleAlert(`Your device doesn't have enough memory for this firmware update:
+
+Required: ${(required/1024).toFixed(1)} KB
+Available: ${(available/1024).toFixed(1)} KB
+Shortfall: ${((required-available)/1024).toFixed(1)} KB
+
+This firmware update cannot be installed over Bluetooth. You may need to use a USB cable for updating.`, '❌ Insufficient Device Memory')
         }
         return
       }
@@ -575,6 +585,16 @@ export function BLEProvider({ children }: { children: ReactNode }) {
       
       if (data.type === 'update_error') {
         console.error('ESP32 OTA update error:', data.message)
+        
+        // IMMEDIATELY abort the firmware updater to stop sending more chunks
+        if (currentFirmwareUpdater) {
+          console.log('[OTA] Aborting firmware updater due to update error')
+          currentFirmwareUpdater.abort()
+          currentFirmwareUpdater = null
+        }
+        
+        // Immediately stop any ongoing firmware update process
+        dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: 'Device reported update error' })
         
         // Handle empty or unhelpful error messages with more specific debugging
         let userMessage = data.message
@@ -598,7 +618,7 @@ export function BLEProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: errorMsg })
         
         // Show user-visible error with actionable guidance and debugging info
-        alert(`❌ Firmware Update Failed\n\n${userMessage}${guidance}\n\n[Debug Info: "${originalMessage}"]`)
+        showSingleAlert(`${userMessage}${guidance}\n\n[Debug Info: "${originalMessage}"]`, '❌ Firmware Update Failed')
         return
       }
       
@@ -609,11 +629,20 @@ export function BLEProvider({ children }: { children: ReactNode }) {
       
       if (data.type === 'chunk_error') {
         console.error(`ESP32 failed to write chunk ${data.index}`)
+        
+        // IMMEDIATELY abort the firmware updater to stop sending more chunks
+        if (currentFirmwareUpdater) {
+          console.log('[OTA] Aborting firmware updater due to chunk error')
+          currentFirmwareUpdater.abort()
+          currentFirmwareUpdater = null
+        }
+        
+        // Immediately stop the firmware update process
         const errorMsg = `Failed to write firmware data (chunk ${data.index})`
         dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: errorMsg })
         
         // Show user-visible error
-        alert(`❌ Firmware Update Failed\n\nFailed to write firmware data to device.\nThis could be due to:\n• Poor BLE connection\n• Device memory issues\n• Hardware problems\n\nPlease try again with a stronger connection.`)
+        showSingleAlert(`Failed to write firmware data to device.\nThis could be due to:\n• Poor BLE connection\n• Device memory issues\n• Hardware problems\n\nPlease try again with a stronger connection.`, '❌ Firmware Update Failed')
         return
       }
       
@@ -627,7 +656,14 @@ export function BLEProvider({ children }: { children: ReactNode }) {
           dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: errorMsg })
           
           // Show user-visible error with specific details
-          alert(`❌ Firmware Verification Failed\n\n${data.error}\n\nThe firmware was uploaded but failed verification. This could mean:\n• Corrupted data during transfer\n• Incompatible firmware file\n• Device hardware issues\n\nPlease try the update again.`)
+          showSingleAlert(`${data.error}
+
+The firmware was uploaded but failed verification. This could mean:
+• Corrupted data during transfer
+• Incompatible firmware file
+• Device hardware issues
+
+Please try the update again.`, '❌ Firmware Verification Failed')
         }
         return
       }
@@ -642,7 +678,13 @@ export function BLEProvider({ children }: { children: ReactNode }) {
           dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: errorMsg })
           
           // Show user-visible error with specific details
-          alert(`❌ Firmware Apply Failed\n\n${data.error}\n\nThe firmware was verified but could not be applied. This could mean:\n• Device in invalid state\n• Hardware issues during restart\n\nPlease try the update again or contact support.`)
+          showSingleAlert(`${data.error}
+
+The firmware was verified but could not be applied. This could mean:
+• Device in invalid state
+• Hardware issues during restart
+
+Please try the update again or contact support.`, '❌ Firmware Apply Failed')
         }
         return
       }
@@ -719,6 +761,18 @@ export function BLEProvider({ children }: { children: ReactNode }) {
       throw new Error('Device not connected or no update available')
     }
 
+    // Add timeout protection for firmware updates (5 minutes max)
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        // Abort the updater if it exists
+        if (currentFirmwareUpdater) {
+          currentFirmwareUpdater.abort()
+          currentFirmwareUpdater = null
+        }
+        reject(new Error('Firmware update timed out after 5 minutes. Please try again.'))
+      }, 5 * 60 * 1000) // 5 minutes
+    })
+
     try {
       dispatch({ type: 'START_FIRMWARE_UPDATE' })
 
@@ -747,20 +801,42 @@ export function BLEProvider({ children }: { children: ReactNode }) {
       // Download firmware
       const firmwareData = await downloadFirmware(firmwareAsset)
 
-      // Create updater and start update
-      const updater = new BLEFirmwareUpdater(
+      // Validate characteristics are available
+      if (!state.commandCharacteristic || !state.sensorDataCharacteristic) {
+        throw new Error('BLE characteristics not available')
+      }
+
+      // Create updater and start update with timeout protection
+      currentFirmwareUpdater = new BLEFirmwareUpdater(
         state.commandCharacteristic,
         (progress) => {
           dispatch({ type: 'UPDATE_FIRMWARE_PROGRESS', payload: progress.percentage })
         }
       )
 
-      await updater.updateFirmware(firmwareData)
+      // Race between firmware update and timeout
+      await Promise.race([
+        currentFirmwareUpdater.updateFirmware(firmwareData),
+        timeoutPromise
+      ])
+      
+      // Clear the reference on successful completion
+      currentFirmwareUpdater = null
       dispatch({ type: 'FIRMWARE_UPDATE_COMPLETE' })
 
     } catch (error) {
+      // Abort the updater on any error
+      if (currentFirmwareUpdater) {
+        currentFirmwareUpdater.abort()
+        currentFirmwareUpdater = null
+      }
+      
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       dispatch({ type: 'FIRMWARE_UPDATE_ERROR', payload: errorMessage })
+      
+      // Log the error but don't show alert here - let the error handler in handleSensorData show it
+      console.error('[Firmware Update] Update failed and aborted:', errorMessage)
+      
       throw error
     }
   }
