@@ -1,6 +1,6 @@
 // Version configuration - single source of truth
 // This version is synced from the root package.json
-const VERSION = '0.0.25'
+const VERSION = '0.0.26'
 export const APP_VERSION = `${VERSION}`
 
 // Helper function to get version for different contexts
