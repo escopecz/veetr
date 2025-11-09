@@ -1315,15 +1315,22 @@ void loop() {
     // Periodic status reporting (every 5 seconds)
     static unsigned long lastStatusReport = 0;
     if (currentTime - lastStatusReport > 5000) {
-      Serial.printf("[BLE OTA] Status: Active for %lu ms using official Espressif component\n", 
-                   currentTime - otaStartTime);
+      unsigned long elapsedMinutes = (currentTime - otaStartTime) / 60000;
+      Serial.printf("[BLE OTA] Status: Active for %lu ms (%lu minutes) using official Espressif component\n", 
+                   currentTime - otaStartTime, elapsedMinutes);
+      
+      // Warn when approaching timeout (at 50 minutes)
+      if (elapsedMinutes >= 50) {
+        Serial.printf("[BLE OTA] WARNING: Approaching timeout in %lu minutes\n", 60 - elapsedMinutes);
+      }
+      
       lastStatusReport = currentTime;
     }
     
-    // Check for total OTA timeout (10 minutes - official component handles internal timeouts)
-    if (currentTime - otaStartTime > 600000) { // 10 minutes
-      Serial.printf("[BLE OTA] Total timeout after %lu ms. Component will handle cleanup.\n", 
-                   currentTime - otaStartTime);
+    // Check for total OTA timeout (60 minutes - allow for very large firmware and slow BLE)
+    if (currentTime - otaStartTime > 3600000) { // 60 minutes
+      Serial.printf("[BLE OTA] Total timeout after %lu ms (%lu minutes). Component will handle cleanup.\n", 
+                   currentTime - otaStartTime, (currentTime - otaStartTime) / 60000);
       bleOTAActive = false;
       otaStartTime = 0;
       
