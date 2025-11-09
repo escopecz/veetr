@@ -493,6 +493,12 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
             Serial.printf("[BLE OTA] Free heap: %u bytes\n", ESP.getFreeHeap());
             Serial.printf("[BLE OTA] Flash size: %u bytes\n", ESP.getFlashChipSize());
             
+            // Ensure clean state by aborting any previous update
+            if (Update.isRunning()) {
+              Serial.println("[BLE OTA] Aborting previous update operation");
+              Update.abort();
+            }
+            
             // Begin OTA update
             if (!Update.begin(otaSize)) {
               uint8_t error = Update.getError();

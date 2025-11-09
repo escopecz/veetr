@@ -632,8 +632,11 @@ This firmware update cannot be installed over Bluetooth. You may need to use a U
         console.log(`ESP32 confirmed chunk ${data.index} received successfully`)
         
         // Forward acknowledgment to the firmware updater
+        console.log(`[BLEContext] Forwarding ack to firmware updater: ${!!currentFirmwareUpdater}`)
         if (currentFirmwareUpdater) {
           currentFirmwareUpdater.handleChunkAck(data)
+        } else {
+          console.log(`[BLEContext] No firmware updater available to handle ack for chunk ${data.index}`)
         }
         return
       }
