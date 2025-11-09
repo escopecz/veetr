@@ -242,8 +242,9 @@ class CommandCallbacks: public NimBLECharacteristicCallbacks {
         Serial.println(value.c_str());
         #endif
         
-        // Parse JSON command
-        DynamicJsonDocument doc(256);
+        // Parse JSON command - increased buffer size for firmware chunks
+        // Firmware chunks can be ~306 bytes, so we need at least 512 bytes buffer
+        DynamicJsonDocument doc(512);
         DeserializationError error = deserializeJson(doc, value.c_str());
         
         if (!error) {
