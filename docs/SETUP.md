@@ -52,9 +52,9 @@ See the **[Hardware Guide](./HARDWARE.md)** for detailed specifications and purc
 
 ### 2. Prepare the Veetr device
 
-1. Connect the GPS antenna
+1. Position the GPS module (has built-in antenna, external antenna optional for better reception)
 2. Connect the BLE (Bluetooth Low Energy) antenna
-2. Connect the wind sensor via the JST connector
+3. Connect the wind sensor via the RJ45 connector
 
 ### 3. Connect to Your Boat 🔗
 
@@ -110,10 +110,11 @@ You don't have to mount the Veetr device exactly level to the boat. Mount it fir
 
 #### **GPS Calibration** 🛰️
 **Automatic**: GPS requires no calibration
-- **External antenna required**: Connect the provided GPS antenna to the Veetr device
-- **Antenna positioning**: Mount GPS antenna pointing upward with clear view of sky
+- **Built-in antenna**: The GPS module has a built-in ceramic patch antenna and can work without external antenna
+- **External antenna (optional)**: For improved reception in challenging conditions, an external active antenna can be connected via U.FL connector
+- **Module positioning**: Mount GPS module with antenna side facing upward with clear view of sky
 - **Avoid obstructions**: Keep away from metal surfaces, masts, and cabin tops that block satellite signals
-- **Satellite acquisition**: Allow 1-2 minutes for initial GPS lock after positioning antenna
+- **Satellite acquisition**: Allow 1-2 minutes for initial GPS lock after positioning
 - **No manual steps**: GPS automatically provides accurate position and speed data
 
 **Understanding GPS Readings in the App:**
@@ -121,7 +122,7 @@ You don't have to mount the Veetr device exactly level to the boat. Mount it fir
 - **HDOP**: Horizontal Dilution of Precision - GPS accuracy indicator
   - **1.0-2.0**: Excellent accuracy (±1-3 meters)
   - **2.0-5.0**: Good accuracy (±3-7 meters) 
-  - **5.0+**: Poor accuracy (±10+ meters) - reposition external antenna for better sky view
+  - **5.0+**: Poor accuracy (±10+ meters) - reposition GPS module or use external antenna for better sky view
 - **LAT/LON**: Your current position coordinates
 
 ## Troubleshooting 🔧

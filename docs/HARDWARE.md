@@ -171,12 +171,12 @@ Some of the parts listed below use affiliate links. If you choose to purchase th
 - **Purchase Link:** https://s.click.aliexpress.com/e/_onLOZmT
 
 [![GPS Antenna](https://ae01.alicdn.com/kf/Se0e19ec06c3a4f27809794c0e53e6e55K.jpg_350x350.jpg)](https://s.click.aliexpress.com/e/_oExx7iF)
-- **Antenna** https://s.click.aliexpress.com/e/_oExx7iF
+- **External Antenna (Optional):** https://s.click.aliexpress.com/e/_oExx7iF
 
-- **Model:** GY-NEO8MV2 Module with Flight Control EEPROM MWC APM2.5 Large Antenna
+- **Model:** GY-NEO8MV2 Module with Flight Control EEPROM MWC APM2.5
 - **Chipset:** u-blox NEO-8M GNSS receiver
 - **Interface:** UART serial communication (3.3V/5V compatible)
-- **Antenna:** Large ceramic patch antenna for enhanced reception
+- **Antenna:** Built-in large ceramic patch antenna on PCB (can work standalone, but external antenna recommended for marine use)
 - **EEPROM:** Built-in configuration storage for flight control applications
 - **Data Format:** NMEA 0183 standard sentences (GGA, RMC, VTG, etc.)
 - **Update Rate:** 1-10 Hz configurable (default 1Hz)
