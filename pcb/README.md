@@ -10,6 +10,20 @@ Veetr uses a **modular breakout board design** with standard off-the-shelf senso
 
 **📋 Full Details**: [Hardware Guide](../docs/HARDWARE.md)
 
+## Design Files
+
+The complete PCB and schematic design is available on EasyEDA (OSHWLab):
+
+**🔗 [Veetr Breakout Board on EasyEDA](https://oshwlab.com/linhartescope/esp32-breakout-board)**
+
+This project includes:
+- Complete schematic design
+- PCB layout with component placement
+- Bill of Materials (BOM)
+- 3D preview of the assembled board
+
+The design can be opened, edited, and customized directly in EasyEDA's web-based editor. You can also fork the project to create your own variations. **Contributions and improvements are welcome!**
+
 ## Manufacturing Files
 
 ### Gerber Files (`gerbers/`)
