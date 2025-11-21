@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from 'react'
 import { getLatestRelease, getFirmwareAsset, downloadFirmware, compareVersions } from '../utils/githubApi'
 import { BLEFirmwareUpdater, FirmwareUpdateProgress } from '../utils/firmwareUpdater'
 import { showSingleAlert } from '../utils/alertUtils'
@@ -391,7 +391,7 @@ export function BLEProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(bleReducer, initialState)
   
   // Keep a reference to the current firmware updater so we can abort it
-  let currentFirmwareUpdater: BLEFirmwareUpdater | null = null
+  const currentFirmwareUpdaterRef = useRef<BLEFirmwareUpdater | null>(null)
 
   const connect = async () => {
     if (!navigator.bluetooth) {
@@ -593,10 +593,10 @@ This firmware update cannot be installed over Bluetooth. You may need to use a U
         console.error('ESP32 OTA update error:', data.message)
         
         // IMMEDIATELY abort the firmware updater to stop sending more chunks
-        if (currentFirmwareUpdater) {
+        if (currentFirmwareUpdaterRef.current) {
           console.log('[OTA] Aborting firmware updater due to update error')
-          currentFirmwareUpdater.abort()
-          currentFirmwareUpdater = null
+          currentFirmwareUpdaterRef.current.abort()
+          currentFirmwareUpdaterRef.current = null
         }
         
         // Immediately stop any ongoing firmware update process
@@ -632,9 +632,9 @@ This firmware update cannot be installed over Bluetooth. You may need to use a U
         console.log(`ESP32 confirmed chunk ${data.index} received successfully`)
         
         // Forward acknowledgment to the firmware updater
-        console.log(`[BLEContext] Forwarding ack to firmware updater: ${!!currentFirmwareUpdater}`)
-        if (currentFirmwareUpdater) {
-          currentFirmwareUpdater.handleChunkAck(data)
+        console.log(`[BLEContext] Forwarding ack to firmware updater: ${!!currentFirmwareUpdaterRef.current}`)
+        if (currentFirmwareUpdaterRef.current) {
+          currentFirmwareUpdaterRef.current.handleChunkAck(data)
         } else {
           console.log(`[BLEContext] No firmware updater available to handle ack for chunk ${data.index}`)
         }
@@ -645,10 +645,10 @@ This firmware update cannot be installed over Bluetooth. You may need to use a U
         console.error(`ESP32 failed to write chunk ${data.index}`)
         
         // IMMEDIATELY abort the firmware updater to stop sending more chunks
-        if (currentFirmwareUpdater) {
+        if (currentFirmwareUpdaterRef.current) {
           console.log('[OTA] Aborting firmware updater due to chunk error')
-          currentFirmwareUpdater.abort()
-          currentFirmwareUpdater = null
+          currentFirmwareUpdaterRef.current.abort()
+          currentFirmwareUpdaterRef.current = null
         }
         
         // Immediately stop the firmware update process
@@ -779,9 +779,9 @@ Please try the update again or contact support.`, '❌ Firmware Apply Failed')
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
         // Abort the updater if it exists
-        if (currentFirmwareUpdater) {
-          currentFirmwareUpdater.abort()
-          currentFirmwareUpdater = null
+        if (currentFirmwareUpdaterRef.current) {
+          currentFirmwareUpdaterRef.current.abort()
+          currentFirmwareUpdaterRef.current = null
         }
         reject(new Error('Firmware update timed out after 60 minutes. Please try again.'))
       }, 60 * 60 * 1000) // 60 minutes
@@ -821,7 +821,7 @@ Please try the update again or contact support.`, '❌ Firmware Apply Failed')
       }
 
       // Create updater and start update with timeout protection
-      currentFirmwareUpdater = new BLEFirmwareUpdater(
+      currentFirmwareUpdaterRef.current = new BLEFirmwareUpdater(
         state.commandCharacteristic,
         (progress) => {
           dispatch({ type: 'UPDATE_FIRMWARE_PROGRESS', payload: progress })
@@ -830,19 +830,19 @@ Please try the update again or contact support.`, '❌ Firmware Apply Failed')
 
       // Race between firmware update and timeout
       await Promise.race([
-        currentFirmwareUpdater.updateFirmware(firmwareData),
+        currentFirmwareUpdaterRef.current.updateFirmware(firmwareData),
         timeoutPromise
       ])
       
       // Clear the reference on successful completion
-      currentFirmwareUpdater = null
+      currentFirmwareUpdaterRef.current = null
       dispatch({ type: 'FIRMWARE_UPDATE_COMPLETE' })
 
     } catch (error) {
       // Abort the updater on any error
-      if (currentFirmwareUpdater) {
-        currentFirmwareUpdater.abort()
-        currentFirmwareUpdater = null
+      if (currentFirmwareUpdaterRef.current) {
+        currentFirmwareUpdaterRef.current.abort()
+        currentFirmwareUpdaterRef.current = null
       }
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
