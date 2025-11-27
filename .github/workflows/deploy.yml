@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths: 
-      - 'web/**'
+      - 'app/**'
       - 'package.json'
       - 'package-lock.json'
   workflow_dispatch:  # Allow manual triggering
@@ -37,7 +37,7 @@ jobs:
       run: npm ci
 
     - name: Build web app
-      run: npm run --workspace=web build
+      run: npm run --workspace=app build
 
     - name: Setup Pages
       uses: actions/configure-pages@v4
@@ -45,7 +45,7 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: './web/dist'
+        path: './app/dist'
         
     - name: Deploy to GitHub Pages
       id: deployment

@@ -24,10 +24,10 @@ jobs:
       run: npm ci
 
     - name: Build web app
-      run: npm run --workspace=web build
+      run: npm run --workspace=app build
 
     - name: Run tests (if any)
-      run: npm run --workspace=web test --passWithNoTests || true
+      run: npm run --workspace=app test --passWithNoTests || true
 
   test-firmware:
     runs-on: ubuntu-latest

@@ -35,7 +35,7 @@ Available tasks:
 ### 3. Manual Commands
 ```bash
 # Web development
-cd web && npm install && npm run dev
+cd app && npm install && npm run dev
 
 # Firmware development  
 pio run                    # Build
@@ -46,7 +46,7 @@ pio device monitor         # Serial monitor
 ## Development Workflow
 
 ### Daily Development Process:
-1. **🌐 Start Web Dev Server** - Run "Web: Dev Server" task or `cd web && npm run dev`
+1. **🌐 Start App Dev Server** - Run "App: Dev Server" task or `cd app && npm run dev`
 2. **⚡ Build Firmware** - Run "Firmware: Build" task or `pio run`
 3. **📤 Upload to ESP32** - Run "Firmware: Upload" task or `pio run --target upload` 
 4. **📺 Monitor Serial** - Run "Firmware: Monitor" task or `pio device monitor`
@@ -55,7 +55,7 @@ pio device monitor         # Serial monitor
 
 ### Code Organization
 
-#### Web Application (`/web`)
+#### Web Application (\`/app\`)
 - **React 18** + TypeScript + Vite
 - **Tailwind CSS** for styling
 - **Web Bluetooth API** for BLE communication
@@ -206,7 +206,7 @@ pio run --target uploadfs
 - **Bracket Pair Colorizer** - Code readability
 
 #### System Requirements:
-- **Node.js** v16+ (for web development)
+- **Node.js** v16+ (for app development)
 - **Python** 3.7+ (for PlatformIO)
 - **Git** (version control)
 - **USB drivers** for ESP32 (platform specific)

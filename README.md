@@ -103,7 +103,7 @@ Veetr uses a **modular breakout board design** with standard off-the-shelf senso
 ```bash
 # Clone and setup web app
 git clone https://github.com/escopecz/veetr.git
-cd veetr/web
+cd veetr/app
 npm install
 npm run dev
 

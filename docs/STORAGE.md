@@ -21,8 +21,8 @@ The web dashboard uses browser-based storage for user preferences and session da
 
 #### Implementation:
 ```typescript
-// Location: web/src/utils/storage.ts
-// Location: web/src/hooks/useSailingStorage.ts
+// Location: app/src/utils/storage.ts
+// Location: app/src/hooks/useSailingStorage.ts
 ```
 
 ### ⚡ ESP32 Firmware Storage
@@ -134,9 +134,9 @@ struct DeviceConfig {
 ## Implementation Files
 
 ### Web Dashboard:
-- `web/src/utils/storage.ts` - Storage utilities and helpers
-- `web/src/hooks/useSailingStorage.ts` - React hook for sailing data storage
-- `web/src/context/BLEContext.tsx` - BLE connection and data management
+- `app/src/utils/storage.ts` - Storage utilities and helpers
+- `app/src/hooks/useSailingStorage.ts` - React hook for sailing data storage
+- `app/src/context/BLEContext.tsx` - BLE connection and data management
 
 ### ESP32 Firmware:
 - `firmware/src/main.cpp` - Main firmware with storage functions

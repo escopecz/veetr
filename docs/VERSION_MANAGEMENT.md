@@ -5,7 +5,7 @@ This project uses centralized version management with the root `package.json` as
 ## Current Version System
 
 - **Source of Truth**: `/package.json` version field
-- **Web App**: Synced to `/web/package.json` and `/web/src/utils/version.ts`
+- **Web App**: Synced to `/app/package.json` and `/app/src/utils/version.ts`
 - **Firmware**: Synced to `#define FIRMWARE_VERSION` in `/firmware/src/main.cpp`
 
 ## How to Create a Release (Recommended)
