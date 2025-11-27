@@ -3,7 +3,7 @@ name: Mirror Site to veetr-site Repository
 on:
   push:
     branches: [main]
-    paths: ['site/**']
+    paths: ['veetr.org/**']
   workflow_dispatch:
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
         find target-repo -type f ! -path "target-repo/.git/*" ! -name "README.md" -delete
         
         # Copy new site files
-        cp -r site/* target-repo/
+        cp -r veetr.org/* target-repo/
         
         # Create or update README if it doesn't exist
         if [ ! -f target-repo/README.md ]; then
@@ -42,12 +42,12 @@ jobs:
         
         This repository contains the static website for https://veetr.org
         
-        **Note:** This repository is automatically synced from the main [Veetr repository](https://github.com/escopecz/veetr) `/site` folder.
+        **Note:** This repository is automatically synced from the main [Veetr repository](https://github.com/escopecz/veetr) `/veetr.org` folder.
         
         ## Contributing
         
         To make changes to this website:
-        1. Edit files in the `/site` folder of the [main repository](https://github.com/escopecz/veetr)
+        1. Edit files in the `/veetr.org` folder of the [main repository](https://github.com/escopecz/veetr)
         2. Changes will be automatically deployed here via GitHub Actions
         
         ## Deployment
