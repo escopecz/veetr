@@ -52,6 +52,12 @@ header {
     color: #667eea;
 }
 
+.logo-image {
+    height: 2.5rem;
+    width: auto;
+    margin-right: 0.5rem;
+}
+
 .logo span {
     margin-right: 0.5rem;
     font-size: 2rem;
