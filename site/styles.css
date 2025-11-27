@@ -237,6 +237,27 @@ nav a:hover {
     color: #2d3748;
 }
 
+.feature-hero-image {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 0 1rem;
+}
+
+.feature-hero-image img {
+    max-width: 100%;
+    width: 100%;
+    max-width: 1000px;
+    height: auto;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+    .feature-hero-image {
+        margin-bottom: 2rem;
+    }
+}
+
 .comparison-section {
     margin-bottom: 4rem;
     margin-top: 4rem;
