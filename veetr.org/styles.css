@@ -330,6 +330,40 @@ header {
     font-weight: 600;
 }
 
+.comparison-section > p {
+    color: var(--oxford-navy);
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.comparison-section > ul {
+    max-width: 700px;
+    margin: 0 auto 3rem;
+    padding: 0;
+    list-style: none;
+}
+
+.comparison-section > ul li {
+    background: var(--bright-snow);
+    padding: 1rem 1.5rem;
+    margin-bottom: 0.75rem;
+    border-radius: 8px;
+    border-left: 4px solid var(--fresh-sky);
+    color: var(--oxford-navy);
+    font-size: 1rem;
+    transition: all 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.comparison-section > ul li:hover {
+    transform: translateX(8px);
+    box-shadow: 0 4px 12px rgba(72, 179, 246, 0.2);
+    border-left-color: var(--oxford-navy);
+}
+
 .comparison-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -618,9 +652,26 @@ header {
 }
 
 .open-hardware-text li {
-    margin: 1rem 0;
-    padding: 0.5rem 0;
-    opacity: 0.9;
+    margin: 0.75rem 0;
+    padding: 1.25rem 1.5rem;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s;
+    font-size: 1.05rem;
+}
+
+.open-hardware-text li:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateX(8px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.open-hardware-text li strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 1.1rem;
 }
 
 .open-hardware-benefits {
