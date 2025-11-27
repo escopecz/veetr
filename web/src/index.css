@@ -12,21 +12,6 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
-  /* Button color variables for dark theme */
-  --btn-bg: #1a1a1a;
-  --btn-text: #fff;
-  --btn-primary-text: #000;
-  --btn-update-bg: #ff9800;
-  --btn-update-text: #212121;
-  --btn-update-hover-bg: #ffa726;
-  --btn-update-hover-text: #212121;
-  --btn-alert-bg: #d32f2f;
-  --btn-alert-text: #fff;
-  --btn-alert-hover-bg: #fff;
-  --btn-alert-hover-text: #d32f2f;
-  /* Status indicator colors for dark theme */
-  --status-update-available-bg: #4caf50;
-  --status-update-available-text: #fff;
 }
 
 a {
@@ -111,34 +96,5 @@ button:focus-visible {
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
   body {
     font-size: 16px;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-    /* Button color variables for light theme */
-    --btn-bg: #f9f9f9;
-    --btn-text: #213547;
-    --btn-primary-text: #212121;
-    --btn-update-bg: #ff9800;
-    --btn-update-text: #212121;
-    --btn-update-hover-bg: #ffa726;
-    --btn-update-hover-text: #212121;
-    --btn-alert-bg: #d32f2f;
-    --btn-alert-text: #fff;
-    --btn-alert-hover-bg: #fff;
-    --btn-alert-hover-text: #d32f2f;
-    /* Status indicator colors for light theme */
-    --status-update-available-bg: #2e7d32;
-    --status-update-available-text: #fff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: var(--btn-bg);
-    color: var(--btn-text);
   }
 }

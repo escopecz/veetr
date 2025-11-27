@@ -23,6 +23,9 @@
   --error-color: #e53e3e;
   --compass-stroke: #a9a9a9;
   --compass-fill: #a9a9a9;
+  --btn-bg: #999999;
+  --btn-text: #000000;
+  --btn-primary-text: #212121;
 }
 
 [data-theme="dark"] {
@@ -42,6 +45,10 @@
   --error-color: #fc8181;
   --compass-stroke: #a9a9a9;
   --compass-fill: #a9a9a9;
+  /* Button colors for dark theme */
+  --btn-bg: #1a1a1a;
+  --btn-text: #ffffff;
+  --btn-primary-text: #000000;
 }
 
 body {

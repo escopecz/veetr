@@ -25,7 +25,7 @@
 }
 
 .hamburger-button:hover {
-  background: var(--bg-card);
+  background: var(--bg-secondary);
 }
 
 .hamburger-icon {
