@@ -1,3 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&display=swap');
+
+/* Veetr Brand Guidelines
+ * Font: IBM Plex Sans (Semi-Bold 600 for headings, Regular 400 for body)
+ * Complementary: Arial
+ * 
+ * Colors:
+ * Fresh Sky: #48B3F6
+ * Oxford Navy: #102F56
+ * Alice Blue: #E5F4FE
+ * Bright Snow: #F8F8F8
+ */
+
 html {
     scroll-behavior: smooth;
 }
@@ -8,11 +21,19 @@ html {
     box-sizing: border-box;
 }
 
+:root {
+    --fresh-sky: #48B3F6;
+    --oxford-navy: #102F56;
+    --alice-blue: #E5F4FE;
+    --bright-snow: #F8F8F8;
+}
+
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-family: 'IBM Plex Sans', Arial, sans-serif;
+    font-weight: 400;
     line-height: 1.6;
-    color: #333;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: var(--oxford-navy);
+    background: linear-gradient(135deg, var(--fresh-sky) 0%, var(--oxford-navy) 100%);
     min-height: 100vh;
 }
 
@@ -23,13 +44,13 @@ body {
 }
 
 header {
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(248, 248, 248, 0.95);
     backdrop-filter: blur(10px);
     padding: 1rem 0;
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 20px rgba(16, 47, 86, 0.1);
 }
 
 .header-content {
@@ -42,14 +63,14 @@ header {
     display: flex;
     align-items: center;
     font-size: 1.8rem;
-    font-weight: bold;
-    color: #4a5568;
+    font-weight: 600;
+    color: var(--oxford-navy);
     text-decoration: none;
     transition: color 0.3s;
 }
 
 .logo:hover {
-    color: #667eea;
+    color: var(--fresh-sky);
 }
 
 .logo-image {
@@ -76,7 +97,7 @@ header {
     display: block;
     width: 25px;
     height: 3px;
-    background-color: #4a5568;
+    background-color: var(--oxford-navy);
     margin: 5px 0;
     transition: all 0.3s ease;
     border-radius: 3px;
@@ -95,7 +116,7 @@ header {
 }
 
 .main-nav a {
-    color: #4a5568;
+    color: var(--oxford-navy);
     text-decoration: none;
     margin-left: 2rem;
     font-weight: 500;
@@ -103,7 +124,7 @@ header {
 }
 
 .main-nav a:hover {
-    color: #667eea;
+    color: var(--fresh-sky);
 }
 
 .hero {
@@ -130,7 +151,7 @@ header {
 .hero h1 {
     font-size: 3.5rem;
     margin-bottom: 1rem;
-    font-weight: 700;
+    font-weight: 600;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
@@ -165,11 +186,11 @@ header {
 
 .btn-primary {
     background: white;
-    color: #667eea;
+    color: var(--fresh-sky);
 }
 
 .btn-primary:hover {
-    background: #f7fafc;
+    background: var(--bright-snow);
     transform: translateY(-2px);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
@@ -183,11 +204,11 @@ header {
 
 .btn-secondary:hover {
     background: white;
-    color: #667eea;
+    color: var(--fresh-sky);
 }
 
 .about {
-    background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+    background: linear-gradient(135deg, var(--bright-snow) 0%, var(--alice-blue) 100%);
     padding: 6rem 0;
 }
 
@@ -195,7 +216,8 @@ header {
     text-align: center;
     font-size: 2.5rem;
     margin-bottom: 3rem;
-    color: #2d3748;
+    color: var(--oxford-navy);
+    font-weight: 600;
 }
 
 .about-content {
@@ -209,19 +231,20 @@ header {
 .about-philosophy h3 {
     font-size: 1.5rem;
     margin-bottom: 1.5rem;
-    color: #2d3748;
+    color: var(--oxford-navy);
+    font-weight: 600;
 }
 
 .about-story p,
 .about-philosophy p {
     margin-bottom: 1.5rem;
-    color: #4a5568;
+    color: var(--oxford-navy);
     line-height: 1.7;
 }
 
 .about-story a,
 .about-philosophy a {
-    color: #667eea;
+    color: var(--fresh-sky);
     text-decoration: none;
     border-bottom: 1px solid transparent;
     transition: border-color 0.3s;
@@ -229,7 +252,7 @@ header {
 
 .about-story a:hover,
 .about-philosophy a:hover {
-    border-bottom-color: #667eea;
+    border-bottom-color: var(--fresh-sky);
 }
 
 .about-stats {
@@ -243,7 +266,7 @@ header {
     align-items: center;
     gap: 0.5rem;
     font-weight: 600;
-    color: #2d3748;
+    color: var(--oxford-navy);
 }
 
 .stat-icon {
@@ -271,7 +294,8 @@ header {
     text-align: center;
     font-size: 2.5rem;
     margin-bottom: 3rem;
-    color: #2d3748;
+    color: var(--oxford-navy);
+    font-weight: 600;
 }
 
 .feature-hero-image {
@@ -302,7 +326,8 @@ header {
     text-align: center;
     font-size: 2rem;
     margin-bottom: 2rem;
-    color: #2d3748;
+    color: var(--oxford-navy);
+    font-weight: 600;
 }
 
 .comparison-grid {
@@ -313,10 +338,10 @@ header {
 }
 
 .comparison-item {
-    background: #f7fafc;
+    background: var(--bright-snow);
     padding: 2rem;
     border-radius: 12px;
-    border: 2px solid #e2e8f0;
+    border: 2px solid var(--alice-blue);
     transition: all 0.3s;
 }
 
@@ -329,11 +354,11 @@ header {
 .comparison-item h4 {
     font-size: 1.3rem;
     margin-bottom: 1rem;
-    color: #2d3748;
+    color: var(--oxford-navy);
 }
 
 .comparison-item p {
-    color: #4a5568;
+    color: var(--oxford-navy);
     margin-bottom: 1rem;
     line-height: 1.6;
 }
@@ -343,22 +368,22 @@ header {
 }
 
 .comparison-item strong {
-    color: #2d3748;
+    color: var(--oxford-navy);
 }
 
 .veetr-highlight {
-    background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-    border: 2px solid #667eea;
+    background: linear-gradient(135deg, var(--fresh-sky)15 0%, var(--oxford-navy)15 100%);
+    border: 2px solid var(--fresh-sky);
     position: relative;
 }
 
 .veetr-highlight:hover {
-    border-color: #5568d3;
+    border-color: var(--fresh-sky);
     box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
 }
 
 .veetr-highlight h4 {
-    color: #667eea;
+    color: var(--fresh-sky);
 }
 
 .comparison-table-container {
@@ -376,7 +401,7 @@ header {
 }
 
 .comparison-table thead {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--fresh-sky) 0%, var(--oxford-navy) 100%);
     color: white;
 }
 
@@ -392,12 +417,12 @@ header {
 }
 
 .comparison-table tbody tr {
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--alice-blue);
     transition: background-color 0.2s;
 }
 
 .comparison-table tbody tr:hover {
-    background-color: #f7fafc;
+    background-color: var(--bright-snow);
 }
 
 .comparison-table tbody tr:last-child {
@@ -406,13 +431,13 @@ header {
 
 .comparison-table td {
     padding: 1rem;
-    color: #4a5568;
+    color: var(--oxford-navy);
     text-align: center;
 }
 
 .comparison-table td:first-child {
     text-align: left;
-    color: #2d3748;
+    color: var(--oxford-navy);
 }
 
 .comparison-table td:last-child {
@@ -426,19 +451,19 @@ header {
 
 .clickable-text {
     cursor: pointer;
-    color: #667eea;
+    color: var(--fresh-sky);
     text-decoration: underline;
     text-decoration-style: dotted;
     transition: color 0.2s;
 }
 
 .clickable-text:hover {
-    color: #5568d3;
+    color: var(--fresh-sky);
 }
 
 .more-text {
-    color: #667eea;
-    font-weight: bold;
+    color: var(--fresh-sky);
+    font-weight: 600;
 }
 
 /* Modal styles */
@@ -481,7 +506,7 @@ header {
     color: #a0aec0;
     float: right;
     font-size: 2rem;
-    font-weight: bold;
+    font-weight: 600;
     line-height: 1;
     cursor: pointer;
     transition: color 0.2s;
@@ -489,18 +514,18 @@ header {
 
 .modal-close:hover,
 .modal-close:focus {
-    color: #2d3748;
+    color: var(--oxford-navy);
 }
 
 #modalTitle {
     margin-top: 0;
     margin-bottom: 1rem;
-    color: #2d3748;
+    color: var(--oxford-navy);
     font-size: 1.5rem;
 }
 
 #modalText {
-    color: #4a5568;
+    color: var(--oxford-navy);
     line-height: 1.7;
 }
 
@@ -529,8 +554,8 @@ header {
     text-align: center;
     padding: 2rem;
     border-radius: 12px;
-    background: #f7fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--bright-snow);
+    border: 1px solid var(--alice-blue);
     transition: transform 0.3s, box-shadow 0.3s;
 }
 
@@ -547,15 +572,15 @@ header {
 .feature h3 {
     font-size: 1.3rem;
     margin-bottom: 1rem;
-    color: #2d3748;
+    color: var(--oxford-navy);
 }
 
 .feature p {
-    color: #4a5568;
+    color: var(--oxford-navy);
 }
 
 .open-hardware {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--fresh-sky) 0%, var(--oxford-navy) 100%);
     color: white;
     padding: 6rem 0;
 }
@@ -577,7 +602,7 @@ header {
 .open-hardware-text h3 {
     font-size: 1.5rem;
     margin-bottom: 1rem;
-    color: #e2e8f0;
+    color: var(--alice-blue);
 }
 
 .open-hardware-text p {
@@ -620,7 +645,7 @@ header {
 
 .benefit-item h4 {
     margin: 0 0 0.5rem 0;
-    color: #e2e8f0;
+    color: var(--alice-blue);
 }
 
 .benefit-item p {
@@ -637,7 +662,7 @@ header {
 }
 
 .specs {
-    background: #f7fafc;
+    background: var(--bright-snow);
     padding: 6rem 0;
 }
 
@@ -645,7 +670,7 @@ header {
     text-align: center;
     font-size: 2.5rem;
     margin-bottom: 3rem;
-    color: #2d3748;
+    color: var(--oxford-navy);
 }
 
 .specs-grid {
@@ -662,7 +687,7 @@ header {
 }
 
 .spec-card h3 {
-    color: #667eea;
+    color: var(--fresh-sky);
     margin-bottom: 1rem;
     font-size: 1.2rem;
 }
@@ -673,8 +698,8 @@ header {
 
 .spec-list li {
     padding: 0.5rem 0;
-    color: #4a5568;
-    border-bottom: 1px solid #e2e8f0;
+    color: var(--oxford-navy);
+    border-bottom: 1px solid var(--alice-blue);
 }
 
 .spec-list li:last-child {
@@ -690,7 +715,7 @@ header {
     text-align: center;
     font-size: 2.5rem;
     margin-bottom: 3rem;
-    color: #2d3748;
+    color: var(--oxford-navy);
 }
 
 .docs-grid {
@@ -700,10 +725,10 @@ header {
 }
 
 .doc-card {
-    background: #f7fafc;
+    background: var(--bright-snow);
     padding: 2rem;
     border-radius: 12px;
-    border-left: 4px solid #667eea;
+    border-left: 4px solid var(--fresh-sky);
     transition: transform 0.3s;
 }
 
@@ -712,17 +737,17 @@ header {
 }
 
 .doc-card h3 {
-    color: #2d3748;
+    color: var(--oxford-navy);
     margin-bottom: 1rem;
 }
 
 .doc-card p {
-    color: #4a5568;
+    color: var(--oxford-navy);
     margin-bottom: 1rem;
 }
 
 .doc-card a {
-    color: #667eea;
+    color: var(--fresh-sky);
     text-decoration: none;
     font-weight: 600;
 }
@@ -732,7 +757,7 @@ header {
 }
 
 footer {
-    background: #2d3748;
+    background: var(--oxford-navy);
     color: white;
     padding: 3rem 0;
     text-align: center;
@@ -762,7 +787,7 @@ footer {
 }
 
 .footer-bottom {
-    border-top: 1px solid #4a5568;
+    border-top: 1px solid var(--oxford-navy);
     padding-top: 2rem;
     color: #a0aec0;
 }
@@ -821,6 +846,6 @@ footer {
         margin: 0;
         font-size: 1.2rem;
         padding: 0.5rem 0;
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid var(--alice-blue);
     }
 }
