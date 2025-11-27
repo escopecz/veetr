@@ -26,11 +26,16 @@
                     <span>⛵</span>
                     Veetr
                 </a>
-                <nav>
-                    <a href="#about">About</a>
+                <button class="mobile-menu-toggle" aria-label="Toggle menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <nav class="main-nav">
                     <a href="#features">Features</a>
                     <a href="#specs">Specifications</a>
                     <a href="#docs">Documentation</a>
+                    <a href="#about">About</a>
                     <a href="https://github.com/escopecz/veetr">GitHub</a>
                 </nav>
             </div>
@@ -56,36 +61,30 @@
             <div class="feature-hero-image">
                 <img src="img/veetr-tablet-phone-1024.png" alt="Veetr Dashboard on Multiple Devices" />
             </div>
-            <h2>Why Choose Veetr?</h2>
+            <h2>Features</h2>
             
             <div class="features-grid">
                 <div class="feature">
-                    <div class="feature-icon">🌊</div>
                     <h3>Real-Time Data</h3>
-                    <p>Track apparent and true wind speed, GPS position, vessel heading, and heel angle with sub-second updates.</p>
+                    <p>Track apparent and true <strong>wind speed</strong>, speed over ground, GPS position, vessel heading, and heel angle with sub-second updates.</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">📱</div>
-                    <h3>Modern Interface</h3>
-                    <p>Progressive Web App that works on any device. Install on your phone for offline access and native app experience.</p>
+                    <h3>App and firmware upgrades</h3>
+                    <p>The device firmware and mobile app will grow with new features and improvements over time, ensuring your sailing experience keeps getting better.</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">🔓</div>
                     <h3>Open Hardware & Software</h3>
                     <p>Complete schematics, PCB designs, 3D models, firmware, and web app are all open source. Build from scratch, modify designs, or buy a kit.</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">⚡</div>
                     <h3>Low Power</h3>
                     <p>Runs 24h+ with a 10Ah power bank. Perfect for multi-day sailing without draining your boat's electrical system.</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">🤝</div>
-                    <h3>Community Driven</h3>
-                    <p>Built by sailors, for sailors. Anyone can contribute features, improvements, or fixes that benefit the entire community. Your idea could be in the next release.</p>
+                    <h3>No moving parts</h3>
+                    <p>Even the wind sensor has no moving parts, reducing maintenance and increasing reliability.</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">💰</div>
                     <h3>Truly Affordable</h3>
                     <p>Build for ~$250 in components yourself, or with a <a href="https://veetr.com">kit</a> without any technical knowledge for $500 .</p>
                 </div>
@@ -512,6 +511,33 @@
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape' && modal.style.display === 'block') {
                 modal.style.display = 'none';
+            }
+        });
+        
+        // Mobile menu toggle
+        const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+        const mainNav = document.querySelector('.main-nav');
+        
+        mobileMenuToggle.addEventListener('click', function() {
+            this.classList.toggle('active');
+            mainNav.classList.toggle('active');
+        });
+        
+        // Close mobile menu when clicking on a link
+        document.querySelectorAll('.main-nav a').forEach(link => {
+            link.addEventListener('click', function() {
+                mobileMenuToggle.classList.remove('active');
+                mainNav.classList.remove('active');
+            });
+        });
+        
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.main-nav') && 
+                !event.target.closest('.mobile-menu-toggle') && 
+                mainNav.classList.contains('active')) {
+                mobileMenuToggle.classList.remove('active');
+                mainNav.classList.remove('active');
             }
         });
     </script>
